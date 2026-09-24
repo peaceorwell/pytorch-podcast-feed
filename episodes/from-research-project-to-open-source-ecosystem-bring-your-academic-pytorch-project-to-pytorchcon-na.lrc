@@ -1,0 +1,114 @@
+[ti:From Research Project to Open Source Ecosystem]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: What happens when a useful PyTorch research project outlives the paper that created it?
+[00:06.56]That’s the question behind a new academic workshop at PyTorch Conference North America 2026.
+[00:13.84]Brian: Right.
+[00:14.23]The workshop is trying to help projects make a difficult jump: from a research artifact to a sustainable open source project that a wider community can use and maintain.
+[00:25.56]Ava: So this is for university labs and student teams whose code works, but whose project may still depend on one graduating student or one person who knows the release process.
+[00:37.22]Brian: Exactly.
+[00:37.83]The PyTorch Foundation OSPO and Academic Outreach Working Group wants to bridge that gap.
+[00:44.60]OSPO means Open Source Program Office.
+[00:47.49]The group is inviting academic PyTorch projects to apply for a Day 0 workshop focused on education and community adoption.
+[00:57.13]Ava: Let’s start with the basic opportunity. What does a selected team actually get?
+[01:02.95]Brian: Eight selected projects will give short lightning talks during the workshop.
+[01:08.33]Each talk is five minutes, and presenters must attend in person.
+[01:12.85]After that, the teams join a hands-on workshop and mentor office hours.
+[01:18.23]Ava: Office hours with whom?
+[01:20.28]Brian: With maintainers, open source program managers, people who support open source ecosystems in industry and research organizations, open source contributors, and members of the broader PyTorch community.
+[01:33.71]Ava: So it’s not just a showcase.
+[01:35.88]Teams bring their real repositories and work on them with mentors.
+[01:41.33]Brian: That’s the idea. The article describes a move from show-and-tell to show-and-build.
+[01:47.17]The goal is for each team to leave with a prioritized set of next steps.
+[01:52.58]Ava: What kind of projects are they looking for? Is this only about a new model architecture?
+[01:58.59]Brian: No. They want projects with technical value beyond one experiment or one paper.
+[02:03.97]That could be a library or developer tool, a research framework for a specific domain, or a compiler, runtime, profiling, distributed training, inference, or optimization project.
+[02:16.51]Ava: That’s a pretty wide range.
+[02:18.90]Brian: It is.
+[02:19.32]The call also includes work in computer vision, natural language processing, robotics, scientific computing, healthcare, responsible AI, and accessibility.
+[02:30.03]Evaluation and benchmarking frameworks count too, as do reproducibility toolkits, research infrastructure, and educational tools.
+[02:39.29]Ava: And the project has to connect to the PyTorch ecosystem.
+[02:43.94]Brian: Yes. It needs to use PyTorch or another PyTorch Foundation hosted project.
+[02:49.96]The article names DeepSpeed, Helion, Ray, Safetensors, and vLLM as examples of those hosted projects.
+[02:58.52]Ava: Could it be an implementation that accompanies a major research paper?
+[03:03.57]Brian: Yes, if it has a life beyond the paper.
+[03:05.99]They also welcome projects that connect these projects with other parts of the open source AI stack, and they say they’re open to ideas they haven’t thought of yet.
+[03:16.52]Ava: That last part sounds encouraging.
+[03:18.74]A team doesn’t have to force its work into a fixed category.
+[03:22.99]Brian: Right. The larger message is that you don’t need to have everything figured out.
+[03:28.65]Ava: That sounds almost too good to be true for an open source call.
+[03:32.81]What does “not everything figured out” mean here?
+[03:36.39]Brian: Academic research software and sustainable community projects are often built under different conditions.
+[03:44.02]Academic teams optimize for experimentation, publication, reproducibility, and research velocity.
+[03:51.08]A sustainable project also needs documentation, releases, governance, security, contributor onboarding, testing, licensing, maintainer succession, and community operations.
+[04:03.93]Ava: Maintainer succession is a big one.
+[04:06.33]A student may create the project, graduate, and then nobody knows how to keep it moving.
+[04:12.71]Brian: Exactly. The article lists that situation directly.
+[04:16.42]Other examples include documentation that needs work, a repository that new contributors can’t navigate, an informal governance process, weak CI or packaging, or no CONTRIBUTING dot md, SECURITY dot md, or maintainer policy.
+[04:33.10]Ava: So a project can apply even if those pieces are missing?
+[04:37.29]Brian: Yes. Those gaps are part of the reason the workshop exists.
+[04:41.33]Teams may also be unsure how to build a contributor community, how to turn users into contributors, or what would eventually be needed to become a PyTorch Ecosystem project.
+[04:53.55]Ava: Let’s unpack the workshop itself. What happens during the project showcases?
+[04:59.39]Brian: Selected teams explain the problem they’re solving, how they use or extend PyTorch Foundation hosted projects, and the academic context behind the work.
+[05:09.10]They also talk about who uses the project today, why it could matter to the broader community, and what support or changes could help it reach the next stage.
+[05:19.54]Ava: Then the office hours get more practical.
+[05:22.70]Brian: Much more practical.
+[05:24.10]Mentors may ask whether someone can understand what the project does, install it, run it, test it, and learn how to contribute.
+[05:32.98]That’s what the article calls open source readiness.
+[05:36.97]Ava: I like that sequence. First, can a new user get started? Then, can a contributor join?
+[05:43.63]Brian: Yes. Governance is another topic. Who makes decisions? Who can merge changes?
+[05:50.07]What happens when the original academic maintainers move on?
+[05:55.43]Ava: And reproducibility is broader than publishing a paper.
+[06:00.05]Brian: Right. Another researcher should be able to reproduce the results.
+[06:04.78]That means datasets, benchmarks, evaluation methodology, dependencies, and artifacts need to be clearly documented.
+[06:13.36]Ava: What about the operational side?
+[06:15.85]Brian: They’ll discuss security and maintenance too: dependencies, vulnerabilities, releases, and supported PyTorch versions.
+[06:24.79]They may also look at ecosystem positioning.
+[06:28.12]What’s the project’s relationship with PyTorch? What unique problem does it solve?
+[06:34.33]What would need to change before a future PyTorch Ecosystem application made sense?
+[06:40.97]Ava: That sounds like a roadmap conversation, not a pass-or-fail inspection.
+[06:46.57]Brian: That’s how the article presents it.
+[06:49.17]The ambition is to identify gaps and turn them into actionable next steps for making a project easier to use, contribute to, maintain, and grow.
+[07:00.20]Ava: Who can submit? Only professors or official university labs?
+[07:05.73]Brian: No.
+[07:05.94]The call includes university students and graduate researchers, professors and academic educators, research labs and institutes, research software engineers, Academic OSPOs, maintainers of research-originated open source projects, and academic communities building tools around the hosted projects.
+[07:27.61]Ava: And projects can come from anywhere in the world.
+[07:31.44]Brian: Yes.
+[07:31.70]They don’t need to represent a large institution, have thousands of users, or already have a mature open source organization.
+[07:39.77]The organizers care about the idea, its usefulness, its relationship with PyTorch, the work already happening around it, and its potential to grow beyond the original academic environment.
+[07:52.26]Ava: How will they evaluate submissions?
+[07:55.13]Brian: There are six criteria.
+[07:56.96]Academic relevance: the project came from, substantially grew out of, or supports academic research.
+[08:04.89]Ecosystem relevance: it uses, extends, or integrates with PyTorch or another hosted project.
+[08:12.20]Open source readiness: there’s a public repository, an open source license, and enough documentation for mentors to review it.
+[08:22.55]Ava: What are the remaining three?
+[08:24.65]Brian: Potential impact, meaning it addresses a meaningful problem and could help users beyond the original research team.
+[08:32.41]Team commitment, meaning at least one maintainer can attend and continue the agreed next steps afterward.
+[08:39.49]And cohort diversity, so the final group represents different institutions, research areas, project stages, and geographic regions.
+[08:48.67]Ava: What should an applicant put in the submission?
+[08:51.75]Brian: Start with the repository and a short description.
+[08:55.18]Explain where the project came from: a university, lab, research group, course, or academic collaboration.
+[09:02.45]Then describe how it uses or extends PyTorch or its ecosystem, and who it helps, such as researchers, students, machine learning engineers, or a particular scientific community.
+[09:14.93]Ava: They also want evidence of what exists today.
+[09:18.45]Brian: Yes.
+[09:18.75]Users, contributors, releases, papers, deployments, courses, benchmarks, or other signs of adoption are useful context.
+[09:27.81]Then be honest about where you’re stuck: documentation, governance, packaging, testing, contributors, maintainers, visibility, reproducibility, or ecosystem readiness.
+[09:40.88]Ava: And the final question is what the workshop should help achieve.
+[09:45.91]Brian: Exactly. They’re not looking for perfectly polished applications.
+[09:50.57]They’re looking for projects worth helping.
+[09:54.01]Ava: Let’s make the deadline clear. When does this call close?
+[09:58.73]Brian: September thirtieth, twenty twenty-six, at midnight Pacific Time.
+[10:03.47]Registration for the event is separate from the PyTorch Conference and will open later that week.
+[10:10.91]Ava: So if you have a project that deserves a life beyond a paper, thesis, course, grant, or research group, this is a direct invitation.
+[10:20.35]Brian: Yes.
+[10:20.62]The project should already be open source and connected to PyTorch or one of the other hosted projects, but it doesn’t need to be polished.
+[10:29.92]The workshop is designed for the transition itself.
+[10:33.69]Ava: Let’s close with a three-point recap.
+[10:36.25]First, this workshop helps academic PyTorch projects move toward sustainable community adoption.
+[10:43.23]Brian: Second, selected teams get five-minute lightning talks, hands-on work with mentors, and office hours covering readiness, governance, reproducibility, community, security, maintenance, and ecosystem positioning.
+[11:00.07]Ava: Third, the organizers value potential and commitment over perfect maturity.
+[11:05.33]Submit the project, explain what exists, say where you’re stuck, and describe the next step you want help with.
+[11:13.47]Brian: And remember the deadline: September thirtieth, twenty twenty-six, midnight Pacific Time.
+[11:21.36]Ava: That’s it for today.
+[11:22.74]If your academic PyTorch project deserves a future beyond the original lab, bring it to the workshop.
+[11:30.04]Brian: Thanks for listening. We’ll see you in the next episode.

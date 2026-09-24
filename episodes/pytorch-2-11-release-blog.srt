@@ -1,0 +1,427 @@
+1
+00:00:00,000 --> 00:00:06,089
+Ava: If your distributed training code needs gradients through communication, PyTorch 2.
+
+2
+00:00:06,089 --> 00:00:08,657
+11 could change what you can build.
+
+3
+00:00:08,657 --> 00:00:14,232
+And if you're on Hopper or Blackwell, attention kernels may get much faster.
+
+4
+00:00:14,232 --> 00:00:17,150
+Brian, what landed in this release?
+
+5
+00:00:17,150 --> 00:00:19,146
+Brian: A lot, actually. PyTorch 2.
+
+6
+00:00:19,146 --> 00:00:33,100
+11 has differentiable collectives, a FlashAttention-4 backend for FlexAttention, a much broader MPS story, GPU export for RNNs and LSTMs, and several device and inference improvements.
+
+7
+00:00:33,100 --> 00:00:36,417
+Ava: Let's start with the distributed training change.
+
+8
+00:00:36,417 --> 00:00:42,522
+The phrase “differentiable collectives” sounds important, but also a little abstract.
+
+9
+00:00:42,522 --> 00:00:48,739
+Brian: Sure. A collective is a communication operation used by distributed workers. In 2.
+
+10
+00:00:48,739 --> 00:00:52,910
+11, functional collectives can support differentiation.
+
+11
+00:00:52,910 --> 00:01:00,008
+That means a training workflow can backpropagate through the collective operation itself.
+
+12
+00:01:00,008 --> 00:01:05,398
+Ava: Wait, so communication can now sit inside the gradient path?
+
+13
+00:01:05,398 --> 00:01:07,495
+Brian: Exactly. That's the key idea.
+
+14
+00:01:07,495 --> 00:01:14,581
+Before this support, researchers might need custom autograd functions for some advanced workflows.
+
+15
+00:01:14,581 --> 00:01:22,668
+With differentiable collectives, those workflows may be implemented without writing those custom functions.
+
+16
+00:01:22,668 --> 00:01:30,152
+Ava: The article calls this a significant step for distributed deep learning research and advanced training techniques.
+
+17
+00:01:30,152 --> 00:01:33,194
+Does it promise a specific new algorithm?
+
+18
+00:01:33,194 --> 00:01:37,731
+Brian: No. It doesn't name a benchmark or one particular algorithm.
+
+19
+00:01:37,731 --> 00:01:42,117
+The claim is about enabling a class of training workflows.
+
+20
+00:01:42,117 --> 00:01:50,104
+The feature is also listed under API-UNSTABLE, so users should expect the interface to keep changing.
+
+21
+00:01:50,104 --> 00:01:50,655
+Ava: Got it.
+
+22
+00:01:50,655 --> 00:01:59,502
+So the practical message is: gradients through communication are now possible, but the API isn't frozen yet.
+
+23
+00:01:59,502 --> 00:02:02,540
+Brian: Right. That's a good way to put it.
+
+24
+00:02:02,540 --> 00:02:04,925
+Ava: Now let's talk about attention.
+
+25
+00:02:04,925 --> 00:02:11,122
+What does the new FlashAttention-4 backend actually do inside FlexAttention?
+
+26
+00:02:11,122 --> 00:02:17,310
+Brian: On Hopper and Blackwell GPUs, FlexAttention can use a FlashAttention-4 backend.
+
+27
+00:02:17,310 --> 00:02:28,392
+PyTorch can automatically generate CuTeDSL score and mask modification functions, then just-in-time instantiate FlashAttention-4 kernels.
+
+28
+00:02:28,392 --> 00:02:32,510
+Ava: Can you unpack that? What should an engineer picture?
+
+29
+00:02:32,510 --> 00:02:36,031
+Brian: Picture FlexAttention as the flexible front end.
+
+30
+00:02:36,031 --> 00:02:39,845
+You describe how scores or masks should be modified.
+
+31
+00:02:39,845 --> 00:02:44,686
+The backend then creates specialized kernels for that description.
+
+32
+00:02:44,686 --> 00:02:52,444
+Here, those kernels come from FlashAttention-4, using CuTeDSL, and they're instantiated just in time.
+
+33
+00:02:52,444 --> 00:02:56,058
+Ava: And the result is faster execution?
+
+34
+00:02:56,058 --> 00:03:04,712
+Brian: The article reports one point two to three point two times speedups over the existing Triton implementation on compute-bound workloads.
+
+35
+00:03:04,712 --> 00:03:09,982
+Ava: That's a wide range. So it depends heavily on the workload.
+
+36
+00:03:09,982 --> 00:03:14,645
+Brian: Yes. The statement is specifically for compute-bound workloads.
+
+37
+00:03:14,645 --> 00:03:18,346
+We shouldn't turn it into a universal speed claim.
+
+38
+00:03:18,346 --> 00:03:30,540
+Also, this backend is still under active development, and its setup details and limitations are described in a separate FlexAttention and FlashAttention-4 post.
+
+39
+00:03:30,540 --> 00:03:37,802
+Ava: So: promising numbers, specific hardware, specific workload, and a moving API.
+
+40
+00:03:37,802 --> 00:03:45,208
+Brian: Exactly. Hopper and Blackwell matter here, and the feature may change as it stabilizes.
+
+41
+00:03:45,208 --> 00:03:53,286
+Ava: Let's move to Apple Silicon. MPS has been expanding for a while. What's new in 2. 11?
+
+42
+00:03:53,286 --> 00:03:58,248
+Brian: MPS gets error reporting support and more operator coverage.
+
+43
+00:03:58,248 --> 00:04:03,953
+New distribution functions include log_normal, cauchy, and geometric.
+
+44
+00:04:03,953 --> 00:04:12,553
+There are also operator migrations, such as erfcx, and grid_sampler_2d now supports all operation modes.
+
+45
+00:04:12,553 --> 00:04:18,692
+Finally, baddbmm and addbmm are extended to integer and complex types.
+
+46
+00:04:18,692 --> 00:04:24,346
+Ava: The error reporting sounds especially useful. What problem does it catch?
+
+47
+00:04:24,346 --> 00:04:30,979
+Brian: Asynchronous error reporting can detect out-of-bounds access during GPU indexing operations.
+
+48
+00:04:30,979 --> 00:04:37,685
+The article gives an example where an MPS tensor is indexed with an invalid index, and torch.
+
+49
+00:04:37,685 --> 00:04:41,856
+mps. synchronize raises an index-out-of-bounds error.
+
+50
+00:04:41,856 --> 00:04:48,926
+Ava: So the failure might surface when you synchronize, rather than exactly where the indexing line runs.
+
+51
+00:04:48,926 --> 00:04:52,219
+Brian: Right. That's the important debugging detail.
+
+52
+00:04:52,219 --> 00:04:59,668
+GPU work can be asynchronous, and synchronization is where the error is reported in that example.
+
+53
+00:04:59,668 --> 00:05:01,607
+Ava: Next, export support.
+
+54
+00:05:01,607 --> 00:05:09,177
+The release says RNN modules, including LSTM and GRU, can now be exported on GPUs.
+
+55
+00:05:09,177 --> 00:05:11,466
+Why does that matter?
+
+56
+00:05:11,466 --> 00:05:15,879
+Brian: It broadens the model types that can be deployed with torch.
+
+57
+00:05:15,879 --> 00:05:18,232
+export for production inference.
+
+58
+00:05:18,232 --> 00:05:23,216
+In addition, tracing LSTM with dynamic shapes is now supported.
+
+59
+00:05:23,216 --> 00:05:26,374
+Ava: And the GRU API stays the same?
+
+60
+00:05:26,374 --> 00:05:32,622
+Brian: Yes. The article says the GRU API is unchanged, while the new API is LSTM.
+
+61
+00:05:32,622 --> 00:05:40,908
+So teams working with recurrent models get a larger export path without an API change for GRU.
+
+62
+00:05:40,908 --> 00:05:47,594
+Ava: That sounds practical for production teams. What else is happening on AMD GPUs?
+
+63
+00:05:47,594 --> 00:05:52,487
+Brian: ROCm gets device-side assertions, which should improve debugging.
+
+64
+00:05:52,487 --> 00:05:58,058
+It also gets significant TopK optimizations and radix-select improvements.
+
+65
+00:05:58,058 --> 00:06:06,688
+Those improvements cache data in shared memory, helping both developer experience and performance on AMD GPUs.
+
+66
+00:06:06,688 --> 00:06:11,094
+Ava: Let's switch vendors again. What's XPU Graph?
+
+67
+00:06:11,094 --> 00:06:13,539
+Brian: XPU Graph is for Intel GPUs.
+
+68
+00:06:13,539 --> 00:06:19,826
+It captures a sequence of XPU operations into a runtime execution graph.
+
+69
+00:06:19,826 --> 00:06:23,756
+You can replay that graph multiple times.
+
+70
+00:06:23,756 --> 00:06:27,154
+Ava: And replaying avoids repeated overhead?
+
+71
+00:06:27,154 --> 00:06:27,483
+Brian: Yes.
+
+72
+00:06:27,483 --> 00:06:34,561
+It reduces CPU overhead, including kernel-launch overhead and Python-runtime overhead.
+
+73
+00:06:34,561 --> 00:06:39,005
+The goal is better workload performance on Intel GPUs.
+
+74
+00:06:39,005 --> 00:06:44,952
+The article points users to the API documentation for usage details.
+
+75
+00:06:44,952 --> 00:06:52,790
+Ava: There's also FP16 GEMM on CPUs through OpenBLAS. Is that mainly for servers?
+
+76
+00:06:52,790 --> 00:07:01,854
+Brian: The article frames it as useful for CPU-based deployments, especially edge devices and CPU-only inference scenarios.
+
+77
+00:07:01,854 --> 00:07:09,940
+OpenBLAS now provides FP16 half-precision GEMM support there, which can make FP16 inference faster.
+
+78
+00:07:09,940 --> 00:07:15,330
+Ava: Now, a release detail that can break build environments: CUDA.
+
+79
+00:07:15,330 --> 00:07:16,700
+Brian: Starting with 2.
+
+80
+00:07:16,700 --> 00:07:23,467
+11, CUDA 13 is the default installed version for both x86_64 and ARM platforms.
+
+81
+00:07:23,467 --> 00:07:29,633
+Users who need another build can still use CPU-only packages or CUDA 12.
+
+82
+00:07:29,633 --> 00:07:33,752
+8 builds from the relevant wheel subfolders.
+
+83
+00:07:33,752 --> 00:07:39,406
+Ava: So upgrading may mean checking which CUDA wheel your deployment expects.
+
+84
+00:07:39,406 --> 00:07:44,460
+Brian: Yes, especially if your environment is pinned to CUDA 12. 8.
+
+85
+00:07:44,460 --> 00:07:46,586
+Ava: And TorchScript?
+
+86
+00:07:46,586 --> 00:07:51,779
+Brian: TorchScript was deprecated in 2. 10. The guidance is to use torch.
+
+87
+00:07:51,779 --> 00:08:00,232
+export instead of the jit trace and script APIs, and to use ExecuTorch instead of the embedded runtime.
+
+88
+00:08:00,232 --> 00:08:06,294
+Ava: So 2. 11 reinforces a migration that's already underway.
+
+89
+00:08:06,294 --> 00:08:07,222
+Brian: That's right.
+
+90
+00:08:07,222 --> 00:08:14,499
+The release blog points readers to a PTC talk for more detail, but the main direction is clear: torch.
+
+91
+00:08:14,499 --> 00:08:19,772
+export for export workflows, and ExecuTorch for the embedded runtime.
+
+92
+00:08:19,772 --> 00:08:23,050
+Ava: How large was this release effort?
+
+93
+00:08:23,050 --> 00:08:29,859
+Brian: The release includes 2,723 commits from 432 contributors since PyTorch 2. 10.
+
+94
+00:08:29,859 --> 00:08:38,256
+The project thanks the community and encourages users to try the changes and report issues.
+
+95
+00:08:38,256 --> 00:08:41,462
+Ava: And the release rhythm is changing too.
+
+96
+00:08:41,462 --> 00:08:47,443
+Brian: For 2026, PyTorch moves from quarterly releases to one release every two months.
+
+97
+00:08:47,443 --> 00:08:56,092
+That means users may see features arrive more often, but they'll also need to track compatibility more closely.
+
+98
+00:08:56,092 --> 00:09:00,882
+Ava: Before we close, give me the three points I should remember.
+
+99
+00:09:00,882 --> 00:09:13,426
+Brian: First, differentiable functional collectives let gradients pass through collective operations, opening advanced distributed-training workflows without custom autograd functions.
+
+100
+00:09:13,426 --> 00:09:28,522
+Second, FlexAttention can use FlashAttention-4 on Hopper and Blackwell, with reported one point two to three point two times speedups on compute-bound workloads, while the backend remains under active development.
+
+101
+00:09:28,522 --> 00:09:29,160
+Third, 2.
+
+102
+00:09:29,160 --> 00:09:41,912
+11 expands deployment and hardware support: MPS operators and error reporting, GPU export for RNNs and LSTMs, ROCm debugging and TopK work, Intel XPU Graph, and CPU FP16 GEMM.
+
+103
+00:09:41,912 --> 00:09:51,670
+Ava: And the migration notes are CUDA 13 by default, TorchScript deprecated, and releases every two months in 2026.
+
+104
+00:09:51,670 --> 00:09:52,288
+Brian: Exactly.
+
+105
+00:09:52,288 --> 00:10:01,212
+Check the current documentation before relying on the API-UNSTABLE features, and report issues as you try them.
+
+106
+00:10:01,212 --> 00:10:02,801
+Ava: That's PyTorch 2. 11.
+
+107
+00:10:02,801 --> 00:10:09,506
+Thanks for listening, and we'll be back with another paper-to-practice conversation.

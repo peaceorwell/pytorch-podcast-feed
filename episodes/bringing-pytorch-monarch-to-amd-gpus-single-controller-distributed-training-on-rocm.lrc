@@ -1,0 +1,111 @@
+[ti:Bringing PyTorch Monarch to AMD GPUs: Single-Controller Distributed Training on ROCm]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: Imagine a language-model training job that has been running for days, then one GPU crashes—and the whole cluster has to start over.
+[00:09.49]That’s the reliability problem this PyTorch Monarch work tackles on AMD GPUs.
+[00:15.42]Brian: Exactly.
+[00:15.98]The article brings Monarch to AMD Instinct GPUs with ROCm, so healthy workers can keep training while a failed worker recovers and rejoins.
+[00:25.77]It’s a single-controller model for large distributed jobs, with fault tolerance built into the runtime.
+[00:33.36]Ava: Why isn’t ordinary checkpointing enough?
+[00:36.35]Large training systems already save checkpoints regularly.
+[00:41.03]Brian: Checkpointing is simple, but expensive.
+[00:43.79]Writing hundreds of gigabytes takes time and I/O bandwidth.
+[00:47.96]If a failure happens, every update since the last checkpoint is lost.
+[00:52.84]The whole cluster may sit idle while a node is replaced and the job restarts.
+[00:58.28]And as the cluster grows, the chance of failing during a checkpoint interval also grows.
+[01:04.86]Ava: So the goal is to recover locally instead of resetting globally.
+[01:09.81]Brian: Right. Monarch lets healthy nodes continue training while failed nodes recover.
+[01:15.68]That reduces wasted computation and keeps GPU utilization higher.
+[01:20.50]The article frames this as a shift from raw scaling to resilient scaling.
+[01:26.27]Ava: Give me the mental model for Monarch. What does a developer actually program?
+[01:31.75]Brian: You write one Python program that orchestrates an entire GPU cluster.
+[01:36.99]Monarch uses an actor-based runtime, a process mesh abstraction, and asynchronous execution.
+[01:43.96]An actor has private state, so if it crashes, the failure doesn’t automatically spread to every other actor.
+[01:52.50]Ava: Actor-based runtime can sound abstract. Is each actor basically a supervised worker?
+[01:59.69]Brian: That’s a useful way to think about it. The Python API is the top layer.
+[02:05.88]The Monarch Runtime manages actors, meshes, supervision trees, and tensor sharding.
+[02:13.11]Under that sits a Rust runtime using Tokio for performance and memory safety.
+[02:19.82]Infrastructure connects it to RDMA, RCCL or NCCL, SLURM, Kubernetes, and SkyPilot.
+[02:27.31]Ava: And the supervision tree is what gives the system hierarchy?
+[02:31.91]Brian: Yes. Failures are isolated and handled at the lowest practical level.
+[02:37.14]A local restart can take seconds. Escalation can take minutes.
+[02:41.85]Monarch also separates two concerns: the parallelism strategy inside a training replica, and the fault-tolerance mechanism across replicas.
+[02:52.40]That separation makes the recovery model cleaner.
+[02:56.47]Ava: Moving from CUDA to ROCm sounds like the hard engineering part. What had to change?
+[03:03.28]Brian: There were three main porting paths.
+[03:06.13]First, collective communications: the team used hipify_torch to convert the C++ bridge from CUDA to HIP, then linked it with RCCL, whose API mirrors NCCL’s.
+[03:18.47]Second, GPU memory management: the build detects the platform and routes CUDA driver calls through HIP equivalents.
+[03:27.92]Ava: What about networking? GPU-direct transfers often expose platform differences.
+[03:34.46]Brian: For RDMA, setting GPU_PLATFORM to rocm keeps the libibverbs-based path intact.
+[03:41.36]Only the GPU-side bindings switch from CUDA to HIP.
+[03:45.87]That preserves the RDMA route for GPU-direct transfers.
+[03:51.08]Ava: Were there awkward compatibility issues?
+[03:54.17]Brian: Two cross-cutting issues stood out.
+[03:57.09]NVIDIA provides a static CUDA runtime library, libcudart_static. a.
+[04:02.67]ROCm has no static equivalent for libamdhip64, so the ROCm build links amdhip64 dynamically.
+[04:10.35]Both platforms still load GPU driver API functions dynamically, including memory-creation calls, so the runtime contract stays the same.
+[04:22.04]Ava: And Rust bindings? I’d expect HIP names to leak everywhere.
+[04:27.41]Brian: That was the risk.
+[04:28.95]After hipify_torch rewrites headers, bindgen produces HIP types such as hipError_t, hipDeviceptr_t, and hipStream_t.
+[04:38.88]Instead of adding conditional branches at every Rust call site, the team added a rocm_compat module in nccl-sys and rdmaxcel-sys.
+[04:49.93]It re-exports HIP symbols under CUDA names.
+[04:53.61]So the rest of the Rust code remains platform-agnostic.
+[04:58.67]Ava: That sounds like a small shim with a big payoff.
+[05:02.62]Brian: Exactly.
+[05:03.17]The port introduced HIP type aliases in Rust, and all one thousand one hundred seventy-one tests passed.
+[05:10.23]The article says this supports ROCm seven point zero and later.
+[05:14.50]The contributions were upstreamed in pull requests number two thousand three hundred ninety-three and two thousand eight hundred ninety-one.
+[05:24.36]Ava: What does the completed ROCm stack support today?
+[05:28.26]Brian: It includes the Actor runtime, RDMA, Supervision, and Tensor sharding.
+[05:33.37]It runs on SLURM for high-performance computing, Kubernetes for cloud-native deployments, and SkyPilot for multi-cloud setups.
+[05:42.57]Downstream engines include TorchTitan for training and TorchFT for fault tolerance.
+[05:48.98]Ava: Let’s walk through the actual failure experiment.
+[05:52.83]How do Monarch, TorchFT, and TorchTitan divide the work?
+[05:57.57]Brian: Monarch is the orchestrator.
+[05:59.68]It creates ReplicaActors and a Lighthouse service, then organizes GPUs into Process Meshes.
+[06:06.57]TorchFT handles fault tolerance at the training-step level.
+[06:11.03]It contacts the Lighthouse for quorum coordination, performs Quorum AllReduce, and skips failed nodes.
+[06:18.75]TorchTitan runs the Forward step with FSDP—Fully Sharded Data Parallel—the Backward step, and the Optimizer step.
+[06:27.65]Ava: Okay, four replica groups, right? Start with normal training.
+[06:32.25]Brian: The OrchestrationManager starts four ReplicaActors and one Lighthouse.
+[06:37.54]Each ReplicaActor starts a Replica with eight GPU processes running TorchTitan trainers.
+[06:44.20]All four replicas form quorum number one.
+[06:47.30]DiLoCo gradient synchronization happens every twenty steps.
+[06:52.11]Ava: Then a process in Replica zero crashes.
+[06:55.85]Brian: The Monarch supervisor captures report_training_error with the full traceback before the process dies.
+[07:03.38]Replicas one, two, and three are marked unaffected, so they continue training.
+[07:09.15]ReplicaActor zero performs an in-place restart: it stops the old process mesh and spawns a new one.
+[07:16.81]Ava: While that happens, the other three don’t freeze completely?
+[07:21.51]Brian: They keep syncing as quorum number two.
+[07:24.22]Then the Lighthouse chooses Replica one as the donor.
+[07:27.91]A peer checkpoint transfer sends the model, optimizer, scheduler, and trainer state to recovering Replica zero.
+[07:35.63]All replicas pause briefly at the quorum boundary while the new quorum forms.
+[07:41.34]Ava: And after the transfer?
+[07:43.54]Brian: Replica zero is synchronized, quorum number three is established with all four replicas, and DiLoCo synchronization resumes.
+[07:52.53]There’s no manual intervention and no reload from a full global checkpoint.
+[07:57.97]The disruption to overall throughput is small.
+[08:01.65]Ava: What did the larger tests show?
+[08:04.16]Brian: On a sixteen-node SLURM cluster with one hundred twenty-eight MI300 GPUs, they trained Llama three eight B.
+[08:11.70]RCCL failures were injected every one hundred eighty seconds, with quorum synchronization every twenty steps.
+[08:19.37]Active workers fluctuated between eight and sixteen, but training continued without a full restart.
+[08:26.34]The loss curve converged steadily and closely matched the failure-free baseline.
+[08:32.33]Ava: That’s useful, because frequent failures are the real stress test.
+[08:37.43]Brian: The article also notes that no single replica was down for more than thirty minutes.
+[08:43.33]Different replicas were killed and recovered dynamically.
+[08:47.33]So the system wasn’t hiding failures; it was handling them during training.
+[08:52.95]Ava: And Kubernetes?
+[08:55.03]Brian: They scaled to a thirty-two-node Kubernetes cluster with two hundred fifty-six MI355 GPUs.
+[09:01.59]Participants stayed fairly stable, fluctuating between thirty and thirty-two during recovery.
+[09:08.36]Global average loss decreased smoothly from twelve to about four.
+[09:13.10]That suggests the model works across both SLURM and Kubernetes at this scale.
+[09:19.06]Ava: Are there limitations or open questions?
+[09:22.70]Brian: The article doesn’t claim the problem is finished.
+[09:26.10]Next steps include broader NIC support and better runtime performance, more pre-training and reinforcement-learning frameworks on ROCm, lower rejoin reload latency, and overlapping recovery with computation.
+[09:40.17]They also plan continued open-source collaboration with the PyTorch community.
+[09:45.83]Ava: Let’s close with the three points I should remember.
+[09:49.44]Brian: First, Monarch brings a single Python controller, actors, process meshes, and supervision trees to AMD GPUs through ROCm.
+[09:58.93]Second, the ROCm port uses hipify_torch, RCCL, HIP-aware memory and RDMA paths, plus Rust compatibility aliases.
+[10:07.71]Third, Monarch, TorchFT, and TorchTitan recover failed replicas through quorum coordination and peer checkpoint transfer, so healthy replicas keep training.
+[10:20.30]Ava: So the big idea is stable large-scale training, even when hardware failures are expected.
+[10:26.84]Brian: Exactly. More useful computation, less cluster-wide disruption.
+[10:31.80]Thanks for listening, and we’ll see you in the next episode.

@@ -1,0 +1,112 @@
+[ti:Hardware-Agnostic Models in vLLM: Keeping the Fast Lane Open Without Locking Everyone Else Out]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: Okay so, vLLM. Every time I check the GitHub repo it feels like it's rewriting itself.
+[00:07.24]Brian: Yeah, and this week there's actually a really interesting reason why.
+[00:11.18]There's a new blog post about what they're calling hardware-agnostic layers, and it's basically them admitting they've hit a real tension in the project.
+[00:20.28]Ava: A tension between what?
+[00:22.65]Brian: Between going as fast as possible on the newest GPUs, and still supporting, like, everything else.
+[00:30.64]Older GPUs, AMD, Google's TPUs, IBM's Spyre chips, Huawei Ascend.
+[00:35.94]vLLM's whole pitch has been: one engine, tons of hardware.
+[00:41.02]Ava: Right, that's why people like it.
+[00:43.20]You don't have to rewrite your serving stack for every accelerator.
+[00:47.97]Brian: Exactly. And the way they've pulled that off is with shared abstractions plus torch.
+[00:53.65]compile. So the model code itself stays pretty simple, and torch.
+[00:58.05]compile handles fusing operations and optimizing for whatever hardware you're on underneath.
+[01:04.62]Ava: So why is that suddenly a problem?
+[01:08.09]Brian: Because frontier models are getting really weird, really fast.
+[01:12.64]The article points to DeepSeek V4 and Kimi K3 — both hit million-token context windows, but with completely different attention mechanisms.
+[01:22.84]Totally custom stuff.
+[01:24.74]Ava: And custom stuff doesn't fit nicely into a shared abstraction.
+[01:29.53]Brian: Not easily.
+[01:30.22]To add one of these models today, you have to compose it from vLLM's shared layers, and keep the whole thing what they call fullgraph compilable.
+[01:39.34]That means Dynamo — that's the PyTorch component that traces your Python code into a graph — has to be able to trace the entire model without falling back to plain Python.
+[01:50.44]Ava: That sounds like a lot of hoops for someone just trying to ship a new model.
+[01:55.09]Brian: It is.
+[01:55.50]Every new kernel has to get registered as a torch library op, with a fake implementation for tracing and correct annotations for anything it mutates.
+[02:05.73]The article literally calls this a tax on model development.
+[02:10.20]Ava: Who's paying that tax?
+[02:12.54]Brian: Whoever adds the model. Including outside contributors who bring their own architecture.
+[02:19.02]And on top of that, new NVIDIA Blackwell GPUs and these rack-scale systems, GB300 NVL72, need really careful, hands-on kernel work to overlap computation and communication properly.
+[02:32.35]That's hard to express through a generic compiled path.
+[02:36.75]Ava: So what's vLLM's answer? Just... stop using torch. compile?
+[02:42.57]Brian: For some models, basically yes. They're introducing what they call flat models.
+[02:47.91]Instead of going through the shared layers and torch.
+[02:51.49]compile, these are hardware-specific model definitions with hand-written, custom fusions.
+[02:57.51]All the newest frontier models added recently already use this flat style.
+[03:02.86]Ava: Okay, that makes sense for squeezing out performance.
+[03:06.33]But you said this creates a problem for other hardware.
+[03:10.27]Brian: Right, here's the catch.
+[03:11.74]The layers that flat models used to share with everyone else are going to get refactored in ways that just aren't compatible with torch.
+[03:20.07]compile anymore.
+[03:21.40]Ava: And torch. compile matters for who, exactly?
+[03:25.37]Brian: For out-of-tree accelerators, mainly. IBM's Spyre plugin is the example they use.
+[03:30.98]Spyre depends on Dynamo to trace the graph, and then TorchInductor — the compiler backend — to lower it down to something that runs well on Spyre hardware.
+[03:41.72]Without compile support, that path just breaks.
+[03:45.33]Ava: Is it only about compile though?
+[03:47.26]I feel like there was something about plugins overriding behavior too.
+[03:51.85]Brian: Good catch, yeah. vLLM's layers today support two extensibility hooks.
+[03:56.73]One's called CustomOp, which lets a plugin override just the forward function of a layer.
+[04:02.95]The other is PluggableLayer, which lets you swap out the whole layer.
+[04:07.76]Spyre uses both, because sometimes it needs to inject something like a custom memory layout to run efficiently.
+[04:15.86]Ava: And the flat model rewrite drops that too?
+[04:19.11]Brian: It does, or at least doesn't guarantee it.
+[04:21.73]So put it together: out-of-tree plugins would suddenly need to maintain their own copies of model definitions and layers just to stay working.
+[04:30.94]Ava: That sounds miserable.
+[04:32.64]Every new model needs a PR to transformers, a PR to vLLM, and then a PR to every single plugin that wants to support it.
+[04:42.28]Brian: Right, and they even joke that coding agents like Claude Code or Codex make this more tractable, but it's still burning token budgets across a bunch of different organizations for no real payoff.
+[04:53.96]Ava: You mentioned older or less common GPUs earlier too. Same story?
+[04:59.87]Brian: Same story, plus one more wrinkle.
+[05:02.19]vLLM's leaning more on what's called the transformers modeling backend, which just imports model definitions straight from the transformers library and rewires them to use vLLM's layers.
+[05:14.86]That's increasingly how vLLM supports older or more exotic models, as the old hand-written definitions get retired.
+[05:23.05]Ava: So if those shared layers lose compile support...
+[05:27.05]Brian: ... performance for all those models regresses. Significantly, according to the post.
+[05:33.03]And their own usage numbers show a real chunk of users are still on older or consumer-grade GPUs, not the newest Blackwell chips.
+[05:42.47]Ava: Okay, so real conflict. Move fast at the frontier, or keep everyone else running well.
+[05:49.30]How do they square that?
+[05:51.55]Brian: This is the actual proposal: a new set of hardware-agnostic layers, living in-tree, separate from the flat, hardware-specific stuff.
+[06:00.96]Four design goals. First, compilable — fullgraph torch.
+[06:04.87]compile still works, so accelerators that depend on it are fine.
+[06:09.78]Ava: Second?
+[06:11.24]Brian: Extensible.
+[06:12.04]CustomOp and PluggableLayer stay available, so plugins like Spyre can still override behavior when they need to.
+[06:20.59]Ava: Third?
+[06:21.92]Brian: Isolated.
+[06:22.53]These layers get their own separate set of ops, completely apart from whatever the flat, hardware-specific models are doing.
+[06:30.93]So the frontier team can keep moving fast without worrying they'll break something for Spyre, and vice versa.
+[06:38.66]Ava: And the fourth?
+[06:40.45]Brian: Portable.
+[06:41.06]Wherever possible, implement things in plain PyTorch, or portable kernel languages like Triton or Helion, so the same code runs across many accelerators.
+[06:51.35]If a given hardware target still can't handle that, it falls back to extensibility to plug in something custom.
+[06:59.16]Ava: Okay, so where does this actually plug in?
+[07:02.01]You said there were three flavors of model definitions already — flat, legacy, and the transformers backend.
+[07:09.69]Brian: Right.
+[07:10.08]For the transformers backend, they've changed the rewiring step so it points at these new hardware-agnostic layers instead of the old shared ones.
+[07:19.53]It's already landed on vLLM's main branch, for a limited set of layers, and you can turn it on with an environment variable, USE_HW_AGNOSTIC=1, when you serve a model through the transformers backend.
+[07:32.82]Ava: Has anyone actually tried it beyond a demo?
+[07:36.07]Brian: Yeah, they've validated it with the Spyre plugin, on Gemma 4, Qwen3, and Granite 4. 2.
+[07:42.38]And they're planning to fold it into CI soon, then gradually make it the default path for Spyre.
+[07:49.76]Ava: What about the flat models? Do they get hardware-agnostic layers too eventually?
+[07:55.56]Brian: That's the plan, though it hasn't landed yet. Each flat model would get its own model.
+[08:01.01]py written against these hardware-agnostic layers.
+[08:04.18]Shared layers live in one common place, and anything model-specific, they give the example of a DeepSeek V4 attention variant, stays local to that model's own directory, but still has to follow those same four principles.
+[08:18.18]There's apparently a hardware-agnostic DeepSeek V4 pull request already under review.
+[08:23.92]Ava: Alright, the question everyone's actually going to ask: does it perform?
+[08:29.21]Brian: So, to be fair, they're upfront that beating state-of-the-art on Blackwell isn't the goal here.
+[08:36.04]It's portability.
+[08:37.26]But they did run it on NVIDIA H100s, comparing the transformers backend with the flag off versus on, across a handful of recent models.
+[08:47.30]Ava: And?
+[08:48.49]Brian: Total token throughput came within about three point four percent of the native implementation, that's a geometric mean across three recent models.
+[08:57.91]In a couple of cases the hardware-agnostic version was actually slightly faster.
+[09:03.38]Ava: Wait, faster? Even though it's not using hand-tuned CUDA libraries?
+[09:09.57]Brian: Yeah, that surprised me too.
+[09:11.43]It's built purely from portable code, no FlashAttention, no CUTLASS, and it still lands basically neck and neck with implementations that do use those.
+[09:21.51]So the portability tax turns out to be pretty small, at least on H100.
+[09:26.52]Ava: Okay let's wrap this up. Three things I'm taking away.
+[09:30.42]One, frontier models are diverging so fast that vLLM's shared abstractions can't keep up, so they're building hardware-specific flat models to stay competitive.
+[09:42.31]Brian: Two, that move risks breaking torch.
+[09:44.62]compile and plugin support, which matters a lot for out-of-tree accelerators, older GPUs, and anyone leaning on the transformers backend.
+[09:53.79]Ava: And three, their fix is a separate set of hardware-agnostic layers, compilable, extensible, isolated from the frontier code, and portable, and early H100 numbers say that costs you only a few percent of performance.
+[10:09.45]Brian: That's basically it.
+[10:10.80]Still very much a work in progress, but it's a solid answer to a problem a lot of projects just don't deal with well.
+[10:19.04]Ava: Alright, that's the episode. Thanks for listening, and we'll catch you next time.

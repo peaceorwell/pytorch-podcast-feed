@@ -1,0 +1,523 @@
+1
+00:00:00,000 --> 00:00:09,539
+Ava: What if you could train a 671B-parameter Mixture-of-Experts model 41% faster, using open-source PyTorch tools?
+
+2
+00:00:09,539 --> 00:00:13,358
+That’s the result we’re unpacking today.
+
+3
+00:00:13,358 --> 00:00:26,789
+Brian: And the interesting part is that the gain comes from two different places: MXFP8 speeds up matrix multiplication, while DeepEP speeds up expert communication.
+
+4
+00:00:26,789 --> 00:00:33,004
+Together, they reached 918 tokens per second on 256 NVIDIA B200 GPUs.
+
+5
+00:00:33,004 --> 00:00:38,898
+Ava: Let’s start with the setup. This was a joint PyTorch and Nebius experiment, right?
+
+6
+00:00:38,898 --> 00:00:46,448
+Brian: Right. They used TorchTitan as the pre-training framework on a Nebius Cloud cluster.
+
+7
+00:00:46,448 --> 00:00:53,360
+The cluster had 32 nodes, eight B200 GPUs per node, so 256 GPUs in total.
+
+8
+00:00:53,360 --> 00:01:01,918
+Ava: And the model was DeepSeek-V3, with both a 671B version and a 16B MoE version.
+
+9
+00:01:01,918 --> 00:01:06,405
+Brian: Exactly. The 671B experiment measured throughput.
+
+10
+00:01:06,405 --> 00:01:13,164
+The 16B experiment checked whether MXFP8 changes training convergence.
+
+11
+00:01:13,164 --> 00:01:19,082
+Ava: Why focus on Mixture-of-Experts models? What makes them difficult to train?
+
+12
+00:01:19,082 --> 00:01:25,184
+Brian: They have two major costs. First, the experts do a lot of matrix multiplication.
+
+13
+00:01:25,184 --> 00:01:34,840
+Second, every layer needs two all-to-all exchanges: one to dispatch tokens to experts, and another to combine the results.
+
+14
+00:01:34,840 --> 00:01:39,990
+Ava: So computation and communication can both become bottlenecks.
+
+15
+00:01:39,990 --> 00:01:44,333
+Brian: Yes. And the communication pattern is especially awkward.
+
+16
+00:01:44,333 --> 00:01:49,209
+The router decides dynamically which tokens go to which experts.
+
+17
+00:01:49,209 --> 00:01:54,740
+That means the transfer sizes and destinations change at every step.
+
+18
+00:01:54,740 --> 00:02:00,898
+Ava: Which is a bad match for a generic all-to-all operation designed around fixed transfers.
+
+19
+00:02:00,898 --> 00:02:02,311
+Brian: That’s the idea.
+
+20
+00:02:02,311 --> 00:02:08,671
+As expert parallelism, or EP, grows, this communication cost gets worse.
+
+21
+00:02:08,671 --> 00:02:16,176
+In the 671B run, EP was 32 across 32 nodes, so inter-node traffic mattered a lot.
+
+22
+00:02:16,176 --> 00:02:23,390
+Ava: Okay. Let’s talk about the first optimization: MXFP8. What does the name mean?
+
+23
+00:02:23,390 --> 00:02:26,025
+Brian: MXFP8 means Microscaling FP8.
+
+24
+00:02:26,025 --> 00:02:32,748
+It’s a low-precision format defined by the OCP Microscaling Specification.
+
+25
+00:02:32,748 --> 00:02:38,745
+Standard float8 often uses one scale factor per tensor or per row.
+
+26
+00:02:38,745 --> 00:02:46,636
+MXFP8 uses a shared exponent, called an E8M0 scale, for every block of 32 elements.
+
+27
+00:02:46,636 --> 00:02:49,554
+Ava: So the scaling is more local.
+
+28
+00:02:49,554 --> 00:02:50,042
+Brian: Right.
+
+29
+00:02:50,042 --> 00:02:57,854
+That finer-grained scaling helps preserve numerical fidelity while still using FP8 tensor cores.
+
+30
+00:02:57,854 --> 00:03:02,818
+NVIDIA Blackwell supports MXFP8 natively through its tcgen05.
+
+31
+00:03:02,818 --> 00:03:05,528
+mma tensor core instructions.
+
+32
+00:03:05,528 --> 00:03:13,774
+Ava: That’s why B200 is a natural target. There’s no emulation overhead for MXFP8 GEMMs.
+
+33
+00:03:13,774 --> 00:03:19,936
+Brian: Yes. Blackwell can provide up to two times the peak TFLOPS of BF16 for eligible GEMMs.
+
+34
+00:03:19,936 --> 00:03:29,100
+But the article measures end-to-end training, so the real speedup depends on overhead and on which operations are eligible.
+
+35
+00:03:29,100 --> 00:03:31,634
+Ava: How did TorchTitan apply it?
+
+36
+00:03:31,634 --> 00:03:32,870
+Brian: Through TorchAO.
+
+37
+00:03:32,870 --> 00:03:42,989
+For linear layers, TorchAO dynamically quantizes inputs to MXFP8 for the forward output, input gradient, and weight gradient GEMMs.
+
+38
+00:03:42,989 --> 00:03:46,120
+The results accumulate back to BF16.
+
+39
+00:03:46,120 --> 00:03:48,078
+Ava: And for the experts?
+
+40
+00:03:48,078 --> 00:03:56,884
+Brian: For routed experts, it converts torch grouped matrix multiplication operations to a TorchAO grouped GEMM function.
+
+41
+00:03:56,884 --> 00:04:01,868
+The same three GEMMs use dynamically quantized MXFP8 inputs.
+
+42
+00:04:01,868 --> 00:04:06,322
+Ava: The article says grouped GEMMs dominate MoE expert layers.
+
+43
+00:04:06,322 --> 00:04:11,692
+Brian: Exactly. The recipe quantizes inputs immediately before each grouped GEMM.
+
+44
+00:04:11,692 --> 00:04:21,840
+When the GEMM dimensions are large, the compute cost grows faster than the quantization cost, so the overhead becomes relatively small.
+
+45
+00:04:21,840 --> 00:04:26,438
+Ava: But for small dimensions, quantization can cancel the benefit.
+
+46
+00:04:26,438 --> 00:04:30,007
+Brian: Yes. The article is clear about that limitation.
+
+47
+00:04:30,007 --> 00:04:40,468
+In smaller MoE models, the quantization overhead can match or exceed the MXFP8 speedup, leading to neutral or even negative performance.
+
+48
+00:04:40,468 --> 00:04:45,522
+Ava: Now DeepEP sounds like a very different kind of optimization.
+
+49
+00:04:45,522 --> 00:04:45,974
+Brian: It is.
+
+50
+00:04:45,974 --> 00:04:56,048
+DeepEP is a GPU communication library developed by DeepSeek specifically for MoE expert-parallel dispatch and combine operations.
+
+51
+00:04:56,048 --> 00:04:59,830
+Ava: What does it change compared with standard all-to-all?
+
+52
+00:04:59,830 --> 00:05:03,791
+Brian: It uses purpose-built NVLink and RDMA kernels.
+
+53
+00:05:03,791 --> 00:05:08,354
+Inside a node, data moves over high-bandwidth NVLink.
+
+54
+00:05:08,354 --> 00:05:12,143
+Between nodes, it uses RDMA over InfiniBand.
+
+55
+00:05:12,143 --> 00:05:18,348
+This hierarchical path matches the hardware’s bandwidth differences.
+
+56
+00:05:18,348 --> 00:05:24,578
+Ava: The article mentions around 900 gigabytes per second for intra-node NVLink.
+
+57
+00:05:24,578 --> 00:05:28,846
+Brian: Yes, that’s the approximate figure given for the setup.
+
+58
+00:05:28,846 --> 00:05:34,744
+DeepEP also uses NVSHMEM, which provides a Partitioned Global Address Space.
+
+59
+00:05:34,744 --> 00:05:40,216
+Each GPU can map a symmetric memory region that peers can address.
+
+60
+00:05:40,216 --> 00:05:48,798
+Ava: And with InfiniBand GPUDirect Async, the GPU can drive network operations directly from CUDA kernels.
+
+61
+00:05:48,798 --> 00:05:54,934
+Brian: Right. That removes CPU involvement, which is useful for small, dynamic transfers.
+
+62
+00:05:54,934 --> 00:06:04,412
+DeepEP also fuses metadata such as token embeddings, expert indices, and routing weights into one communication operation.
+
+63
+00:06:04,412 --> 00:06:08,410
+Ava: Fewer launches and fewer synchronization points.
+
+64
+00:06:08,410 --> 00:06:08,992
+Brian: Exactly.
+
+65
+00:06:08,992 --> 00:06:19,752
+It can also be configured to use a chosen number of streaming multiprocessors, leaving the remaining SMs available for overlapping computation.
+
+66
+00:06:19,752 --> 00:06:26,150
+Ava: Before the results, tell me about the actual 671B training configuration.
+
+67
+00:06:26,150 --> 00:06:32,208
+Brian: The sequence length was 8192, with a local batch size of 64.
+
+68
+00:06:32,208 --> 00:06:40,891
+Tensor Parallel, or TP, was 2. Pipeline Parallel, PP, was 2. Data Parallel, DP, was 1.
+
+69
+00:06:40,891 --> 00:06:46,996
+Expert Parallel was 32, and Expert Tensor Parallel was 1.
+
+70
+00:06:46,996 --> 00:06:53,682
+Ava: They also used full activation checkpointing and torch. compile for the model and loss.
+
+71
+00:06:53,682 --> 00:06:54,282
+Brian: Correct.
+
+72
+00:06:54,282 --> 00:07:02,360
+The learning rate was one times ten to the minus four, with 2,000 warmup steps, and the dataset was C4.
+
+73
+00:07:02,360 --> 00:07:05,278
+Ava: What were the three configurations?
+
+74
+00:07:05,278 --> 00:07:10,983
+Brian: First, BF16 with standard expert parallel communication.
+
+75
+00:07:10,983 --> 00:07:18,419
+That was the baseline at 651 tokens per second. Second, BF16 with DeepEP.
+
+76
+00:07:18,419 --> 00:07:24,372
+Third, MXFP8 on all grouped GEMMs together with DeepEP.
+
+77
+00:07:24,372 --> 00:07:29,546
+Ava: And DeepEP alone reached 859 tokens per second.
+
+78
+00:07:29,546 --> 00:07:35,142
+Brian: Yes. That’s a 32% improvement over the 651-token baseline.
+
+79
+00:07:35,142 --> 00:07:39,544
+It was the single largest individual gain.
+
+80
+00:07:39,544 --> 00:07:44,214
+Ava: So communication was the dominant bottleneck at that scale.
+
+81
+00:07:44,214 --> 00:07:47,499
+Brian: That’s the interpretation in the article.
+
+82
+00:07:47,499 --> 00:07:54,630
+With EP equal to 32 across 32 nodes, inter-node all-to-all was a major part of step time.
+
+83
+00:07:54,630 --> 00:08:00,428
+DeepEP’s NVLink and RDMA forwarding reduced that cost substantially.
+
+84
+00:08:00,428 --> 00:08:10,210
+Ava: Then adding MXFP8 grouped GEMMs pushed throughput to 918 tokens per second, for a total gain of 41%.
+
+85
+00:08:10,210 --> 00:08:17,228
+Brian: Right. The two optimizations composed well because they target different bottlenecks.
+
+86
+00:08:17,228 --> 00:08:23,688
+DeepEP works on all-to-all communication. MXFP8 works on GEMM computation.
+
+87
+00:08:23,688 --> 00:08:29,678
+Ava: The article says the combined result is close to the sum of the individual improvements.
+
+88
+00:08:29,678 --> 00:08:37,096
+Brian: Yes, although the exact individual MXFP8-only number isn’t reported in the summary table.
+
+89
+00:08:37,096 --> 00:08:43,780
+What’s reported is the baseline, the DeepEP result, and the combined result.
+
+90
+00:08:43,780 --> 00:08:50,178
+Ava: That’s a useful distinction. We shouldn’t invent a separate MXFP8 speedup.
+
+91
+00:08:50,178 --> 00:08:50,882
+Brian: Exactly.
+
+92
+00:08:50,882 --> 00:09:00,824
+The evidence supports complementarity, not a precise standalone percentage for MXFP8 in this 671B comparison.
+
+93
+00:09:00,824 --> 00:09:05,806
+Ava: Now, speed is only useful if training still behaves correctly.
+
+94
+00:09:05,806 --> 00:09:08,326
+How did they validate that?
+
+95
+00:09:08,326 --> 00:09:17,443
+Brian: They used the 16B DeepSeek-V3 MoE model and ran BF16 and MXFP8 experiments for 1,500 training steps.
+
+96
+00:09:17,443 --> 00:09:21,804
+These runs used standard EP, without DeepEP.
+
+97
+00:09:21,804 --> 00:09:25,322
+Ava: What was different in the 16B setup?
+
+98
+00:09:25,322 --> 00:09:31,915
+Brian: The local batch size was 16. TP and PP were both 1, DP was 1, and EP was still 32.
+
+99
+00:09:31,915 --> 00:09:37,463
+They used sequence length 8192, full activation checkpointing, torch.
+
+100
+00:09:37,463 --> 00:09:47,944
+compile for model and loss, the same learning rate of one times ten to the minus four, 2,000 warmup steps, and the C4 dataset.
+
+101
+00:09:47,944 --> 00:09:49,926
+Ava: And the loss curves?
+
+102
+00:09:49,926 --> 00:09:52,241
+Brian: They were virtually identical.
+
+103
+00:09:52,241 --> 00:09:59,612
+The article says MXFP8 showed no meaningful divergence from BF16 over that training window.
+
+104
+00:09:59,612 --> 00:10:06,178
+Ava: So MXFP8 was equivalent to BF16 for convergence in this experiment.
+
+105
+00:10:06,178 --> 00:10:09,437
+Brian: Yes, over 1,500 steps on the 16B model.
+
+106
+00:10:09,437 --> 00:10:17,808
+That supports the numerical stability of the recipe, while staying within the scope of the test.
+
+107
+00:10:17,808 --> 00:10:22,262
+Ava: Let’s discuss the limitations and what comes next.
+
+108
+00:10:22,262 --> 00:10:29,390
+Brian: The 671B experiment only applied MXFP8 to grouped GEMMs, meaning the routed experts.
+
+109
+00:10:29,390 --> 00:10:35,596
+It couldn’t apply MXFP8 to attention and shared-expert linear layers.
+
+110
+00:10:35,596 --> 00:10:37,170
+Ava: Why not?
+
+111
+00:10:37,170 --> 00:10:38,297
+Brian: Because torch.
+
+112
+00:10:38,297 --> 00:10:45,142
+compile didn’t yet support MXFP8 linear layers when combined with tensor parallelism.
+
+113
+00:10:45,142 --> 00:10:52,256
+The 671B configuration required TP equal to 2, so those linear layers were excluded.
+
+114
+00:10:52,256 --> 00:10:53,508
+Ava: Once TP, torch.
+
+115
+00:10:53,508 --> 00:11:02,206
+compile, and MXFP8 linear-layer support work together in TorchTitan, throughput may improve further.
+
+116
+00:11:02,206 --> 00:11:06,174
+Brian: That’s the expected next step described by the authors.
+
+117
+00:11:06,174 --> 00:11:14,964
+They also provide open-source recipes and training configurations for reproducibility on a Nebius Cloud B200 cluster.
+
+118
+00:11:14,964 --> 00:11:18,811
+Ava: The infrastructure story is part of the experiment too.
+
+119
+00:11:18,811 --> 00:11:25,946
+Nebius used Soperator, which brings Slurm-style scheduling and multi-node behavior to Kubernetes.
+
+120
+00:11:25,946 --> 00:11:26,253
+Brian: Yes.
+
+121
+00:11:26,253 --> 00:11:34,619
+It continuously checked GPU and interconnect health, including NCCL all-reduce benchmarks and GPU XID errors.
+
+122
+00:11:34,619 --> 00:11:41,032
+Nodes below performance thresholds could be drained and replaced automatically.
+
+123
+00:11:41,032 --> 00:11:48,006
+Ava: And resizing was a single command, with new nodes inheriting the runtime environment.
+
+124
+00:11:48,006 --> 00:11:57,140
+Brian: That reduced the operational work around cluster setup, stragglers, and failed jobs, so the team could focus on the training recipe.
+
+125
+00:11:57,140 --> 00:12:01,650
+Ava: Let’s close with the three points I’d write down.
+
+126
+00:12:01,650 --> 00:12:12,034
+First: for the 671B model, DeepEP was the biggest lever, taking throughput from 651 to 859 tokens per second.
+
+127
+00:12:12,034 --> 00:12:26,712
+Brian: Second: adding MXFP8 grouped GEMMs to DeepEP reached 918 tokens per second, a 41% total gain, because compute and communication optimizations complemented each other.
+
+128
+00:12:26,712 --> 00:12:41,182
+Ava: Third: on the 16B model, MXFP8 and BF16 had equivalent loss behavior over 1,500 steps, while broader MXFP8 coverage still depends on TP and torch.
+
+129
+00:12:41,182 --> 00:12:43,118
+compile support.
+
+130
+00:12:43,118 --> 00:12:53,764
+Brian: That’s the whole story: faster expert communication, faster eligible GEMMs, and convergence that stayed aligned in the tested window.
+
+131
+00:12:53,764 --> 00:12:59,490
+Ava: Thanks for listening. We’ll be back with another PyTorch paper or blog post soon.

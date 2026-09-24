@@ -1,0 +1,120 @@
+[ti:Why Is PyTorch Compile So Fast: Kernel Fusion]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: If you use PyTorch’s compiler, your model can run up to ten times faster.
+[00:05.69]That sounds huge. But what is actually making it faster?
+[00:10.41]Brian: The short answer is kernel fusion.
+[00:12.83]PyTorch’s compiler takes several operations that would normally run separately and combines them into one efficient GPU kernel.
+[00:22.23]Ava: Okay, so let’s start before fusion.
+[00:25.07]What happens when we run ordinary PyTorch operations on a GPU?
+[00:30.45]Brian: Without compilation, the GPU runs a kernel, which is a function on the GPU, for each torch operation in your code.
+[00:38.67]Every kernel launch has overhead.
+[00:41.05]And every intermediate result usually has to move through memory.
+[00:46.09]Ava: So there are two costs: starting kernels and moving data?
+[00:50.61]Brian: Exactly.
+[00:51.23]The GPU launches one kernel, writes an intermediate tensor to memory, then launches another kernel that reads it back.
+[01:00.29]Repeat that several times, and the memory traffic becomes expensive.
+[01:05.87]Ava: Where does Inductor fit into this?
+[01:08.50]Brian: PyTorch’s Inductor compiler automatically groups dependent operations into single Triton kernels.
+[01:15.77]Triton is the language used for these generated GPU kernels.
+[01:20.27]The goal is to keep data in fast memory, close to the registers, and reduce kernel-launch overhead.
+[01:28.05]Ava: You said dependent operations. Is that what vertical fusion means?
+[01:33.34]Brian: Yes. Think of vertical fusion as linking steps.
+[01:36.79]The output of one operation goes straight into the next.
+[01:40.89]On a computation graph, the operations stack vertically because each one depends on the result above it.
+[01:48.86]Ava: Why is that pattern so common in deep learning?
+[01:52.50]Brian: Because neural networks are often chains.
+[01:55.47]You might normalize data, pass it through a linear layer, and then apply an activation function.
+[02:02.43]Vertical fusion joins those dependent steps.
+[02:05.98]Ava: And the main benefit is avoiding intermediate tensors?
+[02:10.24]Brian: Right.
+[02:10.64]Those temporary tensors don't need to be written to global memory and read back later.
+[02:16.46]They can stay in registers, which are the fastest memory available to the GPU.
+[02:22.08]Ava: Let's make that concrete. What example does the article use?
+[02:26.99]Brian: A pointwise fusion example.
+[02:29.19]Pointwise operations apply simple math independently to each element.
+[02:34.80]Addition, multiplication, and activation functions are typical examples.
+[02:41.00]Ava: What's the unfused version?
+[02:43.58]Brian: Imagine three operations in sequence. First, multiply an input by another tensor.
+[02:51.04]Second, add a bias. Third, apply sigmoid.
+[02:54.82]Without fusion, Inductor creates three separate Triton kernels.
+[03:00.97]Ava: So kernel one multiplies, kernel two adds, and kernel three applies sigmoid?
+[03:06.99]Brian: Exactly. Each kernel loads its inputs, performs one operation, and writes its result.
+[03:14.41]The syntax may look intimidating, but the pattern is simple.
+[03:20.01]Ava: How much memory traffic does that create?
+[03:23.36]Brian: Across the three kernels, there are eight memory operations.
+[03:27.27]You read the inputs for multiplication, read the multiplication result and the bias for addition, read the addition result for sigmoid, and write all three results.
+[03:38.32]Ava: Wait, all three results get written, even though only the final result matters?
+[03:44.77]Brian: In the unfused sequence, yes.
+[03:46.77]The intermediate multiply result and add result have to be stored so the next kernel can use them.
+[03:53.88]Ava: That sounds wasteful.
+[03:56.29]Brian: It is a lot of memory traffic.
+[03:58.39]And there are also three kernel launches, each with its own overhead.
+[04:03.56]Ava: Now show me the fused version.
+[04:06.50]Brian: With fusion, torch. compile creates one kernel.
+[04:10.65]It loads all the inputs once, performs multiply, add, and sigmoid in a row, and stores only the final result.
+[04:20.62]Ava: What happens to the two intermediate values?
+[04:24.12]Brian: They stay in registers.
+[04:26.00]The temporary values, called tmp2 and tmp4 in the example, never touch slower global memory.
+[04:33.88]Ava: So the GPU keeps the values close while it finishes the chain.
+[04:38.57]Brian: Exactly.
+[04:39.15]It is like doing three calculations on a whiteboard before putting anything into a filing cabinet.
+[04:46.29]You avoid repeatedly storing and retrieving temporary notes.
+[04:51.02]Ava: What are the exact improvements in this example?
+[04:54.49]Brian: Kernel launches drop from three to one.
+[04:57.45]Two intermediate buffers disappear: the multiply result and the add result.
+[05:03.15]And memory traffic drops from eight operations to four.
+[05:07.68]Ava: Four? Walk me through that number.
+[05:10.83]Brian: The fused kernel reads three full tensors and writes one full tensor.
+[05:15.55]That's four memory operations in total, compared with reading five full tensors and writing three full tensors before fusion.
+[05:24.09]The article describes that as a fifty percent reduction in memory traffic.
+[05:29.50]Ava: That explains the speedup much better than simply saying the compiler optimizes things.
+[05:35.56]Brian: Yes. The compiler is reducing work around the math.
+[05:39.40]The arithmetic is still there, but the data movement and launch overhead are smaller.
+[05:46.16]Ava: Is pointwise fusion the only kind of vertical fusion?
+[05:50.66]Brian: No. It is one example. Inductor also has reduction fusion.
+[05:55.68]That combines reducing operations such as max, mean, or sum with operations before and after them.
+[06:04.52]Ava: Why is reduction fusion important?
+[06:07.70]Brian: It matters for patterns such as batch normalization.
+[06:11.35]The reduction and nearby operations can be kept together instead of repeatedly writing intermediate data.
+[06:19.07]Ava: The article also mentions GEMM plus epilogue fusion. What does that mean?
+[06:25.25]Brian: GEMM is a heavy matrix calculation.
+[06:27.64]In GEMM plus epilogue fusion, simple math is attached to the end of that calculation.
+[06:33.43]Instead of doing a matrix multiply, writing the result, reading it again to add bias, and then applying ReLU, those final steps happen right after the multiply in the same kernel.
+[06:45.98]Ava: So epilogue means the work at the end.
+[06:49.25]Brian: Right. Prologue fusion is the opposite idea. Preprocessing happens as data loads.
+[06:55.43]For example, input normalization can happen on the fly as the data comes in before matrix multiplication.
+[07:03.79]Ava: And horizontal fusion is different because the operations are independent?
+[07:09.08]Brian: Exactly.
+[07:09.73]Horizontal fusion runs multiple independent operations on the same input at once.
+[07:16.26]The article's example computes sin of x and cos of x in one kernel, so x is loaded once instead of twice.
+[07:25.08]Ava: Vertical fusion follows a chain. Horizontal fusion shares an input.
+[07:30.42]Brian: That's a good way to remember it. Vertical means dependent steps are linked.
+[07:36.07]Horizontal means independent work is placed side by side.
+[07:40.66]Ava: Can engineers see fusion in their own code?
+[07:43.96]Brian: Yes. The article suggests starting with a complete reduction example.
+[07:49.08]You create a small Python file, run it with the TORCH_LOGS environment variable, and inspect the generated code.
+[07:57.73]Ava: What should we look for in that output?
+[08:00.36]Brian: You may see a generated Triton kernel with a name like triton_per_fused_add_mul_sum_0.
+[08:08.28]The per prefix means per-reduction, and the name tells you that add, mul, and sum were fused together.
+[08:18.04]Ava: That sounds useful for checking what the compiler really did.
+[08:22.08]Brian: Exactly. You don't have to guess.
+[08:24.66]The generated kernels show which operations Inductor grouped.
+[08:29.78]Ava: Are there limitations discussed in the article?
+[08:33.13]Brian: The article keeps the discussion focused.
+[08:35.94]It explains that fusion is one of the most important optimizations in torch.
+[08:41.15]compile, especially because memory traffic and kernel overhead are often major slowdowns in GPU work.
+[08:48.08]It doesn't claim every pattern will fuse in the same way.
+[08:52.34]Ava: So we should view fusion as a compiler optimization to inspect, rather than a promise that every operation becomes one kernel.
+[09:01.69]Brian: Yes. The practical advice is to try torch.
+[09:04.43]compile on your own code and inspect what it generates when you need more detail.
+[09:09.73]You don't have to rewrite your implementation; you add the compiler decorator and let the compiler do the work.
+[09:17.33]Ava: Before we finish, give us the three-point recap.
+[09:20.99]Brian: First, without fusion, every torch operation can mean another kernel launch and more global-memory traffic.
+[09:28.54]Second, vertical fusion keeps dependent intermediate values in registers, while horizontal fusion combines independent operations that share inputs.
+[09:38.98]Third, in the pointwise example, fusion changes three kernels into one, removes two intermediate buffers, and cuts memory traffic from eight operations to four.
+[09:50.62]Ava: And the takeaway for a PyTorch engineer?
+[09:53.99]Brian: When your model runs faster under torch. compile, kernel fusion is a major reason.
+[10:00.30]Try it, use TORCH_LOGS to inspect the generated Triton kernels, and learn which operations were fused.
+[10:08.50]Ava: That's all for today. Thanks for listening.
+[10:11.85]Brian: See you next time, and keep your tensors moving less.

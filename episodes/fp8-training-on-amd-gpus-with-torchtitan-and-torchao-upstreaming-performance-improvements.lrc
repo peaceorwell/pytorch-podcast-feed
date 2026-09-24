@@ -1,0 +1,141 @@
+[ti:FP8 Training on AMD GPUs with TorchTitan and TorchAO: Upstreaming Performance Improvements]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: If you have AMD Instinct GPUs, FP8 training can now work out of the box in the standard PyTorch stack.
+[00:09.15]And on Llama3-8B, it delivered a 13. 4% throughput gain over BF16.
+[00:15.06]That sounds pretty practical.
+[00:18.01]Brian: Exactly. The key story is upstreaming.
+[00:20.71]Optimizations first demonstrated with Primus-Turbo were merged into TorchAO and TorchTitan, so you don't need a separate AMD-specific training library.
+[00:31.78]Ava: So this episode is about the path from a big optimization project to normal PyTorch support?
+[00:38.30]Brian: Right.
+[00:38.72]We'll walk through correctness first, then performance, then the limits and what's next.
+[00:45.30]Ava: Let's start with FP8 itself. What changes when a linear layer uses it?
+[00:51.33]Brian: A linear layer has three matrix multiplications: the forward pass, the gradient input, and the gradient weight update.
+[00:59.78]FP8 training quantizes these operations from 16 bits to 8 bits, which can improve throughput.
+[01:06.78]Ava: But AMD doesn't use exactly the same FP8 format as NVIDIA, correct?
+[01:12.82]Brian: Correct. AMD Instinct GPUs use an FNUZ variant.
+[01:17.95]FNUZ means Finite, No NaN, Unsigned Zero. The specific format here is e4m3fnuz.
+[01:26.92]Ava: What matters about that format?
+[01:29.48]Brian: Its maximum value is 240, and it has no NaN or infinity encodings.
+[01:37.83]It's implemented on MI300X, MI325X, and MI350X GPUs.
+[01:44.76]Ava: Why is choosing that exact format a correctness issue?
+[01:48.78]Brian: TorchAO originally calculated scales using a different maximum value, from NVIDIA's e4m3fn format.
+[01:57.19]On AMD, values could be scaled beyond what e4m3fnuz can represent.
+[02:02.85]Activations were clipped, gradients were corrupted, and model quality degraded.
+[02:09.98]Ava: And because there are no NaN or infinity encodings, the overflow didn't raise an error?
+[02:16.14]Brian: Exactly. It silently produced wrong results. So the team added hardware auto-detection.
+[02:23.40]TorchAO now selects the correct FP8 dtype and maximum value automatically.
+[02:29.93]Ava: They also fixed the reported peak FLOPS and loss baselines, right?
+[02:34.75]Brian: Yes.
+[02:35.10]TorchTitan now reports correct MI300X peak FLOPS for MFU, or Model FLOPS Utilization, numbers.
+[02:43.51]It also has platform-specific loss baselines for FNUZ numerics.
+[02:49.50]Ava: Before we move to speed, give us the scaling choices. FP8 still needs scales.
+[02:56.71]Brian: There are four granularities. Tensorwise uses one scale for the whole tensor.
+[03:03.15]It's fastest but coarsest. Rowwise uses one scale per row.
+[03:07.99]Blockwise uses one per fixed-size tile.
+[03:11.25]MXFP8 uses scales per group packed alongside the data.
+[03:16.12]Ava: And TorchAO and TorchTitan support all four on AMD?
+[03:20.91]Brian: Yes.
+[03:21.24]The AMD work made each strategy operate correctly with AMD numerics, and added blockwise kernel support for MI300 and MI350.
+[03:31.86]Ava: So the first takeaway is simple: format detection and scaling have to be correct before any benchmark means anything.
+[03:40.47]Brian: That's the right recap.
+[03:42.15]Correct dtype, correct maximum value, correct baselines, and correct scaling strategies.
+[03:48.57]Now let's talk about dense models.
+[03:51.40]Ava: The headline result uses Llama3-8B on eight MI300X GPUs?
+[03:58.74]Brian: Yes. With rowwise FP8, throughput increased 13. 4% over BF16.
+[04:05.05]Peak memory was nearly identical, around 39 gigabytes.
+[04:10.99]Ava: So the gain wasn't from saving memory.
+[04:14.17]Brian: Right. The recipe keeps the weight-update GEMM in BF16 for higher precision.
+[04:20.67]The forward and gradient-input GEMMs use FP8.
+[04:24.51]The speedup comes from faster FP8 matrix cores.
+[04:28.88]Ava: The setup also used torch. compile, FSDP2, and selective activation checkpointing?
+[04:36.31]Brian: Correct. FSDP means Fully Sharded Data Parallel.
+[04:40.17]The reported run used batch size one, sequence length eight thousand one hundred ninety-two, and one hundred steps.
+[04:49.78]Ava: Dense models sound relatively straightforward. Why are Mixture-of-Experts models harder?
+[04:56.21]Brian: MoE models route each token to a subset of experts. That creates variable-size batches.
+[05:03.23]Instead of one uniform GEMM, you need a grouped GEMM.
+[05:07.86]Ava: Grouped GEMM means several expert matrix multiplications handled together?
+[05:13.78]Brian: Exactly.
+[05:14.33]It needs per-row activation scales, per-expert-column weight scales, and an offset tensor that routes rows to the right expert.
+[05:23.44]Ava: And the team enabled FP8 grouped GEMM on ROCm through the Composable Kernel backend?
+[05:30.15]Brian: Yes.
+[05:30.43]They adapted the quantization pipeline to use the correct AMD dtype and dispatch path through Composable Kernel.
+[05:38.52]Ava: Now let's get into the expensive part: quantization overhead.
+[05:43.81]Brian: The basic FP8 pipeline has several steps.
+[05:47.59]First, compute the absolute maximum, or absmax, per row or column.
+[05:53.66]Then derive a scale and apply it. Finally, clamp and cast to FP8.
+[05:60.00]Ava: Each step used to be a separate kernel launch?
+[06:03.69]Brian: Yes.
+[06:03.98]Each launch could materialize an intermediate tensor in HBM, or High Bandwidth Memory.
+[06:10.38]With dozens of expert weight tensors, those round-trips dominated the overhead.
+[06:16.61]Ava: So the problem was memory movement, not the eight-bit arithmetic itself.
+[06:21.88]Brian: Exactly. On these MoE shapes, the math was cheap.
+[06:25.87]Kernel launches and HBM traffic were expensive.
+[06:29.70]The optimizations attacked data movement at three levels.
+[06:34.69]Ava: Level one was launching fewer kernels. What happened in the backward pass?
+[06:40.29]Brian: There were two issues.
+[06:42.28]A transpose pattern, written as transpose, contiguous, transpose, forced a full tensor copy through HBM.
+[06:51.66]Pull request number 3972 removed those redundant copies.
+[06:57.06]Ava: And the scale-and-cast chain was still split across kernels.
+[07:01.71]Brian: Right. Pull request 4069 fused that chain into single Triton kernels in several places.
+[07:08.35]It also added a companion dual-kernel for simultaneous gradient-output and activation quantization.
+[07:16.26]Ava: What was the measured effect?
+[07:18.61]Brian: On eight MI300X GPUs with DeepSeek-MoE-16B, the backward fusions delivered a 4.
+[07:24.65]2 times throughput improvement for the backward pass.
+[07:29.06]Ava: That's a large jump. Did the forward path have the same pattern?
+[07:34.26]Brian: Yes. Quantizing expert weights launched five generic kernels per call.
+[07:39.87]There were 24 calls per step, adding about 90 milliseconds per step.
+[07:45.67]Ava: And the fix was one fused Triton kernel?
+[07:49.17]Brian: Exactly. Pull request 4311 replaced the chain with one fused kernel.
+[07:54.42]It parallelized across both experts and output-dimension blocks, so the surrounding GEMMs could issue sooner.
+[08:03.20]Ava: What happened on DeepSeek-V3 671B?
+[08:08.37]Brian: On eight MI325X GPUs, end-to-end throughput rose 17%, from 5,996 to 7,027 tokens per second.
+[08:18.41]The forward portion went from about 19 milliseconds to about 7 milliseconds.
+[08:27.06]Ava: The BF16 baseline was 7,156 tokens per second, so FP8 got quite close.
+[08:35.90]Brian: Yes. The fused forward kernel recovered 89% of the BF16-to-FP8 gap.
+[08:42.14]The upstream FP8 configuration had added 127 milliseconds per step, and 92% of that was in generic quantization kernels.
+[08:53.31]Fusion removed most of it.
+[08:56.08]Ava: Level two was making each remaining kernel move memory efficiently.
+[09:00.53]What was wrong with the colwise scales kernel?
+[09:03.94]Brian: Its writes were non-coalesced.
+[09:06.32]Consecutive SIMD lanes wrote to addresses separated by K bytes, causing separate memory transactions.
+[09:14.70]Ava: How did they fix that?
+[09:16.81]Brian: They transposed the output tile through LDS, or Local Data Share, before storing it.
+[09:23.05]They also added a fused single-pass variant that removed a redundant HBM read.
+[09:29.20]Ava: And the per-layer result?
+[09:31.45]Brian: On MI300X with DeepSeek-V3 671B shapes, one MoE layer dropped from 7,290 microseconds to 1,170 microseconds.
+[09:44.54]That's a 6. 2 times speedup.
+[09:48.29]Ava: Level three removed synchronization that the hardware didn't need.
+[09:52.81]Brian: Right.
+[09:53.39]Triton's atomic_add, atomic_max, and atomic_min defaulted to acquire-release ordering.
+[10:01.66]On AMD, that inserted memory fences before and after every atomic operation.
+[10:09.32]Ava: Those fences are unnecessary for commutative reductions?
+[10:14.15]Brian: In this case, yes. The team switched to relaxed ordering on AMD, guarded by a torch.
+[10:21.14]version. hip check. NVIDIA behavior stayed unchanged.
+[10:25.90]Ava: Did every attempted optimization work?
+[10:29.42]Brian: No.
+[10:29.64]They expanded the Triton autotune search space from one to eight or sixteen candidate configurations, hoping to find better tile sizes for AMD wavefronts.
+[10:41.12]Ava: But Llama 4 shapes on MI300X showed no measurable improvement.
+[10:47.23]Brian: Correct.
+[10:47.83]The extra configurations increased first-iteration compile time, so the change was reverted.
+[10:54.66]The lesson was to shape autotuning around wavefront size, LDS capacity, and register pressure, rather than adding candidates by default.
+[11:05.10]Ava: Let's connect the pieces. What are the main results across workloads?
+[11:09.85]Brian: For Llama3-8B dense training, rowwise FP8 gave 13. 4% more throughput than BF16.
+[11:17.23]For DeepSeek-MoE-16B, backward fusion reached 4. 2 times the backward throughput.
+[11:24.71]For DeepSeek-V3 671B, colwise scale optimization reached 6.
+[11:30.16]2 times per MoE layer, and forward fusion improved end-to-end throughput by 17%.
+[11:37.89]Ava: And all of this is now upstream?
+[11:41.00]Brian: Yes. The contributions are merged into mainline pytorch/ao and pytorch/torchtitan.
+[11:47.56]Teams with AMD Instinct GPUs can get the gains by upgrading TorchAO and TorchTitan, with nothing AMD-specific to install.
+[11:57.58]Ava: What's next?
+[11:59.29]Brian: Work is continuing on MXFP8 grouped GEMM and quantization kernels for forward and backward passes on MI355X GPUs.
+[12:08.52]More Triton optimizations are also coming along the fusion pipeline.
+[12:14.43]Ava: Before we sign off, let's do the promised three-point recap.
+[12:19.19]Brian: First, AMD FP8 correctness depends on hardware-aware FNUZ support, automatic dtype selection, and accurate loss and MFU baselines.
+[12:30.25]Ava: Second, MoE models need grouped GEMM with per-row scales, per-expert-column scales, and offset-based routing.
+[12:39.07]Brian: Third, the biggest performance wins came from reducing data movement: fewer launches, coalesced memory access, and relaxed synchronization.
+[12:49.70]That's how the team recovered most of the FP8 overhead.
+[12:54.25]Ava: Great.
+[12:54.69]If you're running AMD Instinct hardware, the improvements are already in the PyTorch stack.
+[13:01.61]Brian: Upgrade TorchAO and TorchTitan, and give the upstream recipes a try.
+[13:07.18]Thanks for listening.

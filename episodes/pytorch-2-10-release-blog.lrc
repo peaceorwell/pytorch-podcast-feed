@@ -1,0 +1,139 @@
+[ti:PyTorch 2.10: Faster Kernels, Safer Numbers, and a New Release Rhythm]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: If you're training large models, a tiny numerical difference can turn into a very long debugging session.
+[00:08.38]And a little kernel overhead can quietly slow down every step. PyTorch 2.
+[00:14.20]10 is aimed at both problems.
+[00:16.86]Brian: Exactly.
+[00:17.48]This release pushes performance, but it also makes numerical behavior easier to inspect.
+[00:24.32]It adds Python 3. 14 support for torch.
+[00:27.35]compile(), new attention and fusion features, and tools for finding where two runs start to disagree.
+[00:35.55]Ava: Let's start with the big picture. What changed in this release?
+[00:40.17]Brian: PyTorch 2.
+[00:40.92]10 contains four thousand one hundred sixty commits from five hundred thirty-six contributors since 2.
+[00:48.59]9.
+[00:48.74]The article groups the changes into performance, numerical debugging, and some non-feature updates.
+[00:56.53]Ava: And the release is part of the larger two-series compiler story, right?
+[01:02.16]Brian: Yes.
+[01:02.45]Performance has been a focus throughout the two-x releases, building on the PyTorch compiler stack introduced in 2.
+[01:10.83]0. In 2.
+[01:11.42]10, that means more work in torchinductor, more compiler support, and better ways to test numerical behavior.
+[01:19.72]Ava: Let's talk about the kernel work first. I saw the phrase Combo Kernels.
+[01:24.78]What does that actually mean?
+[01:27.19]Brian: Combo Kernels are a horizontal fusion optimization in torchinductor.
+[01:32.66]They combine multiple independent operations, with no data dependencies, into one unified GPU kernel.
+[01:41.13]Ava: So this is different from the usual producer-consumer fusion?
+[01:45.20]Brian: Right.
+[01:45.64]Vertical fusion combines sequential operations, where one operation produces data for the next.
+[01:52.66]Combo Kernels fuse parallel operations instead.
+[01:56.13]Imagine several small checkout lines merging into one larger line, even though none of the customers depend on one another.
+[02:05.56]Ava: The benefit is fewer kernel launches?
+[02:08.65]Brian: That's the goal: reduced kernel launch overhead.
+[02:12.09]The article doesn't give a benchmark number, but it explains that independent operations can now share one launch.
+[02:20.25]The feature is marked API-UNSTABLE, so users should expect it to evolve.
+[02:25.75]Ava: The next item is varlen_attn(). The name sounds like variable-length attention.
+[02:32.68]Brian: That's exactly what it is. varlen_attn() is a new torch. nn.
+[02:37.18]attention operation for ragged and packed sequences.
+[02:41.09]Ragged means the sequences can have different lengths, and packed means they can be stored together without padding every item to the same size.
+[02:52.25]Ava: Does it support training, or only inference?
+[02:56.03]Brian: It supports both forward and backward, and it's torch. compile-able.
+[03:01.37]Right now, FlashAttention 2, or FA2, supports it.
+[03:05.22]The article says there are plans to add cuDNN and FlashAttention 4 support.
+[03:11.46]Ava: What hardware and data types are supported?
+[03:14.88]Brian: For now, it runs on NVIDIA CUDA with an A100 GPU or newer.
+[03:20.07]It supports BF16 and FP16 data types.
+[03:23.39]Again, this is API-UNSTABLE, so those boundaries may change later.
+[03:29.65]Ava: Variable-length attention can save work because you don't calculate attention on padding, right?
+[03:36.39]Brian: That is the practical intuition, although the article focuses on the API and its current support rather than giving a measured speedup.
+[03:44.78]The important point is that ragged and packed sequences now have a dedicated operation that works with compilation and gradients.
+[03:53.15]Ava: There is also an eigenvalue update. That sounds more specialized.
+[03:59.24]Brian: It is more specialized, but useful for numerical workloads.
+[04:03.78]PyTorch linalg can now use cuSOLVER's DnXgeev to provide highly efficient general eigenvalue decomposition on NVIDIA GPUs.
+[04:13.53]Ava: So PyTorch is connecting its linear algebra path to a more efficient cuSOLVER routine?
+[04:20.19]Brian: Yes.
+[04:20.49]That's the whole claim in the release note: use DnXgeev through cuSOLVER for efficient general eigenvalue decompositions on NVIDIA GPUs.
+[04:30.58]The article doesn't provide a performance figure.
+[04:34.56]Ava: What about Intel GPUs? The release notes list several changes there.
+[04:40.43]Brian: The support expands to the latest Intel Core Ultra Series 3 with Intel Arc Graphics, on both Windows and Linux.
+[04:49.92]PyTorch also adds FP8 support on Intel GPUs.
+[04:54.03]Ava: FP8 support can mean a lot of different things. What does this release include?
+[04:59.87]Brian: It adds commonly used basic operators, such as type promotion and shape operators, plus scaled matrix multiplication using tensor-wise and channel-wise scaling factors.
+[05:11.22]Ava: Anything beyond FP8?
+[05:13.77]Brian: Yes. Aten operator MatMul gets complex data type support on Intel GPUs.
+[05:20.09]The PyTorch C++ Extension API also extends SYCL support, so users can implement new custom operators on Windows.
+[05:30.06]And Intel GPU unit-test coverage is broadened.
+[05:34.50]Ava: Now let's move to determinism. Why is this becoming such a big issue?
+[05:40.44]Brian: The article connects it to post-training with distributed reinforcement learning workflows.
+[05:46.81]At that scale, run-to-run determinism makes debugging training runs easier.
+[05:52.07]It also helps people test code that uses torch. compile reliably.
+[05:56.97]Ava: What changed in 2. 10?
+[06:00.29]Brian: torch. compile() now respects use_deterministic_mode.
+[06:04.99]Users can turn deterministic algorithms on with torch.
+[06:09.77]use_deterministic_algorithms(True).
+[06:12.87]The article says this makes two invocations of torch.
+[06:17.56]compile perform the same operations exactly.
+[06:21.81]Ava: That sounds stronger than just getting similar outputs.
+[06:25.95]Brian: Yes, the wording is about performing the same operations exactly.
+[06:30.68]For someone chasing a rare divergence, that gives a much steadier baseline.
+[06:36.48]Ava: And then there's DebugMode. Is it a profiler?
+[06:40.48]Brian: It's a custom TorchDispatchMode that provides profiling-style runtime dumps.
+[06:45.93]Its purpose here is numerical debugging: tracking dispatched calls and isolating numerical divergence.
+[06:53.60]Ava: How does it find the first bad operation?
+[06:56.61]Brian: The key feature is tensor hashing.
+[06:58.91]You run two versions of a model with the same input, and you expect corresponding tensors to have the same deterministic hash.
+[07:07.44]You then look for the point where the hashes stop matching.
+[07:11.44]That operation is often where the behavior starts to differ.
+[07:15.85]Ava: So instead of comparing only the final loss, you compare the whole trail of tensors.
+[07:22.32]Brian: Exactly.
+[07:22.87]It's like checking every station on a train route instead of discovering at the final station that something went wrong.
+[07:31.08]DebugMode also records dispatched operations and TorchInductor-compiled Triton kernels.
+[07:37.38]Ava: Can engineers add their own information to those records?
+[07:41.52]Brian: Yes. Dispatch hooks let users register custom hooks to annotate calls.
+[07:47.01]The article presents three main capabilities: runtime logging, tensor hashing, and dispatch hooks.
+[07:55.05]Ava: Are these production-ready APIs?
+[07:57.97]Brian: The numerical debugging features are also labeled API-UNSTABLE.
+[08:02.23]The article points readers to a tutorial for details, so teams should read that before building a long-term workflow around them.
+[08:11.32]Ava: Let's cover the non-feature updates. TorchScript is now deprecated.
+[08:17.07]Brian: Correct. In PyTorch 2. 10, TorchScript is deprecated, and the article says torch.
+[08:23.25]export should be used instead.
+[08:25.54]It points to a talk from the PyTorch Technical Committee for more detail.
+[08:31.46]Ava: That could affect older deployment pipelines.
+[08:35.01]Brian: It could, especially if they still depend on TorchScript.
+[08:38.95]The release blog doesn't provide a migration timeline, so the safe takeaway is to start evaluating torch.
+[08:46.23]export and consult the linked guidance.
+[08:49.28]Ava: There is also tlparse and TORCH_TRACE for compiler bug reports.
+[08:54.50]What problem do they solve?
+[08:57.09]Brian: Sometimes a compiler issue is too complex for a small standalone reproduction.
+[09:02.68]tlparse results provide a log format that's easier to upload and share on GitHub.
+[09:08.48]Even people outside the PyTorch project can extract useful information from those logs.
+[09:15.06]Ava: So attaching a tlparse artifact can give maintainers more context than a short description?
+[09:21.77]Brian: That's the idea.
+[09:22.95]The article encourages users to attach tlparse log artifacts when reporting compiler bugs.
+[09:29.64]It also mentions TORCH_TRACE as part of this clearer reporting workflow.
+[09:35.34]Ava: One final change is the release cadence for 2026.
+[09:40.39]Brian: Yes.
+[09:40.68]The expected cadence increases from quarterly releases to one release every two months.
+[09:46.80]The article refers readers to the published release schedule.
+[09:51.45]Ava: More frequent releases mean faster access to improvements, but also more upgrade decisions.
+[09:58.40]Brian: That's a reasonable implication.
+[10:00.89]The release itself simply states the new schedule and encourages users to try 2.
+[10:07.11]10 and report issues.
+[10:09.09]Ava: Let's make the practical advice concrete.
+[10:11.83]If I'm a framework engineer, what should I test first?
+[10:15.78]Brian: First, check your torch. compile workflow on Python 3. 14. Python 3.
+[10:21.58]14t, the freethreaded build, is experimentally supported as well.
+[10:27.13]Second, try Combo Kernels and varlen_attn() in isolated experiments because those APIs are unstable and have specific hardware or backend limits.
+[10:39.86]Ava: And for numerical issues?
+[10:42.28]Brian: Enable deterministic algorithms, then use DebugMode with tensor hashing to compare two model versions.
+[10:49.52]Log the dispatched calls and compiled Triton kernels, and add dispatch hooks if you need custom annotations.
+[10:57.53]Ava: Before we close, give us the three-point recap.
+[11:01.48]Brian: First, performance: Combo Kernels reduce kernel launch overhead, varlen_attn() handles ragged and packed sequences, DnXgeev improves the eigenvalue decomposition path, and Intel GPU support expands.
+[11:18.14]Second, numerical confidence: torch.
+[11:21.17]compile respects deterministic mode, and DebugMode helps locate divergence with runtime logs and tensor hashes.
+[11:30.51]Third, ecosystem direction: TorchScript is deprecated, tlparse and TORCH_TRACE improve compiler bug reports, and 2026 moves to a two-month release cadence.
+[11:43.90]Ava: So the message is faster execution, clearer numerical debugging, and a faster-moving project.
+[11:51.72]Brian: Exactly.
+[11:52.48]Try the new features, check their current limitations, and report issues as PyTorch 2.
+[12:00.72]10 evolves.
+[12:02.12]Ava: Thanks for listening.
+[12:03.46]We'll be back with another PyTorch release explained in plain English.

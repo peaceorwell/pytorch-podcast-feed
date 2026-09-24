@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PyTorch 2.12: Faster Math, Unified Graphs, and Wider Hardware Support</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/pytorch-2-12-release-blog/">原视频 / 原文</a></p><h1>PyTorch 2.12: Faster Math, Unified Graphs, and Wider Hardware Support</h1>
+<p>原文：[PyTorch 2.12 Release Blog](https://pytorch.org/blog/pytorch-2-12-release-blog/)</p>
+<h2>摘要</h2>
+<p>本期介绍 PyTorch 2.12 的主要更新：CUDA 上批量特征值分解最高提速一百倍，新增跨硬件的 torch.accelerator.Graph，并让 torch.export 支持 Microscaling 量化。我们还讨论了融合版 Adagrad、torch.cond 在 CUDA Graph 中的捕获、分布式训练分析工具，以及 ROCm、Apple MPS 等平台更新。最后，两位主持人解释了 torchcomms 和 TorchScript 的后续变化，以及 CUDA wheel 的弃用安排。</p>
+<h2>对话</h2>
+<p><strong>Ava:</strong> If your training job spends minutes solving lots of small eigenvalue problems, PyTorch 2.12 may change that to seconds. And the headline number is up to one hundred times faster on CUDA.</p>
+<p><strong>Brian:</strong> Right. This release is also about making PyTorch feel more consistent across hardware. We get a device-agnostic graph API, wider export support, and several distributed and ROCm improvements.</p>
+<p><strong>Ava:</strong> So let's start with the speed story. What exactly changed for batched linalg.eigh?</p>
+<p><strong>Brian:</strong> linalg.eigh computes eigenvalues and eigenvectors for symmetric or Hermitian matrices. In earlier releases, the CUDA path could dispatch each matrix solve separately. That created a big performance gap, especially when you had many small or medium matrices.</p>
+<p><strong>Ava:</strong> So the GPU was doing lots of tiny jobs instead of one big batch?</p>
+<p><strong>Brian:</strong> Exactly. PyTorch has overhauled backend selection. The old MAGMA backend was deprecated in favor of cuSolver, and the dispatch heuristics now use cuSolver's syevj_batched kernel unconditionally for this case.</p>
+<p><strong>Ava:</strong> And that kernel is designed for many matrices at once.</p>
+<p><strong>Brian:</strong> Yes. It processes the batch as a single GPU operation. The article says workloads that used to take minutes can now run in seconds, with speedups of up to one hundred times over the previous release.</p>
+<p><strong>Ava:</strong> That sounds huge, but the wording matters: up to one hundred times, not every workload.</p>
+<p><strong>Brian:</strong> Correct. The gain depends on the workload. The release calls out scientific computing and machine learning jobs that rely on batched eigendecompositions. It also says this helps close longstanding performance gaps with CuPy.</p>
+<p><strong>Ava:</strong> Let's move to optimizers. Adagrad now has fused equals true. What does fused mean here?</p>
+<p><strong>Brian:</strong> A fused optimizer performs the whole optimizer step in one CUDA kernel. Without fusion, separate operations launch separate kernels. Fusion reduces kernel launch overhead and memory traffic.</p>
+<p><strong>Ava:</strong> So Adagrad joins Adam, AdamW, and SGD in having a fused variant.</p>
+<p><strong>Brian:</strong> Exactly. The CUDA kernel was contributed during the 2.11 cycle, and the Python frontend is now exposed in 2.12. The practical idea is simple: fewer launches and less movement of intermediate data.</p>
+<p><strong>Ava:</strong> Now, the bigger architectural change seems to be torch.accelerator.Graph.</p>
+<p><strong>Brian:</strong> Yes. torch.accelerator.Graph is a new device-agnostic API for graph capture and replay. Instead of users learning a separate graph interface for every backend, they get one common abstraction.</p>
+<p><strong>Ava:</strong> Can you give a plain-language analogy?</p>
+<p><strong>Brian:</strong> Think of recording a fixed sequence of GPU work and replaying that recording many times. The API is like a universal remote. CUDA, XPU, and out-of-tree backends can keep their own internal implementations, but users interact with a consistent control surface.</p>
+<p><strong>Ava:</strong> How do backends plug into it?</p>
+<p><strong>Brian:</strong> Each backend can register an implementation through GraphImplInterface. That keeps backend autonomy while giving applications a shared API. The release has initial XPU support and an extension path for out-of-tree backends through PrivateUse1.</p>
+<p><strong>Ava:</strong> There is also a stream change, right?</p>
+<p><strong>Brian:</strong> Right. c10d::Stream and torch.Stream now expose is_capturing(), which replaces the device-specific is_current_stream_capturing. Stream context manager reentrance was fixed too. Together, these changes improve parity across backends.</p>
+<p><strong>Ava:</strong> What about export and quantization?</p>
+<p><strong>Brian:</strong> torch.export.save and torch.export.load now support Microscaling, or MX, quantization formats. Before 2.12, export could not handle the float8_e8m0fnu dtype used as the shared block-scale exponent in MXFP4, MXFP6, and MXFP8.</p>
+<p><strong>Ava:</strong> So a model could use MX quantization, but the export-to-deployment path was blocked.</p>
+<p><strong>Brian:</strong> Exactly. Now tensors with that dtype can be serialized and deserialized correctly. That unblocks the full workflow for aggressively compressed models, which matters for large language models deployed in cost-constrained or edge environments.</p>
+<p><strong>Ava:</strong> That is a nice example of a small missing dtype support causing a much larger production problem.</p>
+<p><strong>Brian:</strong> Yes. The quantization method existed, but the deployment handoff was incomplete. This release closes that gap.</p>
+<p><strong>Ava:</strong> The release also mentions torch.cond inside CUDA Graphs. Why was that difficult?</p>
+<p><strong>Brian:</strong> torch.cond represents data-dependent control flow. Previously, branches were evaluated on the CPU, so CUDA graph capture had to fall back to CUDA graph trees. With CUDA 12.4 conditional IF nodes, both branches can now be evaluated on the GPU inside one graph capture.</p>
+<p><strong>Ava:</strong> So the graph can contain the decision itself.</p>
+<p><strong>Brian:</strong> Exactly. It can capture and replay the control-flow region. The current support works with the eager and cudagraphs backends. Inductor support is planned for a future release, so that is one limitation to remember.</p>
+<p><strong>Ava:</strong> There is also a numerical correctness update for XPU involving addcdiv.</p>
+<p><strong>Brian:</strong> Yes. addcdiv is a fused arithmetic operation: input plus value times tensor one divided by tensor two. It appears in optimizer update rules such as Adam, AdamW, and RMSprop.</p>
+<p><strong>Ava:</strong> What was going wrong?</p>
+<p><strong>Brian:</strong> Inductor previously lowered the operation with separate multiply and divide instructions. That could create small floating-point rounding differences compared with eager CUDA execution. Over thousands of steps, those differences can accumulate.</p>
+<p><strong>Ava:</strong> And now it uses fused multiply-add instructions?</p>
+<p><strong>Brian:</strong> For CUDA first, and now for XPU as well. The goal is bitwise numerical parity with eager CUDA execution while preserving Triton kernel fusion benefits. That helps teams validate compiled optimizer-heavy training loops on NVIDIA and Intel hardware.</p>
+<p><strong>Ava:</strong> Let's talk distributed training. What changed for custom operators?</p>
+<p><strong>Brian:</strong> Custom operators can now accept ProcessGroup objects directly. Callers no longer have to turn a group into a string name and look it up in a global registry. The c10d functional collective operations, including all_reduce and reduce_scatter, accept both objects and string names.</p>
+<p><strong>Ava:</strong> That sounds like a cleaner interface.</p>
+<p><strong>Brian:</strong> It is, and profiling got richer too. The PyTorch Profiler Events API now exposes flow IDs, flow types, activity types, unfinished events, and Python function events. Its events() output is closer to the Chrome trace JSON output.</p>
+<p><strong>Ava:</strong> How does that help with multi-node debugging?</p>
+<p><strong>Brian:</strong> NCCL collective traces can now be correlated across ranks with a seq_num field. All ranks participating in the same collective share the same sequence number within a process group. That makes post-hoc analysis much more practical.</p>
+<p><strong>Ava:</strong> And FlightRecorder covers more communication backends.</p>
+<p><strong>Brian:</strong> Yes. Its trace analyzer now supports ncclx and gloo alongside nccl and xccl. It also recognizes torchcomms operations such as all_gather_single, reduce_scatter_v, and barrier. A race condition involving multiple process groups was fixed as well.</p>
+<p><strong>Ava:</strong> What platform updates should ROCm users notice?</p>
+<p><strong>Brian:</strong> Several. On AMD GPUs with ROCm 7.02 or newer, the caching allocator supports expandable memory segments. That dynamically grows allocations through virtual memory APIs and reduces fragmentation, matching the CUDA feature.</p>
+<p><strong>Ava:</strong> There is also rocSHMEM.</p>
+<p><strong>Brian:</strong> Right. rocSHMEM brings symmetric memory collective operations to AMD GPUs through torch.ops.symm_mem. It ports on-GPU primitives such as point-to-point, broadcast, all-to-all, and MoE-oriented two-dimensional AllToAllv.</p>
+<p><strong>Ava:</strong> And sparse computation?</p>
+<p><strong>Brian:</strong> hipSPARSELt is enabled by default in ROCm builds at 7.12 or newer. It adds semi-structured two-to-four sparsity support, and FP8 inputs are supported on MI350X with FP32 output. That enables the torch._cslt_sparse_mm acceleration path on AMD.</p>
+<p><strong>Ava:</strong> FlexAttention also gets a pipeline change.</p>
+<p><strong>Brian:</strong> Yes. On AMD GPUs, the Triton backend now uses two-stage pipelining for FlexAttention. The article reports five to twenty-six percent speedups across causal, alibi, and sliding-window attention patterns on MI350X. The change was just a one-line configuration adjustment from one stage to two.</p>
+<p><strong>Ava:</strong> What about Apple users?</p>
+<p><strong>Brian:</strong> Apple Silicon binary wheels now ship with ahead-of-time-compiled Metal-4 shaders. They were built on macOS 26 with the Metal-4 standard, so MPS workloads avoid runtime shader compilation on first run and get lower startup latency.</p>
+<p><strong>Ava:</strong> Before we wrap up, we need the migration warnings.</p>
+<p><strong>Brian:</strong> The biggest future change is torchcomms. In an upcoming release, 2.13 or later, PyTorch plans to use torchcomms by default in Distributed. That brings breaking changes to ProcessGroup behavior, even though the team aims to make most migrations automatic.</p>
+<p><strong>Ava:</strong> What should engineers watch for?</p>
+<p><strong>Brian:</strong> ProcessGroups and communicators will need eager initialization during dist.init_process_group, with one backend device. P2P operations on the same group and stream will not be guaranteed to run concurrently; concurrent operations will need batch APIs or a separate group. PyTorch also plans to make torchcomms a required package and deprecate the existing c10d backends.</p>
+<p><strong>Ava:</strong> And TorchScript?</p>
+<p><strong>Brian:</strong> TorchScript is now deprecated. It was deprecated in 2.10. The recommended direction is torch.export instead of the jit trace and script APIs, and Executorch instead of the embedded runtime.</p>
+<p><strong>Ava:</strong> There is one more packaging detail: CUDA 12.8 wheels.</p>
+<p><strong>Brian:</strong> Starting with 2.12, the CUDA 12.8 binary wheel is deprecated and will no longer be in the standard release matrix. The default wheel is CUDA 13.0, CUDA 13.2 is experimental, and CUDA 12.6 remains supported for older architectures. Newer GPUs need CUDA 13.0 or newer and an NVIDIA driver upgrade to the versions listed in the release notes.</p>
+<p><strong>Ava:</strong> Let's do the three-point recap. First?</p>
+<p><strong>Brian:</strong> First, performance: batched CUDA linalg.eigh can be up to one hundred times faster, and Adagrad gets a fused optimizer step.</p>
+<p><strong>Ava:</strong> Second: portability and deployment.</p>
+<p><strong>Brian:</strong> Right. torch.accelerator.Graph unifies graph capture and replay, torch.export supports MX quantization, and torch.cond can run inside CUDA Graph capture.</p>
+<p><strong>Ava:</strong> Third: production tooling and platform reach.</p>
+<p><strong>Brian:</strong> That includes richer distributed profiling, broader ROCm support, Metal-4 offline shaders, and migration work toward torchcomms. The release has 2,926 commits from 457 contributors, so there is a lot packed in.</p>
+<p><strong>Ava:</strong> PyTorch 2.12 is faster, more hardware-agnostic, and more ready for deployment, while some migration work is still ahead.</p>
+<p><strong>Brian:</strong> Exactly. Try the features, check the limits for your backend, and report issues as the 2.x series keeps moving.</p>
+<p><strong>Ava:</strong> Thanks for listening. We'll be back with another PyTorch release explained.</p>
+<h2>术语</h2>
+<p>Term · 释义</p>
+<p>batched eigendecomposition · 批量特征值分解，同时处理多个矩阵的特征值和特征向量</p>
+<p>cuSolver · NVIDIA CUDA 数值线性代数库</p>
+<p>syevj_batched · cuSolver 中用于批量对称/Hermitian 特征值问题的内核</p>
+<p>fused optimizer · 把优化器步骤合并到单个 GPU 内核中的实现</p>
+<p>torch.accelerator.Graph · 跨设备统一的图捕获与重放 API</p>
+<p>GraphImplInterface · 后端注册自有图实现的接口</p>
+<p>Microscaling (MX) quantization · 使用共享块尺度进行激进压缩的量化格式</p>
+<p>torch.export · 用于序列化和部署 PyTorch 模型的导出路径</p>
+<p>CUDA Graph · 捕获一组 CUDA 操作并重复重放的机制</p>
+<p>torch.cond · 表达数据相关条件控制流的 PyTorch API</p>
+<p>ProcessGroup · 分布式通信中管理进程和集体操作的对象</p>
+<p>NCCL · NVIDIA 集体通信库</p>
+<p>rocSHMEM · ROCm 平台上的对称内存通信库</p>
+<p>FlexAttention · 可配置的注意力实现，支持多种注意力模式</p>
+<p>torchcomms · 正在集成进 PyTorch Distributed 的通信组件</p>
+<h2>口语表达</h2>
+<p>Phrase · 释义</p>
+<p>That sounds huge, but the wording matters. · 听起来很大，但措辞很重要。</p>
+<p>Can you give a plain-language analogy? · 你能用通俗的类比解释吗？</p>
+<p>So the graph can contain the decision itself. · 所以图本身可以包含这个判断。</p>
+<p>That unblocks the full workflow. · 这让完整流程终于可以跑通。</p>
+<p>Let's talk distributed training. · 我们来聊聊分布式训练。</p>
+<p>What should engineers watch for? · 工程师应该注意什么？</p>
+<p>Let's do the three-point recap. · 我们做一个三点回顾。</p>
+<p>Thanks for listening. · 感谢收听。</p></body></html>

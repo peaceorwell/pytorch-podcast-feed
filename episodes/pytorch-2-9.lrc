@@ -1,0 +1,124 @@
+[ti:PyTorch 2.9: More Portable Kernels, Smarter Compilation, and Wider Hardware Support]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: If you build C++ or CUDA extensions, run models across different GPUs, or care about long-context inference, PyTorch 2.
+[00:09.24]9 has something aimed directly at you.
+[00:12.19]Brian, what makes this release worth a close listen?
+[00:16.57]Brian: It’s a broad release rather than one single headline feature. PyTorch 2.
+[00:22.14]9 brings a more stable libtorch ABI, easier multi-GPU kernel programming through Symmetric Memory, finer control over graph breaks in torch.
+[00:32.97]compile, and wider hardware packaging.
+[00:35.91]It also has attention optimizations for Intel GPUs and X86 CPUs.
+[00:41.21]Ava: Let’s start with the ABI piece.
+[00:43.57]I’ve heard extension authors complain that a compiled extension can be tied too closely to one PyTorch version.
+[00:51.99]Does 2. 9 address that?
+[00:54.09]Brian: That’s exactly the motivation. ABI means application binary interface.
+[00:59.54]PyTorch is building a stable ABI with C++ convenience wrappers, so you can build an extension with one torch version and run it with another.
+[01:10.51]In 2. 9, that surface gets several new APIs.
+[01:14.29]Ava: What kind of APIs are we talking about?
+[01:17.37]Brian: There are device utilities, such as Device Guard and Stream, available through the stable accelerator header.
+[01:26.99]The stable torch::stable::Tensor also gets a default constructor, is_cpu, scalar_type, and get_device_index.
+[01:36.52]And more stable ATen operations are exposed, including amax, narrow, dtype variants of new_empty and new_zeros, and pad.
+[01:47.46]Ava: So this is useful for people maintaining custom C++ or CUDA extensions, but it’s not a finished contract yet?
+[01:55.83]Brian: Right.
+[01:56.29]The team enabled a libtorch-ABI wheel for Flash-Attention 3, which shows the direction.
+[02:03.08]But the high-level C++ APIs are still in preview.
+[02:06.90]PyTorch says it’s continuing to expand the ABI surface, establish versioning, write more documentation, and make more custom kernels ABI stable.
+[02:18.47]Ava: That sounds like a compatibility layer being built piece by piece.
+[02:23.13]Now, Symmetric Memory sounds more fundamental. What problem does it solve?
+[02:28.71]Brian: It makes multi-GPU kernels easier to program across NVLinks and RDMA networks.
+[02:34.48]The key idea is that a GPU kernel can communicate while it computes.
+[02:39.51]A kernel can issue puts and gets interleaved with computation instructions, so communication can be fused at a very small granularity.
+[02:49.77]Ava: So instead of launching separate communication work and computation work, the kernel can coordinate both?
+[02:57.01]Brian: Exactly. There are three programming opportunities. First, in-kernel communication.
+[03:03.44]Second, ultralow-latency remote access, where access can be one-sided and doesn’t wait for the remote GPU to issue a matching command.
+[03:13.83]Protocols such as RDMA and IB-GDA can provide direct memory access over the network.
+[03:20.69]Ava: And the third opportunity is customization?
+[03:24.30]Brian: Yes, customized communication patterns.
+[03:26.88]Developers can write kernels tailored to an application’s communication needs.
+[03:32.03]The release also says it should be straightforward to add support for new data layouts, even when those layouts aren’t in standard libraries yet.
+[03:41.96]Ava: What is actually included in 2. 9?
+[03:45.26]Brian: Symmetric tensors can be allocated for remote direct access.
+[03:49.67]The currently supported backends are CUDA and NVSHMEM.
+[03:53.64]There are also accelerated collectives using direct access, such as one-shot all-reduce, two-shot all-reduce, and multimem all-gather out.
+[04:04.14]Ava: Those names are pretty specialized. Is there support for mixture-of-experts models too?
+[04:10.29]Brian: There is a nontraditional all-to-all-v path for MoE models, meaning mixture-of-experts models.
+[04:17.51]The listed operations include all-to-all-v-dev, all-to-all-v-dev-2D, and an offset form for token combination.
+[04:25.96]For custom multi-GPU kernels, there’s an NVSHMEM plugin for Triton, plus continued support for Async TP and generalization to other patterns.
+[04:37.14]Ava: Where do developers access these operations?
+[04:40.78]Brian: The Symmetric Memory operations are available under torch. ops. symm_mem.
+[04:46.79]The article points users to the Symmetric Memory API documentation for details.
+[04:53.29]It’s labeled API-Unstable, so users should expect the interface to evolve.
+[04:59.73]Ava: Let’s switch to torch. compile.
+[05:02.19]Graph breaks can be useful during development, but sometimes I want them to fail loudly.
+[05:09.18]What changed?
+[05:10.57]Brian: PyTorch 2. 9 adds torch. _dynamo. error_on_graph_break().
+[05:15.43]It’s a context manager and decorator. You can mark regions of compiled code where torch.
+[05:22.94]compile should error when it encounters a graph break, or resume instead.
+[05:29.52]Ava: How is that different from fullgraph?
+[05:32.29]Brian: The important difference is that error_on_graph_break can be toggled arbitrarily.
+[05:37.89]With fullgraph, once you set it to true, you can’t set it back to false.
+[05:42.87]So the new option lets you choose stricter behavior only around the regions where you need it.
+[05:49.73]Ava: That sounds useful for narrowing down a troublesome part of a model without forcing the whole program into one graph.
+[05:57.61]Brian: That’s the practical reading. The article describes it as expanding torch.
+[06:02.68]compile’s graph-break options.
+[06:04.73]It also points to a tutorial for more details, so the exact usage patterns are best learned there.
+[06:11.79]Ava: Packaging is another big theme. What does expanded wheel variant support mean for users?
+[06:18.23]Brian: PyTorch is participating in the WheelNext initiative to improve the Python packaging ecosystem.
+[06:25.85]In 2. 9.
+[06:26.49]0, the wheel variant support matrix adds AMD ROCm, Intel XPU, and NVIDIA CUDA 13.
+[06:32.98]These platforms get provider plugins that can detect platform attributes, including supported software and installed hardware.
+[06:43.42]Ava: Is the support equally available on every operating system?
+[06:47.88]Brian: No. NVIDIA CUDA wheels support Windows and Linux.
+[06:51.63]ROCm and XPU currently support Linux only.
+[06:54.85]The article also stresses that this feature is experimental and based on a work-in-progress wheel variants proposal.
+[07:04.09]Ava: So users should treat it as an evolving installation path.
+[07:08.55]Brian: Yes.
+[07:08.87]The article gives uv-based installation instructions for Linux x86, Linux aarch64, and macOS, and separate PowerShell instructions for Windows x86.
+[07:20.94]The main point is that uv can select the appropriate torch wheel through the WheelNext installer URL.
+[07:29.58]Ava: Now, FlexAttention appears twice: once for Intel GPUs and once for X86 CPUs.
+[07:37.46]Let’s separate those.
+[07:39.99]Brian: On Intel GPUs, PyTorch 2.
+[07:41.78]9 adds FlexAttention forward and backward support, aligned with common PyTorch GPU behavior.
+[07:48.35]That gives developers more consistent and portable performance across different GPUs.
+[07:54.42]The article says code can be written once, and Hugging Face or Transformers workloads can use FlexAttention without code changes.
+[08:03.98]Ava: And the CPU feature is flash decoding?
+[08:07.40]Brian: Right.
+[08:07.86]Flash decoding is a common LLM inference technique for speeding up attention and generation with long sequences.
+[08:16.41]Before this release, the article says it existed only on the CUDA path. PyTorch 2.
+[08:22.68]9 adds a FlexAttention-based optimization in the X86 CPU Inductor backend.
+[08:28.68]Ava: How does that optimization create more parallel work?
+[08:32.75]Brian: It parallelizes the key-value sequence by partition and reduction.
+[08:37.26]That can improve CPU utilization when the original parallelism is insufficient.
+[08:42.65]The examples given are small batch size, small head number, or short query sequence length combined with a long key-value sequence length.
+[08:52.42]Ava: So the target is especially long-context decoding on CPUs?
+[08:57.64]Brian: Yes.
+[08:57.92]The article says it’s expected to help during the LLM decoding phase, especially with long context length.
+[09:05.20]It doesn’t give a benchmark number, so we should describe the benefit as an intended optimization rather than quote a measured speedup.
+[09:14.82]Ava: Good distinction. What about Arm?
+[09:18.17]Brian: PyTorch 2. 9 delivers backend improvements and better test coverage on Arm. In torch.
+[09:24.02]compile mode, the TorchBench, HuggingFace, and TIMM test suites are faster than Eager mode, with results available on the PyTorch HUD Dashboard.
+[09:34.28]Ava: Are there operator-level changes too?
+[09:37.06]Brian: Yes.
+[09:37.37]Convolution, activation, and quantized operations on AArch64 were expanded and optimized for faster model execution.
+[09:46.53]Arm continuous-integration coverage was also broadened by adding AWS Graviton 4 instances based on Arm Neoverse V2.
+[09:55.96]Ava: And Linux aarch64 wheels are part of the release story as well?
+[10:01.28]Brian: Yes.
+[10:01.56]The release highlights enablement of Linux aarch64 binary wheel builds across all supported CUDA versions.
+[10:08.91]That should make installation easier for users on those Arm systems, although the article doesn’t enumerate the versions.
+[10:17.66]Ava: Before we wrap up, how large was this release effort?
+[10:22.33]Brian: Since PyTorch 2.
+[10:23.48]8, the release includes three thousand two hundred sixteen commits from four hundred fifty-two contributors.
+[10:31.26]The team thanks the community and encourages users to try the features and report issues as 2.
+[10:38.03]9 improves.
+[10:39.17]Ava: Let me recap in three points.
+[10:40.61]First, the stable libtorch ABI and Symmetric Memory target extension authors and multi-GPU kernel developers.
+[10:46.03]Second, torch. compile gets selective error-or-resume behavior for graph breaks.
+[10:50.00]Third, hardware coverage expands through ROCm, XPU, CUDA 13, Intel GPUs, X86 CPUs, and Arm.
+[10:54.88]Brian: That’s the release in a nutshell.
+[10:57.27]The main limitation is maturity: several features are API-Unstable, the high-level C++ APIs are still in preview, and wheel variants are experimental.
+[11:08.12]So teams should test carefully and follow the documentation as these interfaces develop.
+[11:14.84]Ava: Thanks, Brian.
+[11:15.83]For listeners, the three things to remember are: more stable extension compatibility, more flexible communication and compilation control, and broader hardware-specific performance work.
+[11:29.32]Brian: And if you try PyTorch 2. 9, report what breaks or improves.
+[11:34.34]That feedback is part of how these APIs become dependable.
+[11:39.54]Ava: That’s all for today. Keep your kernels fast and your graph breaks intentional.

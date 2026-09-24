@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How Shopify Built a Continual Learning Loop with PyTorch and vLLM</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/how-shopify-built-a-continual-learning-loop-with-pytorch-and-vllm/">原视频 / 原文</a></p><h1>How Shopify Built a Continual Learning Loop with PyTorch and vLLM</h1>
+<p>原文：[How Shopify built a continual learning loop with PyTorch and vLLM](https://pytorch.org/blog/how-shopify-built-a-continual-learning-loop-with-pytorch-and-vllm/)</p>
+<h2>摘要</h2>
+<p>本期讨论 Shopify 如何把生产环境中的失败对话，持续转化为模型权重更新。流程从定义质量标准、校准评估器开始，再通过自动研究改进提示词和工具编排，最后用监督微调与 GRPO 优化模型参数。Shopify 还用 gist tokens 压缩系统提示词，并通过 vLLM 降低延迟、硬件需求和服务成本。GraphQL agent 的案例显示，服务成本降低百分之九十六，同时质量超过 frontier model。</p>
+<h2>对话</h2>
+<p><strong>Ava:</strong> What if every failed production conversation could teach your model something by the next day? That’s the idea behind Shopify’s continual learning loop.</p>
+<p><strong>Brian:</strong> And it’s practical, not just a research slogan. Shopify says its GraphQL agent now beats the frontier-model baseline, while cutting serving cost by ninety-six percent.</p>
+<p><strong>Ava:</strong> That sounds like a big claim. Let’s start with the problem. Why wasn’t a frontier model enough?</p>
+<p><strong>Brian:</strong> Frontier models are a fast way to launch. A small team can put a useful product in front of users and learn from real usage. But scale changes the economics. They can be slow and expensive for every request.</p>
+<p><strong>Ava:</strong> And they’re general-purpose models, so they don’t really know Shopify’s product.</p>
+<p><strong>Brian:</strong> Right. More importantly, they don’t learn from production on their own. A rejected answer or a user correction doesn’t automatically improve the next answer.</p>
+<p><strong>Ava:</strong> So the knowledge accumulates around the model—in prompts, retrieval examples, routing rules, and harness code.</p>
+<p><strong>Brian:</strong> Exactly. The deployed weights stay frozen. Shopify’s flywheel tries to compress that production experience into the continuous space of the model’s weights. PyTorch provides the training foundation.</p>
+<p><strong>Ava:</strong> Before training anything, how do they decide what “better” means?</p>
+<p><strong>Brian:</strong> They define quality first. It starts as a rubric, which turns product requirements into scored criteria. For the GraphQL agent, the criteria include completeness, execution, response quality, and safety.</p>
+<p><strong>Ava:</strong> So the rubric is basically a quality contract.</p>
+<p><strong>Brian:</strong> Yes. It gives every score a concrete meaning. Annotators use it to turn conversations into ground truth. And the samples need to include randomly sampled traffic, not only carefully chosen examples.</p>
+<p><strong>Ava:</strong> Why does random traffic matter so much?</p>
+<p><strong>Brian:</strong> Golden sets test cases you already know to look for. Random samples show what good and bad actually look like in production. They reveal surprises.</p>
+<p><strong>Ava:</strong> How do they check whether the rubric is clear?</p>
+<p><strong>Brian:</strong> They ask their two best annotators or product experts to blindly label twenty-five random samples. Then they measure inter-annotator agreement with Cohen’s kappa, which measures agreement above chance.</p>
+<p><strong>Ava:</strong> And if the kappa is low?</p>
+<p><strong>Brian:</strong> If it’s around zero point two, the rubric is ambiguous. The experts meet and iterate. If people who work on the product every day can’t agree, an LLM won’t magically agree either.</p>
+<p><strong>Ava:</strong> There’s also a ceiling here, right? Humans don’t agree perfectly.</p>
+<p><strong>Brian:</strong> Right. The judge’s ceiling is human agreement. The goal isn’t a perfect judge. It’s a judge that matches humans about as well as humans match each other.</p>
+<p><strong>Ava:</strong> They also want detailed explanations, not just scores.</p>
+<p><strong>Brian:</strong> Yes. A score and one sentence aren’t enough for calibration. They want the reason behind every score. That reasoning becomes valuable training data.</p>
+<p><strong>Ava:</strong> Then they calibrate the judge. What does that involve?</p>
+<p><strong>Brian:</strong> The rubric is only the judge’s first prompt. Calibration turns it into a judge that can run over production data. Shopify uses DSPy and reflection-based optimizers such as GEPA and Agentic Context Engineering.</p>
+<p><strong>Ava:</strong> Can you make those sound less mysterious?</p>
+<p><strong>Brian:</strong> GEPA reflects on natural-language failure traces and evolves the prompt. It keeps a Pareto frontier of candidates instead of greedily choosing one winner. ACE, or Agentic Context Engineering, builds a structured playbook through small edits.</p>
+<p><strong>Ava:</strong> But an offline judge is still only a proxy.</p>
+<p><strong>Brian:</strong> Exactly. They backtest it against previous A/B tests. The judge should recover the direction of known wins and losses in engagement, retention, or whatever behavior the product is designed to drive.</p>
+<p><strong>Ava:</strong> And they run degradation tests too?</p>
+<p><strong>Brian:</strong> Yes. They deliberately make one behavior worse and check whether the matching criterion falls. If the agent stops trying to fulfill the user’s goal, the goal-fulfillment score should drop specifically.</p>
+<p><strong>Ava:</strong> Why use several small judges instead of one giant judge?</p>
+<p><strong>Brian:</strong> Focused judges are easier to interpret and trust. Cramming every product behavior into one judge makes failures hard to understand.</p>
+<p><strong>Ava:</strong> Once the judge works, they improve the original frontier-powered application without changing model weights.</p>
+<p><strong>Brian:</strong> That’s the baseline stage. They optimize prompts, tool definitions, and the harness. The harness is the whole application logic: dynamically assembled prompts, control loops, and orchestration spread across a codebase.</p>
+<p><strong>Ava:</strong> So ordinary prompt tuning only touches a small part of the system.</p>
+<p><strong>Brian:</strong> Right. They treat it as an autoresearch problem. An agent proposes a change to a prompt, a tool definition, or the harness. It evaluates the change with the judge, keeps it if the score improves, and discards it otherwise.</p>
+<p><strong>Ava:</strong> Where do they configure that loop?</p>
+<p><strong>Brian:</strong> In one readable Markdown file: where to get data, which directories the agent may edit, which judge is the metric, which optimizer to use, and the propose-evaluate-keep-or-discard loop.</p>
+<p><strong>Ava:</strong> What happens when those harness improvements plateau?</p>
+<p><strong>Brian:</strong> Then they move from discrete artifacts to continuous parameter updates. They mine anonymized production traffic for hard negatives—conversations the judge correctly scores low.</p>
+<p><strong>Ava:</strong> Across millions of merchants, that must create a huge variety of failures.</p>
+<p><strong>Brian:</strong> It does. Partial context, ambiguous requests, business-specific workflows, tool failures, and many ways to express the same intent. Instead of becoming isolated bug reports or Slack threads, the failures enter a self-healing pipeline.</p>
+<p><strong>Ava:</strong> Walk me through one failure.</p>
+<p><strong>Brian:</strong> A panel of frontier reasoning models critiques it. An arbiter merges the critiques into one repair instruction. That instruction is injected before the user’s turn, a technique sometimes called hinting.</p>
+<p><strong>Ava:</strong> Then they replay the conversation?</p>
+<p><strong>Brian:</strong> Yes. They replay from that point and ask the judge to score it again. If the repair passes, the replay becomes a reinforcement-learning trajectory, with the judge’s score as the reward.</p>
+<p><strong>Ava:</strong> And if it still fails?</p>
+<p><strong>Brian:</strong> It goes to human annotation through Toloka. Expert annotators correct the conversation and score it with the same rubric used to calibrate the judge.</p>
+<p><strong>Ava:</strong> Training has two stages. First is supervised fine-tuning.</p>
+<p><strong>Brian:</strong> Correct. They distill healed trajectories into a smaller model. They train on complete trajectories, including the reasoning that produced them, not only the final answers. That’s chain-of-thought distillation.</p>
+<p><strong>Ava:</strong> So the smaller model can inherit behavior that answers alone wouldn’t teach.</p>
+<p><strong>Brian:</strong> Exactly. Second, they apply GRPO. For each prompt, the model samples a group of responses, the judges score them, and GRPO reinforces the responses that perform best.</p>
+<p><strong>Ava:</strong> Supervised fine-tuning imitates successful trajectories, while GRPO optimizes directly against the quality definition.</p>
+<p><strong>Brian:</strong> That’s the distinction. The pipeline runs daily. They add new trajectories, run a full-parameter fine-tune over new and previous data, and then repeat GRPO.</p>
+<p><strong>Ava:</strong> Why keep old trajectories?</p>
+<p><strong>Brian:</strong> To limit drift and catastrophic forgetting across cycles. PyTorch distributes the training across GPUs using tensor, context, and data parallelism, which makes full-parameter fine-tuning practical at scale.</p>
+<p><strong>Ava:</strong> Now the model is better, but serving it can still be expensive.</p>
+<p><strong>Brian:</strong> That’s where gist compression helps. The agent’s system prompt is long and static. Because attention scales with sequence length, every generated token attends over that whole prefix.</p>
+<p><strong>Ava:</strong> So the prompt is a fixed latency tax on every request.</p>
+<p><strong>Brian:</strong> Exactly. They run the same model as a teacher with the full prompt and as a student with a short sequence of learned gist tokens. A custom PyTorch trainer learns the gist token embeddings while keeping model weights frozen.</p>
+<p><strong>Ava:</strong> And the student matches the teacher’s output distribution?</p>
+<p><strong>Brian:</strong> Yes. The result is a handful of tokens that reproduce the prompt’s behavior at a fraction of the length, with no measured quality loss on the judge.</p>
+<p><strong>Ava:</strong> Let’s look at the GraphQL agent itself.</p>
+<p><strong>Brian:</strong> It serves up to two thousand requests per minute. A merchant might ask which products are almost out of stock. The agent writes and runs a query against Shopify’s Admin GraphQL API, then turns the result into plain language.</p>
+<p><strong>Ava:</strong> What did the whole flywheel change?</p>
+<p><strong>Brian:</strong> First, quality. Self-healing turns low-scoring production conversations into successful trajectories. Together, supervised fine-tuning and reinforcement learning let the specialized model surpass frontier-model performance.</p>
+<p><strong>Ava:</strong> Second, cost.</p>
+<p><strong>Brian:</strong> Serving the traffic on a frontier model could cost an estimated twenty-seven million dollars per year, based on average token costs. The fine-tuned model could be closer to one million dollars—a ninety-six percent reduction.</p>
+<p><strong>Ava:</strong> That changes whether you can leave the feature on for every merchant.</p>
+<p><strong>Brian:</strong> Exactly. Third, speed. Gisting compressed roughly six thousand prompt tokens to about one thousand five hundred learned gist tokens.</p>
+<p><strong>Ava:</strong> What happened in the load test?</p>
+<p><strong>Brian:</strong> At three hundred fifty requests per minute, time-to-first-token fell about nineteen percent, and end-to-end latency fell about thirty-eight percent.</p>
+<p><strong>Ava:</strong> And throughput improved too?</p>
+<p><strong>Brian:</strong> About sixteen percent more requests per second and twelve percent more output tokens per second on identical GPUs. That works out to roughly fourteen percent fewer GPUs for the same traffic.</p>
+<p><strong>Ava:</strong> Are there limitations or open questions?</p>
+<p><strong>Brian:</strong> The article emphasizes that quality depends on the rubric and judge. If those are wrong, the whole loop optimizes the wrong behavior. Human annotation is still needed for failures the critics can’t repair.</p>
+<p><strong>Ava:</strong> And continual learning has to manage drift and forgetting.</p>
+<p><strong>Brian:</strong> Right. That’s why they train on accumulated data, not only the newest examples. The article also presents this as a production case study, so the exact gains may depend on the workload.</p>
+<p><strong>Ava:</strong> Let’s close with the three points I should remember. First?</p>
+<p><strong>Brian:</strong> Define and calibrate quality before optimizing. The rubric, human agreement, backtesting, and degradation tests make the judge trustworthy.</p>
+<p><strong>Ava:</strong> Second?</p>
+<p><strong>Brian:</strong> Improve the frontier baseline in the harness, then turn real failures into trajectories and model-weight updates with supervised fine-tuning and GRPO.</p>
+<p><strong>Ava:</strong> Third?</p>
+<p><strong>Brian:</strong> Compress the prompt for serving. Gist tokens, PyTorch training, and vLLM inference make the specialized model faster, cheaper, and easier to run at scale.</p>
+<p><strong>Ava:</strong> So the durable advantage isn’t one clever prompt. It’s the loop that keeps turning production experience into better weights.</p>
+<p><strong>Brian:</strong> Exactly. Thanks for listening. We’ll see you next time.</p>
+<h2>术语</h2>
+<p>Term · 释义</p>
+<p>continual learning loop · 持续学习循环，把生产经验持续反馈到模型训练中</p>
+<p>frontier model · 前沿模型，能力强但通常通用、昂贵且权重冻结</p>
+<p>rubric · 评分标准，将产品要求转化为可评分的质量指标</p>
+<p>Cohen’s kappa · 衡量标注者之间超出随机水平的一致性的指标</p>
+<p>ground truth · 真实标签或基准答案，用于训练和评估</p>
+<p>GEPA · 基于反思的提示词进化优化器</p>
+<p>Agentic Context Engineering · 通过渐进式编辑构建结构化上下文手册的方法</p>
+<p>autoresearch · 由智能体提出、评估并保留或丢弃改动的自动研究循环</p>
+<p>hard negative · 评估器正确判为低分、能暴露模型弱点的困难样本</p>
+<p>hinting · 在用户输入前注入修复指令并重放对话的技术</p>
+<p>supervised fine-tuning · 使用标注轨迹进行监督式微调</p>
+<p>GRPO · 对一组采样回答评分并强化高分回答的强化学习方法</p>
+<p>gist token · 用于压缩长系统提示词的一小组学习型 token</p>
+<p>vLLM · 基于 PyTorch 的推理引擎，支持连续批处理</p>
+<p>catastrophic forgetting · 模型学习新数据时遗忘旧能力的现象</p>
+<h2>口语表达</h2>
+<p>Phrase · 释义</p>
+<p>What if every failed production conversation could teach your model something? · 如果每次生产失败对话都能教会模型一些东西呢？</p>
+<p>Let’s start with the problem. · 我们先从问题开始。</p>
+<p>Walk me through one failure. · 带我走一遍一个失败案例。</p>
+<p>That’s the distinction. · 区别就在这里。</p>
+<p>What happens when those improvements plateau? · 这些改进达到瓶颈后会怎样？</p>
+<p>It works out to roughly · 最终大约相当于</p>
+<p>Let’s close with the three points I should remember. · 最后总结我应该记住的三点。</p>
+<p>The durable advantage isn’t one clever prompt. · 真正持久的优势不是某个巧妙提示词。</p></body></html>

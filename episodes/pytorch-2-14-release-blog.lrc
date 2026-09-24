@@ -1,0 +1,118 @@
+[ti:PyTorch 2.14: A Faster GEMM Backend, a Rewritten NCCL, and Declarative Dynamic Shapes]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: Okay so PyTorch just dropped 2. 14. Almost three thousand commits since 2. 13.
+[00:07.64]That's a lot to unpack.
+[00:10.24]Brian: Yeah, 2,995 commits, 487 contributors. It's a big one.
+[00:15.46]But there's a clear thread running through it if you squint.
+[00:21.60]Ava: Which is?
+[00:23.15]Brian: PyTorch trying to be one platform that works the same whether you're on NVIDIA, AMD, Intel, or a Mac.
+[00:31.04]Faster matmuls, a rewritten networking backend, native math on Apple GPUs.
+[00:36.83]Same story, three fronts.
+[00:39.13]Ava: Let's start with the matmul thing. NVGEMM. What even is that?
+[00:43.99]Brian: So, GEMM is just General Matrix Multiply — the operation that eats most of your GPU time in a transformer.
+[00:52.59]NVGEMM is a new backend for it inside Inductor, PyTorch's compiler.
+[00:58.38]Ava: And it's built on CuTeDSL?
+[01:01.47]Brian: Right, that landed in 2.
+[01:03.26]13 as a way to generate CUTLASS kernels — CUTLASS is NVIDIA's template library for writing fast GPU math.
+[01:11.10]In 2. 13 it could only spit out a standalone kernel.
+[01:14.98]Whatever came after, like a bias add, stayed in a separate kernel that had to re-read the result from memory.
+[01:23.46]Ava: That sounds wasteful.
+[01:25.88]Brian: It is. So the big addition in 2. 14 is epilogue fusion.
+[01:30.25]Now the bias add, the activation, the rescale — they get folded right into the same kernel.
+[01:37.48]No extra memory round trip.
+[01:39.98]Ava: And this competes against what PyTorch already had?
+[01:44.19]Brian: Exactly, it's not a replacement, it's a third candidate.
+[01:47.83]Inductor autotunes NVGEMM alongside Triton and ATen and picks whichever is fastest for your shape.
+[01:54.19]It also reaches the low-precision paths now, so things like NVFP4 — a four-bit floating format — get their scaling folded into the kernel too, instead of paying for a separate multiply.
+[02:06.55]Ava: Any catch?
+[02:08.20]Brian: You have to opt in, add NVGEMM to the autotune backend list.
+[02:12.31]And NVFP4 support needs Blackwell hardware.
+[02:15.25]If an epilogue is too weird for it to express, it just falls back to Triton, so you're not worse off.
+[02:22.52]Ava: Okay, let's move to distributed training. This is the part I actually care about.
+[02:29.06]Brian: Big one here too.
+[02:30.26]There's a preview of a rewritten NCCL backend — NCCL being NVIDIA's Collective Communications Library, the thing that handles all-reduce and friends across GPUs.
+[02:41.96]Ava: Rewritten how?
+[02:43.75]Brian: It's ported from a project called torchcomms, which showed up in 2. 13.
+[02:49.26]Now it lands in-tree as basically a drop-in replacement, nicknamed nccl2, and it's slated to become the default backend in 2.
+[02:58.95]15.
+[02:59.53]Ava: What does it actually buy you over the old one?
+[03:02.64]Brian: Nonblocking communicators, one-sided memory access, and — this is the headline for me — fault tolerance built in as a first-class concept, not a hack bolted onto NCCL specifically.
+[03:14.30]Ava: Wait, back up. What does fault tolerance mean in this context?
+[03:18.60]Isn't that usually a checkpoint-and-restart thing?
+[03:22.42]Brian: That's exactly the pain point.
+[03:24.28]Normally when one rank dies in a big job, you tear down the whole process group and restart it, which throws away warm state across the entire cluster.
+[03:33.98]Ava: Ouch. That's expensive at scale.
+[03:37.50]Brian: Very.
+[03:37.89]So now the Backend and ProcessGroup objects expose reconfiguration interfaces — a group can be rebuilt in place instead of destroyed.
+[03:48.40]And this isn't NCCL-only, Gloo gets it too.
+[03:52.15]Ava: You mentioned one-sided memory access. What's that, exactly?
+[03:57.30]Brian: Think RMA, remote memory access.
+[03:59.67]Normally a collective needs both sides to show up and synchronize.
+[04:04.54]One-sided means one rank can just read or write another rank's memory directly, no matching call needed on the other end.
+[04:13.83]Ava: When would you want that?
+[04:15.81]Brian: Irregular access patterns.
+[04:17.78]Embedding lookups, weight transfer, expert routing in mixture-of-experts models.
+[04:23.83]Anywhere the access pattern isn't a clean all-to-all.
+[04:28.18]Ava: And there was something about a Flight Recorder?
+[04:31.29]Brian: Right, that's the trace buffer people use to debug hung or mismatched collectives.
+[04:37.00]It used to be wired specifically into NCCL.
+[04:39.99]Now it hooks through ProcessGroup generically, so it works for Gloo or any custom backend too.
+[04:46.52]Debugging a hang doesn't mean giving up your trace just because you're not on NCCL.
+[04:52.64]Ava: Makes sense. Let's switch gears — literally, since there's a feature called torch.
+[04:58.44]switch.
+[04:59.28]Brian: Ha, yeah. So torch.
+[05:00.50]cond already existed for a two-way branch inside a compiled graph — if this, else that.
+[05:06.09]But if you needed, say, eight-way branching, like picking one of eight experts in an MoE model, you had to nest torch.
+[05:13.67]cond calls.
+[05:14.73]Ava: Which gets ugly fast.
+[05:17.24]Brian: Right, it bloats the traced graph and hides what you're actually doing. torch.
+[05:22.92]switch does multi-way branching natively, dispatching on an index.
+[05:27.73]It's aimed squarely at mixture-of-experts routing.
+[05:31.72]Ava: There's also something about while loops and CUDA graphs?
+[05:35.99]Brian: torch. while_loop can now be captured inside a CUDA graph.
+[05:39.98]Normally a data-dependent loop count forces a device-to-host copy to decide how many iterations to run, and that breaks graph capture right where you'd want it intact.
+[05:51.84]Ava: So now the loop count can vary at replay time without breaking capture?
+[05:56.89]Brian: Exactly.
+[05:57.43]The condition gets re-evaluated on GPU at the end of each iteration using CUDA's native while-node support.
+[06:04.63]It's not a speed win by itself, it just means a variable-length loop no longer kicks you out of the graph entirely.
+[06:12.72]Ava: Okay, now the one I've been waiting for — Apple Silicon.
+[06:16.66]My Mac finally gets real linear algebra?
+[06:19.82]Brian: Yes! This was a genuine gap before.
+[06:22.59]SVD, eigh — that's the eigendecomposition for Hermitian matrices — QR, and Cholesky.
+[06:29.25]All were leaning on Apple's MPSGraph framework, or just falling back to CPU.
+[06:35.62]Ava: Which kills performance if you're doing anything numerical.
+[06:39.84]Brian: Right, mixed CPU and MPS round trips are exactly the kind of thing that quietly tanks your throughput.
+[06:47.81]Now SVD, eigh, and lstsq run via native Jacobi-style Metal kernels for float32.
+[06:53.99]Cholesky got a faster panel-factorization algorithm too, something like 1. 2 to 2.
+[07:00.40]8x faster depending on matrix size.
+[07:03.49]Ava: Any limits?
+[07:05.23]Brian: float64 still falls back to CPU, because Metal simply has no double-precision type.
+[07:11.14]And there's a whole separate five-part rewrite of reduction kernels — full reductions, strided ones, argmax and argmin — moving off MPSGraph onto hand-written Metal.
+[07:23.22]Ava: I saw something about an 8. 5x slowdown fix too.
+[07:27.92]Brian: Yeah, that one's specific but important if you run models locally.
+[07:32.64]Single-token decode — the shape you get when you're generating one token at a time — was falling off the fast path in F.
+[07:41.23]linear on MPS. Eight point five times slower than it should've been, on bf16 and fp16.
+[07:47.73]Ava: That's huge for anyone doing local inference on a Mac.
+[07:51.87]Brian: Exactly, it's one of the bigger remaining gaps between MPS and CUDA for autoregressive generation, and this closes a good chunk of it.
+[08:01.25]Ava: Quick one — what's @dynamic_spec?
+[08:05.37]Brian: It's a cleanup, not a new capability exactly.
+[08:08.37]Before this, declaring which dimensions of your input can vary at runtime meant a different mechanism depending on whether you were using torch.
+[08:18.00]compile, torch. export, or make_fx.
+[08:20.69]Ava: So three different ways to say the same thing.
+[08:24.11]Brian: Right, and the declaration usually lived far away from the model code.
+[08:28.79]Now you define a shape spec once, attach it to your function with a decorator, and all three entry points pick it up automatically.
+[08:37.88]Ava: And platform support — I saw ROCm and Rubin mentioned.
+[08:42.98]Brian: ROCm 7. 14 wheels now build from AMD's TheRock SDK. Intel XPU gets native graph capture.
+[08:51.31]And Inductor now targets Rubin, NVIDIA's next architecture after Blackwell.
+[08:58.76]Ava: Anything we should flag as not fully baked yet?
+[09:02.57]Brian: Almost everything in this release is tagged API Unstable, so expect some churn.
+[09:08.37]Complex-tensor support in torch.
+[09:10.71]compile is explicitly experimental — not every complex operation is covered yet.
+[09:16.58]And Python 3. 15 support landed, but it's eager-mode only for now — calling torch.
+[09:22.60]compile under 3. 15 just raises an error rather than quietly running slower.
+[09:28.53]Ava: Good to know before someone upgrades blind. So, wrapping up — three things to remember?
+[09:34.97]Brian: One: NVGEMM brings epilogue fusion and low-precision support to PyTorch's fastest matmul path.
+[09:42.38]Two: fault tolerance and one-sided memory access are now built into distributed training, not bolted on.
+[09:50.57]Three: Apple Silicon finally gets native linear algebra and a major decode-speed fix.
+[09:57.62]Ava: That's PyTorch 2. 14. Thanks for listening, and we'll catch you next release.

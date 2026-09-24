@@ -1,0 +1,459 @@
+1
+00:00:00,000 --> 00:00:07,636
+Ava: Okay so PyTorch just dropped 2. 14. Almost three thousand commits since 2. 13.
+
+2
+00:00:07,636 --> 00:00:10,238
+That's a lot to unpack.
+
+3
+00:00:10,238 --> 00:00:15,456
+Brian: Yeah, 2,995 commits, 487 contributors. It's a big one.
+
+4
+00:00:15,456 --> 00:00:21,604
+But there's a clear thread running through it if you squint.
+
+5
+00:00:21,604 --> 00:00:23,154
+Ava: Which is?
+
+6
+00:00:23,154 --> 00:00:31,044
+Brian: PyTorch trying to be one platform that works the same whether you're on NVIDIA, AMD, Intel, or a Mac.
+
+7
+00:00:31,044 --> 00:00:36,825
+Faster matmuls, a rewritten networking backend, native math on Apple GPUs.
+
+8
+00:00:36,825 --> 00:00:39,128
+Same story, three fronts.
+
+9
+00:00:39,128 --> 00:00:43,990
+Ava: Let's start with the matmul thing. NVGEMM. What even is that?
+
+10
+00:00:43,990 --> 00:00:52,593
+Brian: So, GEMM is just General Matrix Multiply — the operation that eats most of your GPU time in a transformer.
+
+11
+00:00:52,593 --> 00:00:58,380
+NVGEMM is a new backend for it inside Inductor, PyTorch's compiler.
+
+12
+00:00:58,380 --> 00:01:01,466
+Ava: And it's built on CuTeDSL?
+
+13
+00:01:01,466 --> 00:01:03,258
+Brian: Right, that landed in 2.
+
+14
+00:01:03,258 --> 00:01:11,096
+13 as a way to generate CUTLASS kernels — CUTLASS is NVIDIA's template library for writing fast GPU math.
+
+15
+00:01:11,096 --> 00:01:14,977
+In 2. 13 it could only spit out a standalone kernel.
+
+16
+00:01:14,977 --> 00:01:23,464
+Whatever came after, like a bias add, stayed in a separate kernel that had to re-read the result from memory.
+
+17
+00:01:23,464 --> 00:01:25,878
+Ava: That sounds wasteful.
+
+18
+00:01:25,878 --> 00:01:30,250
+Brian: It is. So the big addition in 2. 14 is epilogue fusion.
+
+19
+00:01:30,250 --> 00:01:37,484
+Now the bias add, the activation, the rescale — they get folded right into the same kernel.
+
+20
+00:01:37,484 --> 00:01:39,980
+No extra memory round trip.
+
+21
+00:01:39,980 --> 00:01:44,194
+Ava: And this competes against what PyTorch already had?
+
+22
+00:01:44,194 --> 00:01:47,830
+Brian: Exactly, it's not a replacement, it's a third candidate.
+
+23
+00:01:47,830 --> 00:01:54,192
+Inductor autotunes NVGEMM alongside Triton and ATen and picks whichever is fastest for your shape.
+
+24
+00:01:54,192 --> 00:02:06,552
+It also reaches the low-precision paths now, so things like NVFP4 — a four-bit floating format — get their scaling folded into the kernel too, instead of paying for a separate multiply.
+
+25
+00:02:06,552 --> 00:02:08,198
+Ava: Any catch?
+
+26
+00:02:08,198 --> 00:02:12,306
+Brian: You have to opt in, add NVGEMM to the autotune backend list.
+
+27
+00:02:12,306 --> 00:02:15,250
+And NVFP4 support needs Blackwell hardware.
+
+28
+00:02:15,250 --> 00:02:22,516
+If an epilogue is too weird for it to express, it just falls back to Triton, so you're not worse off.
+
+29
+00:02:22,516 --> 00:02:29,058
+Ava: Okay, let's move to distributed training. This is the part I actually care about.
+
+30
+00:02:29,058 --> 00:02:30,257
+Brian: Big one here too.
+
+31
+00:02:30,257 --> 00:02:41,960
+There's a preview of a rewritten NCCL backend — NCCL being NVIDIA's Collective Communications Library, the thing that handles all-reduce and friends across GPUs.
+
+32
+00:02:41,960 --> 00:02:43,750
+Ava: Rewritten how?
+
+33
+00:02:43,750 --> 00:02:49,256
+Brian: It's ported from a project called torchcomms, which showed up in 2. 13.
+
+34
+00:02:49,256 --> 00:02:58,949
+Now it lands in-tree as basically a drop-in replacement, nicknamed nccl2, and it's slated to become the default backend in 2.
+
+35
+00:02:58,949 --> 00:02:59,532
+15.
+
+36
+00:02:59,532 --> 00:03:02,642
+Ava: What does it actually buy you over the old one?
+
+37
+00:03:02,642 --> 00:03:14,296
+Brian: Nonblocking communicators, one-sided memory access, and — this is the headline for me — fault tolerance built in as a first-class concept, not a hack bolted onto NCCL specifically.
+
+38
+00:03:14,296 --> 00:03:18,601
+Ava: Wait, back up. What does fault tolerance mean in this context?
+
+39
+00:03:18,601 --> 00:03:22,422
+Isn't that usually a checkpoint-and-restart thing?
+
+40
+00:03:22,422 --> 00:03:24,280
+Brian: That's exactly the pain point.
+
+41
+00:03:24,280 --> 00:03:33,980
+Normally when one rank dies in a big job, you tear down the whole process group and restart it, which throws away warm state across the entire cluster.
+
+42
+00:03:33,980 --> 00:03:37,498
+Ava: Ouch. That's expensive at scale.
+
+43
+00:03:37,498 --> 00:03:37,893
+Brian: Very.
+
+44
+00:03:37,893 --> 00:03:48,404
+So now the Backend and ProcessGroup objects expose reconfiguration interfaces — a group can be rebuilt in place instead of destroyed.
+
+45
+00:03:48,404 --> 00:03:52,152
+And this isn't NCCL-only, Gloo gets it too.
+
+46
+00:03:52,152 --> 00:03:57,302
+Ava: You mentioned one-sided memory access. What's that, exactly?
+
+47
+00:03:57,302 --> 00:03:59,666
+Brian: Think RMA, remote memory access.
+
+48
+00:03:59,666 --> 00:04:04,541
+Normally a collective needs both sides to show up and synchronize.
+
+49
+00:04:04,541 --> 00:04:13,828
+One-sided means one rank can just read or write another rank's memory directly, no matching call needed on the other end.
+
+50
+00:04:13,828 --> 00:04:15,810
+Ava: When would you want that?
+
+51
+00:04:15,810 --> 00:04:17,776
+Brian: Irregular access patterns.
+
+52
+00:04:17,776 --> 00:04:23,826
+Embedding lookups, weight transfer, expert routing in mixture-of-experts models.
+
+53
+00:04:23,826 --> 00:04:28,184
+Anywhere the access pattern isn't a clean all-to-all.
+
+54
+00:04:28,184 --> 00:04:31,294
+Ava: And there was something about a Flight Recorder?
+
+55
+00:04:31,294 --> 00:04:36,996
+Brian: Right, that's the trace buffer people use to debug hung or mismatched collectives.
+
+56
+00:04:36,996 --> 00:04:39,986
+It used to be wired specifically into NCCL.
+
+57
+00:04:39,986 --> 00:04:46,522
+Now it hooks through ProcessGroup generically, so it works for Gloo or any custom backend too.
+
+58
+00:04:46,522 --> 00:04:52,644
+Debugging a hang doesn't mean giving up your trace just because you're not on NCCL.
+
+59
+00:04:52,644 --> 00:04:58,437
+Ava: Makes sense. Let's switch gears — literally, since there's a feature called torch.
+
+60
+00:04:58,437 --> 00:04:59,282
+switch.
+
+61
+00:04:59,282 --> 00:05:00,503
+Brian: Ha, yeah. So torch.
+
+62
+00:05:00,503 --> 00:05:06,091
+cond already existed for a two-way branch inside a compiled graph — if this, else that.
+
+63
+00:05:06,091 --> 00:05:13,671
+But if you needed, say, eight-way branching, like picking one of eight experts in an MoE model, you had to nest torch.
+
+64
+00:05:13,671 --> 00:05:14,728
+cond calls.
+
+65
+00:05:14,728 --> 00:05:17,238
+Ava: Which gets ugly fast.
+
+66
+00:05:17,238 --> 00:05:22,922
+Brian: Right, it bloats the traced graph and hides what you're actually doing. torch.
+
+67
+00:05:22,922 --> 00:05:27,731
+switch does multi-way branching natively, dispatching on an index.
+
+68
+00:05:27,731 --> 00:05:31,724
+It's aimed squarely at mixture-of-experts routing.
+
+69
+00:05:31,724 --> 00:05:35,986
+Ava: There's also something about while loops and CUDA graphs?
+
+70
+00:05:35,986 --> 00:05:39,983
+Brian: torch. while_loop can now be captured inside a CUDA graph.
+
+71
+00:05:39,983 --> 00:05:51,840
+Normally a data-dependent loop count forces a device-to-host copy to decide how many iterations to run, and that breaks graph capture right where you'd want it intact.
+
+72
+00:05:51,840 --> 00:05:56,894
+Ava: So now the loop count can vary at replay time without breaking capture?
+
+73
+00:05:56,894 --> 00:05:57,432
+Brian: Exactly.
+
+74
+00:05:57,432 --> 00:06:04,634
+The condition gets re-evaluated on GPU at the end of each iteration using CUDA's native while-node support.
+
+75
+00:06:04,634 --> 00:06:12,724
+It's not a speed win by itself, it just means a variable-length loop no longer kicks you out of the graph entirely.
+
+76
+00:06:12,724 --> 00:06:16,658
+Ava: Okay, now the one I've been waiting for — Apple Silicon.
+
+77
+00:06:16,658 --> 00:06:19,818
+My Mac finally gets real linear algebra?
+
+78
+00:06:19,818 --> 00:06:22,592
+Brian: Yes! This was a genuine gap before.
+
+79
+00:06:22,592 --> 00:06:29,250
+SVD, eigh — that's the eigendecomposition for Hermitian matrices — QR, and Cholesky.
+
+80
+00:06:29,250 --> 00:06:35,624
+All were leaning on Apple's MPSGraph framework, or just falling back to CPU.
+
+81
+00:06:35,624 --> 00:06:39,838
+Ava: Which kills performance if you're doing anything numerical.
+
+82
+00:06:39,838 --> 00:06:47,815
+Brian: Right, mixed CPU and MPS round trips are exactly the kind of thing that quietly tanks your throughput.
+
+83
+00:06:47,815 --> 00:06:53,992
+Now SVD, eigh, and lstsq run via native Jacobi-style Metal kernels for float32.
+
+84
+00:06:53,992 --> 00:07:00,405
+Cholesky got a faster panel-factorization algorithm too, something like 1. 2 to 2.
+
+85
+00:07:00,405 --> 00:07:03,492
+8x faster depending on matrix size.
+
+86
+00:07:03,492 --> 00:07:05,234
+Ava: Any limits?
+
+87
+00:07:05,234 --> 00:07:11,138
+Brian: float64 still falls back to CPU, because Metal simply has no double-precision type.
+
+88
+00:07:11,138 --> 00:07:23,224
+And there's a whole separate five-part rewrite of reduction kernels — full reductions, strided ones, argmax and argmin — moving off MPSGraph onto hand-written Metal.
+
+89
+00:07:23,224 --> 00:07:27,918
+Ava: I saw something about an 8. 5x slowdown fix too.
+
+90
+00:07:27,918 --> 00:07:32,641
+Brian: Yeah, that one's specific but important if you run models locally.
+
+91
+00:07:32,641 --> 00:07:41,228
+Single-token decode — the shape you get when you're generating one token at a time — was falling off the fast path in F.
+
+92
+00:07:41,228 --> 00:07:47,732
+linear on MPS. Eight point five times slower than it should've been, on bf16 and fp16.
+
+93
+00:07:47,732 --> 00:07:51,874
+Ava: That's huge for anyone doing local inference on a Mac.
+
+94
+00:07:51,874 --> 00:08:01,248
+Brian: Exactly, it's one of the bigger remaining gaps between MPS and CUDA for autoregressive generation, and this closes a good chunk of it.
+
+95
+00:08:01,248 --> 00:08:05,366
+Ava: Quick one — what's @dynamic_spec?
+
+96
+00:08:05,366 --> 00:08:08,375
+Brian: It's a cleanup, not a new capability exactly.
+
+97
+00:08:08,375 --> 00:08:18,002
+Before this, declaring which dimensions of your input can vary at runtime meant a different mechanism depending on whether you were using torch.
+
+98
+00:08:18,002 --> 00:08:20,692
+compile, torch. export, or make_fx.
+
+99
+00:08:20,692 --> 00:08:24,114
+Ava: So three different ways to say the same thing.
+
+100
+00:08:24,114 --> 00:08:28,786
+Brian: Right, and the declaration usually lived far away from the model code.
+
+101
+00:08:28,786 --> 00:08:37,880
+Now you define a shape spec once, attach it to your function with a decorator, and all three entry points pick it up automatically.
+
+102
+00:08:37,880 --> 00:08:42,982
+Ava: And platform support — I saw ROCm and Rubin mentioned.
+
+103
+00:08:42,982 --> 00:08:51,313
+Brian: ROCm 7. 14 wheels now build from AMD's TheRock SDK. Intel XPU gets native graph capture.
+
+104
+00:08:51,313 --> 00:08:58,764
+And Inductor now targets Rubin, NVIDIA's next architecture after Blackwell.
+
+105
+00:08:58,764 --> 00:09:02,570
+Ava: Anything we should flag as not fully baked yet?
+
+106
+00:09:02,570 --> 00:09:08,367
+Brian: Almost everything in this release is tagged API Unstable, so expect some churn.
+
+107
+00:09:08,367 --> 00:09:10,715
+Complex-tensor support in torch.
+
+108
+00:09:10,715 --> 00:09:16,585
+compile is explicitly experimental — not every complex operation is covered yet.
+
+109
+00:09:16,585 --> 00:09:22,601
+And Python 3. 15 support landed, but it's eager-mode only for now — calling torch.
+
+110
+00:09:22,601 --> 00:09:28,528
+compile under 3. 15 just raises an error rather than quietly running slower.
+
+111
+00:09:28,528 --> 00:09:34,974
+Ava: Good to know before someone upgrades blind. So, wrapping up — three things to remember?
+
+112
+00:09:34,974 --> 00:09:42,380
+Brian: One: NVGEMM brings epilogue fusion and low-precision support to PyTorch's fastest matmul path.
+
+113
+00:09:42,380 --> 00:09:50,573
+Two: fault tolerance and one-sided memory access are now built into distributed training, not bolted on.
+
+114
+00:09:50,573 --> 00:09:57,620
+Three: Apple Silicon finally gets native linear algebra and a major decode-speed fix.
+
+115
+00:09:57,620 --> 00:10:04,234
+Ava: That's PyTorch 2. 14. Thanks for listening, and we'll catch you next release.

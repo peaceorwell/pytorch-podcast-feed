@@ -1,0 +1,3017 @@
+[ti:PyTorch 2.14 Release Live Q&A]
+[ar:Original]
+[al:PyTorch Blog Podcast]
+[00:06.71]Okay. Uh hello everyone. Um and welcome
+[00:06.72]Okay. Uh hello everyone. Um and welcome to our PyTorch uh 2.14
+[00:10.15]to our PyTorch uh 2.14
+[00:10.16]to our PyTorch uh 2.14 uh release live uh Q&A. Um uh let me
+[00:15.03]uh release live uh Q&A. Um uh let me
+[00:15.04]uh release live uh Q&A. Um uh let me scroll back up to my uh my comments
+[00:17.27]scroll back up to my uh my comments
+[00:17.28]scroll back up to my uh my comments here. Um this session will start with uh
+[00:20.39]here. Um this session will start with uh
+[00:20.40]here. Um this session will start with uh with introducing our experts um and then
+[00:22.95]with introducing our experts um and then
+[00:22.96]with introducing our experts um and then a short overview of the key updates in
+[00:24.55]a short overview of the key updates in
+[00:24.56]a short overview of the key updates in PyTorch uh 21.14 followed by um the fun
+[00:28.15]PyTorch uh 21.14 followed by um the fun
+[00:28.16]PyTorch uh 21.14 followed by um the fun part which is an open Q&A covering your
+[00:30.71]part which is an open Q&A covering your
+[00:30.72]part which is an open Q&A covering your questions about this release. Um first
+[00:33.03]questions about this release. Um first
+[00:33.04]questions about this release. Um first I'll introduce myself. I'm I'm Chris
+[00:34.39]I'll introduce myself. I'm I'm Chris
+[00:34.40]I'll introduce myself. I'm I'm Chris Scott. I'm your moderator for today's
+[00:35.83]Scott. I'm your moderator for today's
+[00:35.84]Scott. I'm your moderator for today's webinar. I've been involved in the
+[00:37.03]webinar. I've been involved in the
+[00:37.04]webinar. I've been involved in the PyTorch community for about eight years
+[00:39.43]PyTorch community for about eight years
+[00:39.44]PyTorch community for about eight years focusing on focusing on product and
+[00:41.19]focusing on focusing on product and
+[00:41.20]focusing on focusing on product and marketing uh type angles. Um these days
+[00:43.83]marketing uh type angles. Um these days
+[00:43.84]marketing uh type angles. Um these days I run a consulting practice uh focusing
+[00:45.67]I run a consulting practice uh focusing
+[00:45.68]I run a consulting practice uh focusing on emerging AI technologies and I'm
+[00:48.23]on emerging AI technologies and I'm
+[00:48.24]on emerging AI technologies and I'm delighted to welcome a panel of three
+[00:50.07]delighted to welcome a panel of three
+[00:50.08]delighted to welcome a panel of three absolute PyTorch experts. We have Andre
+[00:52.39]absolute PyTorch experts. We have Andre
+[00:52.40]absolute PyTorch experts. We have Andre Talman uh Joe Spizac and Nikita Schulga.
+[00:55.99]Talman uh Joe Spizac and Nikita Schulga.
+[00:56.00]Talman uh Joe Spizac and Nikita Schulga. Uh and they're here to answer your
+[00:57.43]Uh and they're here to answer your
+[00:57.44]Uh and they're here to answer your questions about PyTorch and generally to
+[00:59.35]questions about PyTorch and generally to
+[00:59.36]questions about PyTorch and generally to you know spread the word. Um so Andre is
+[01:02.63]you know spread the word. Um so Andre is
+[01:02.64]you know spread the word. Um so Andre is a release engineer in the PyTorch Dev
+[01:04.31]a release engineer in the PyTorch Dev
+[01:04.32]a release engineer in the PyTorch Dev Info team here at Meta or at Meta. I'm
+[01:07.11]Info team here at Meta or at Meta. I'm
+[01:07.12]Info team here at Meta or at Meta. I'm sorry. I used to be at Meta so that just
+[01:09.11]sorry. I used to be at Meta so that just
+[01:09.12]sorry. I used to be at Meta so that just rolls off my tongue. It's no longer
+[01:10.47]rolls off my tongue. It's no longer
+[01:10.48]rolls off my tongue. It's no longer accurate. at Meta. Uh he drives uh the
+[01:13.83]accurate. at Meta. Uh he drives uh the
+[01:13.84]accurate. at Meta. Uh he drives uh the release process and keeps uh the
+[01:15.43]release process and keeps uh the
+[01:15.44]release process and keeps uh the continuous integration and continuous
+[01:16.79]continuous integration and continuous
+[01:16.80]continuous integration and continuous development infrastructure humming. Uh
+[01:19.11]development infrastructure humming. Uh
+[01:19.12]development infrastructure humming. Uh Joe um is the uh VP of product uh and
+[01:23.11]Joe um is the uh VP of product uh and
+[01:23.12]Joe um is the uh VP of product uh and head of open source at Reflection AI. Uh
+[01:25.91]head of open source at Reflection AI. Uh
+[01:25.92]head of open source at Reflection AI. Uh he's one of the PyTorch core maintainers
+[01:27.75]he's one of the PyTorch core maintainers
+[01:27.76]he's one of the PyTorch core maintainers and among the strongest advocates that I
+[01:29.59]and among the strongest advocates that I
+[01:29.60]and among the strongest advocates that I know of for open source, open models and
+[01:31.67]know of for open source, open models and
+[01:31.68]know of for open source, open models and open infrastructure across the AI
+[01:33.43]open infrastructure across the AI
+[01:33.44]open infrastructure across the AI community. Uh and always a fun uh fun
+[01:35.91]community. Uh and always a fun uh fun
+[01:35.92]community. Uh and always a fun uh fun person to to hear from. Nikita is a
+[01:38.23]person to to hear from. Nikita is a
+[01:38.24]person to to hear from. Nikita is a PyTorch core maintainer uh and a key
+[01:40.79]PyTorch core maintainer uh and a key
+[01:40.80]PyTorch core maintainer uh and a key contributor and reviewer really active
+[01:42.87]contributor and reviewer really active
+[01:42.88]contributor and reviewer really active across just a bunch of areas uh in in
+[01:46.07]across just a bunch of areas uh in in
+[01:46.08]across just a bunch of areas uh in in the core area of PyTorch. So you
+[01:48.07]the core area of PyTorch. So you
+[01:48.08]the core area of PyTorch. So you probably see his name on on lots of
+[01:49.59]probably see his name on on lots of
+[01:49.60]probably see his name on on lots of things. Um I'll give a brief overview
+[01:52.87]things. Um I'll give a brief overview
+[01:52.88]things. Um I'll give a brief overview now in a in a moment here about the
+[01:54.55]now in a in a moment here about the
+[01:54.56]now in a in a moment here about the release uh for a few minutes and I'm
+[01:56.95]release uh for a few minutes and I'm
+[01:56.96]release uh for a few minutes and I'm would encourage you if you're in the in
+[01:58.55]would encourage you if you're in the in
+[01:58.56]would encourage you if you're in the in the audience uh to to use that time to
+[02:00.55]the audience uh to to use that time to
+[02:00.56]the audience uh to to use that time to think about what questions you might
+[02:02.39]think about what questions you might
+[02:02.40]think about what questions you might have um for our experts. uh you can put
+[02:05.11]have um for our experts. uh you can put
+[02:05.12]have um for our experts. uh you can put those in LinkedIn and and the and the
+[02:06.87]those in LinkedIn and and the and the
+[02:06.88]those in LinkedIn and and the and the YouTube tools. Uh we'll uh we'll cue
+[02:09.43]YouTube tools. Uh we'll uh we'll cue
+[02:09.44]YouTube tools. Uh we'll uh we'll cue them up for our experts to answer. We
+[02:12.31]them up for our experts to answer. We
+[02:12.32]them up for our experts to answer. We will we'll also have a few seed
+[02:13.75]will we'll also have a few seed
+[02:13.76]will we'll also have a few seed questions up uh on our you know prepared
+[02:16.47]questions up uh on our you know prepared
+[02:16.48]questions up uh on our you know prepared uh based on ongoing community
+[02:17.75]uh based on ongoing community
+[02:17.76]uh based on ongoing community discussions which you can join by uh
+[02:19.51]discussions which you can join by uh
+[02:19.52]discussions which you can join by uh looking them up in uh discuss.pytor.org
+[02:21.99]looking them up in uh discuss.pytor.org
+[02:22.00]looking them up in uh discuss.pytor.org and dev discuss.pytor.org or hopping on
+[02:24.63]and dev discuss.pytor.org or hopping on
+[02:24.64]and dev discuss.pytor.org or hopping on PyTorch Slack. Um those are just here to
+[02:27.27]PyTorch Slack. Um those are just here to
+[02:27.28]PyTorch Slack. Um those are just here to to kind of keep things flowing and make
+[02:28.79]to kind of keep things flowing and make
+[02:28.80]to kind of keep things flowing and make sure we touch on some important topics
+[02:30.23]sure we touch on some important topics
+[02:30.24]sure we touch on some important topics but it's more fun really to answer the
+[02:31.91]but it's more fun really to answer the
+[02:31.92]but it's more fun really to answer the questions that come in from the
+[02:32.79]questions that come in from the
+[02:32.80]questions that come in from the community. So, please don't be shy.
+[02:35.67]community. So, please don't be shy.
+[02:35.68]community. So, please don't be shy. Okay, so an overview of the release. Uh,
+[02:38.07]Okay, so an overview of the release. Uh,
+[02:38.08]Okay, so an overview of the release. Uh, this actually seems to me to be a pretty
+[02:39.35]this actually seems to me to be a pretty
+[02:39.36]this actually seems to me to be a pretty significant release despite, you know,
+[02:40.63]significant release despite, you know,
+[02:40.64]significant release despite, you know, the the numbering 21.14 makes it seem
+[02:43.11]the the numbering 21.14 makes it seem
+[02:43.12]the the numbering 21.14 makes it seem small, but it's not really, I don't
+[02:44.79]small, but it's not really, I don't
+[02:44.80]small, but it's not really, I don't think, at all. Um, uh, it really moves
+[02:47.83]think, at all. Um, uh, it really moves
+[02:47.84]think, at all. Um, uh, it really moves the needle on like compilation, uh, with
+[02:50.15]the needle on like compilation, uh, with
+[02:50.16]the needle on like compilation, uh, with some new concepts in compilation, fault
+[02:52.39]some new concepts in compilation, fault
+[02:52.40]some new concepts in compilation, fault tolerance, uh, and, uh, platform
+[02:55.19]tolerance, uh, and, uh, platform
+[02:55.20]tolerance, uh, and, uh, platform support. As always, it's a huge
+[02:57.27]support. As always, it's a huge
+[02:57.28]support. As always, it's a huge community left with almost 3,000 commits
+[02:59.99]community left with almost 3,000 commits
+[03:00.00]community left with almost 3,000 commits from almost 500 uh different uh
+[03:02.31]from almost 500 uh different uh
+[03:02.32]from almost 500 uh different uh contributors, 487 this year or this
+[03:05.19]contributors, 487 this year or this
+[03:05.20]contributors, 487 this year or this time. Um they made improvements all
+[03:07.75]time. Um they made improvements all
+[03:07.76]time. Um they made improvements all across PyTorch and I encourage folks to
+[03:09.19]across PyTorch and I encourage folks to
+[03:09.20]across PyTorch and I encourage folks to look at the release release blog and the
+[03:10.79]look at the release release blog and the
+[03:10.80]look at the release release blog and the release notes for uh for more detail to
+[03:13.27]release notes for uh for more detail to
+[03:13.28]release notes for uh for more detail to supplement this uh this Q&A. A few of
+[03:15.75]supplement this uh this Q&A. A few of
+[03:15.76]supplement this uh this Q&A. A few of the most spec uh most significant
+[03:17.75]the most spec uh most significant
+[03:17.76]the most spec uh most significant changes this time around are uh NV gym
+[03:21.59]changes this time around are uh NV gym
+[03:21.60]changes this time around are uh NV gym from Nvidia brings cute DSL uh generated
+[03:24.79]from Nvidia brings cute DSL uh generated
+[03:24.80]from Nvidia brings cute DSL uh generated cutless kernels to inductor. So this is
+[03:26.95]cutless kernels to inductor. So this is
+[03:26.96]cutless kernels to inductor. So this is like a performance uh improvement uh for
+[03:29.83]like a performance uh improvement uh for
+[03:29.84]like a performance uh improvement uh for uh modern uh GPUs uh with epilog fusion
+[03:33.19]uh modern uh GPUs uh with epilog fusion
+[03:33.20]uh modern uh GPUs uh with epilog fusion scaled uh NV FP4 gems and grouped uh
+[03:37.43]scaled uh NV FP4 gems and grouped uh
+[03:37.44]scaled uh NV FP4 gems and grouped uh reduction epilogues autotuned alongside
+[03:40.07]reduction epilogues autotuned alongside
+[03:40.08]reduction epilogues autotuned alongside Triton and ATIN.
+[03:42.87]Triton and ATIN.
+[03:42.88]Triton and ATIN. We have a preview of our uh some really
+[03:45.67]We have a preview of our uh some really
+[03:45.68]We have a preview of our uh some really deep changes in our in our um uh
+[03:48.07]deep changes in our in our um uh
+[03:48.08]deep changes in our in our um uh distributed backend. So rewritten nickel
+[03:50.47]distributed backend. So rewritten nickel
+[03:50.48]distributed backend. So rewritten nickel backend for PyTorch. This is ported from
+[03:52.95]backend for PyTorch. This is ported from
+[03:52.96]backend for PyTorch. This is ported from sort of a an area where we've been doing
+[03:54.79]sort of a an area where we've been doing
+[03:54.80]sort of a an area where we've been doing some experimentation called torchcoms
+[03:56.95]some experimentation called torchcoms
+[03:56.96]some experimentation called torchcoms implementing uh the full collective
+[03:58.95]implementing uh the full collective
+[03:58.96]implementing uh the full collective contract uh with non-blocking
+[04:01.67]contract uh with non-blocking
+[04:01.68]contract uh with non-blocking communication communicators and advanced
+[04:03.83]communication communicators and advanced
+[04:03.84]communication communicators and advanced features such as fault tolerance and
+[04:05.83]features such as fault tolerance and
+[04:05.84]features such as fault tolerance and windows uh designed as drag and drop
+[04:07.91]windows uh designed as drag and drop
+[04:07.92]windows uh designed as drag and drop replacements for existing nickel C10
+[04:10.39]replacements for existing nickel C10
+[04:10.40]replacements for existing nickel C10 backend. Um, so this I think is really
+[04:13.11]backend. Um, so this I think is really
+[04:13.12]backend. Um, so this I think is really uh the fault tolerance I think is going
+[04:14.71]uh the fault tolerance I think is going
+[04:14.72]uh the fault tolerance I think is going to be is going to be a big uh thing as
+[04:16.71]to be is going to be a big uh thing as
+[04:16.72]to be is going to be a big uh thing as we uh go forward and I think this is
+[04:18.47]we uh go forward and I think this is
+[04:18.48]we uh go forward and I think this is really laying really strong uh uh
+[04:21.19]really laying really strong uh uh
+[04:21.20]really laying really strong uh uh foundations for that. Uh fault tolerance
+[04:24.07]foundations for that. Uh fault tolerance
+[04:24.08]foundations for that. Uh fault tolerance also becomes a first class citizen in
+[04:25.99]also becomes a first class citizen in
+[04:26.00]also becomes a first class citizen in the C10 uh D uh with in place process
+[04:29.67]the C10 uh D uh with in place process
+[04:29.68]the C10 uh D uh with in place process group reconfiguration, one-sided RMA
+[04:31.51]group reconfiguration, one-sided RMA
+[04:31.52]group reconfiguration, one-sided RMA windows and a flight recorder that works
+[04:33.43]windows and a flight recorder that works
+[04:33.44]windows and a flight recorder that works for any backend rather than only for
+[04:35.27]for any backend rather than only for
+[04:35.28]for any backend rather than only for nickel. Uh Apple silicon also got a lot
+[04:37.99]nickel. Uh Apple silicon also got a lot
+[04:38.00]nickel. Uh Apple silicon also got a lot more u functionality with more native
+[04:39.99]more u functionality with more native
+[04:40.00]more u functionality with more native linear uh algebra operators including ig
+[04:43.35]linear uh algebra operators including ig
+[04:43.36]linear uh algebra operators including ig uh QR and Cholski alongside uh fast
+[04:46.23]uh QR and Cholski alongside uh fast
+[04:46.24]uh QR and Cholski alongside uh fast production operations and further uh uh
+[04:48.87]production operations and further uh uh
+[04:48.88]production operations and further uh uh MPS graph to metal uh kernel migrations.
+[04:51.51]MPS graph to metal uh kernel migrations.
+[04:51.52]MPS graph to metal uh kernel migrations. So performance improvements uh in many
+[04:53.83]So performance improvements uh in many
+[04:53.84]So performance improvements uh in many places on Apple um torch switch
+[04:56.87]places on Apple um torch switch
+[04:56.88]places on Apple um torch switch generalize uh the torch cond to
+[04:59.43]generalize uh the torch cond to
+[04:59.44]generalize uh the torch cond to multi-way branching. So this is like a
+[05:00.87]multi-way branching. So this is like a
+[05:00.88]multi-way branching. So this is like a language improvement in the way you can
+[05:02.39]language improvement in the way you can
+[05:02.40]language improvement in the way you can think about um uh uh expressing uh
+[05:06.39]think about um uh uh expressing uh
+[05:06.40]think about um uh uh expressing uh things that used to cause graph breaks
+[05:08.31]things that used to cause graph breaks
+[05:08.32]things that used to cause graph breaks in PyTorch. Uh with torch while loop uh
+[05:11.91]in PyTorch. Uh with torch while loop uh
+[05:11.92]in PyTorch. Uh with torch while loop uh also can now be captured in a CUDA
+[05:13.67]also can now be captured in a CUDA
+[05:13.68]also can now be captured in a CUDA graph. Um declarative dynamic shapes uh
+[05:16.95]graph. Um declarative dynamic shapes uh
+[05:16.96]graph. Um declarative dynamic shapes uh are also uh added. This is another sort
+[05:19.11]are also uh added. This is another sort
+[05:19.12]are also uh added. This is another sort of language feature. There's now a
+[05:21.11]of language feature. There's now a
+[05:21.12]of language feature. There's now a dynamic spec uh uh decorator at dynamic
+[05:24.07]dynamic spec uh uh decorator at dynamic
+[05:24.08]dynamic spec uh uh decorator at dynamic spec uh which is shared across torch
+[05:25.99]spec uh which is shared across torch
+[05:26.00]spec uh which is shared across torch compile torch export and make.fx FX
+[05:28.79]compile torch export and make.fx FX
+[05:28.80]compile torch export and make.fx FX experimental torch compiler uh support
+[05:30.87]experimental torch compiler uh support
+[05:30.88]experimental torch compiler uh support is also available for complex value
+[05:32.87]is also available for complex value
+[05:32.88]is also available for complex value tensors. Uh this is an opt-in thing uh
+[05:35.83]tensors. Uh this is an opt-in thing uh
+[05:35.84]tensors. Uh this is an opt-in thing uh which decomposes uh supported complex
+[05:38.31]which decomposes uh supported complex
+[05:38.32]which decomposes uh supported complex operations into real and imaginary
+[05:39.67]operations into real and imaginary
+[05:39.68]operations into real and imaginary computations enabling compiler backends
+[05:41.83]computations enabling compiler backends
+[05:41.84]computations enabling compiler backends to optimize complex number workloads
+[05:44.47]to optimize complex number workloads
+[05:44.48]to optimize complex number workloads which are super important for science
+[05:46.07]which are super important for science
+[05:46.08]which are super important for science and I think uh have been hard to do in
+[05:47.75]and I think uh have been hard to do in
+[05:47.76]and I think uh have been hard to do in PyTorch for a long time. Um broader
+[05:50.23]PyTorch for a long time. Um broader
+[05:50.24]PyTorch for a long time. Um broader platform support uh is you know we also
+[05:52.79]platform support uh is you know we also
+[05:52.80]platform support uh is you know we also made improvements across a bunch of
+[05:53.91]made improvements across a bunch of
+[05:53.92]made improvements across a bunch of different platforms including Rockcom.
+[05:55.75]different platforms including Rockcom.
+[05:55.76]different platforms including Rockcom. There's now 7.14 wheels uh produced um
+[05:59.35]There's now 7.14 wheels uh produced um
+[05:59.36]There's now 7.14 wheels uh produced um from the rock pip uh SDK and Intel
+[06:03.83]from the rock pip uh SDK and Intel
+[06:03.84]from the rock pip uh SDK and Intel adding uh native graph capture for the
+[06:06.23]adding uh native graph capture for the
+[06:06.24]adding uh native graph capture for the XPU and inductor uh target inductor
+[06:09.83]XPU and inductor uh target inductor
+[06:09.84]XPU and inductor uh target inductor targeting uh inductor uh functionality
+[06:12.87]targeting uh inductor uh functionality
+[06:12.88]targeting uh inductor uh functionality targeting the new Ruben platform from
+[06:14.79]targeting the new Ruben platform from
+[06:14.80]targeting the new Ruben platform from Nvidia. So that was a mouthful but
+[06:17.83]Nvidia. So that was a mouthful but
+[06:17.84]Nvidia. So that was a mouthful but that's the sort of like highlights from
+[06:19.59]that's the sort of like highlights from
+[06:19.60]that's the sort of like highlights from this particular release. Having set that
+[06:21.59]this particular release. Having set that
+[06:21.60]this particular release. Having set that stage let's move to questions. Um so at
+[06:24.63]stage let's move to questions. Um so at
+[06:24.64]stage let's move to questions. Um so at the first question I think that we might
+[06:26.79]the first question I think that we might
+[06:26.80]the first question I think that we might have
+[06:35.43]will be what CUDA version does PyTorch
+[06:35.44]will be what CUDA version does PyTorch 2.14 ship
+[06:37.83]2.14 ship
+[06:37.84]2.14 ship uh and which one do I get by default and
+[06:40.31]uh and which one do I get by default and
+[06:40.32]uh and which one do I get by default and what packaging changes for CUDA do we
+[06:42.63]what packaging changes for CUDA do we
+[06:42.64]what packaging changes for CUDA do we expect for the upcoming release? Andre
+[06:46.09]expect for the upcoming release? Andre
+[06:46.10]expect for the upcoming release? Andre >> [snorts]
+[06:46.15]>> [snorts]
+[06:46.16]>> [snorts] >> um yes so basically for the current
+[06:48.71]>> um yes so basically for the current
+[06:48.72]>> um yes so basically for the current 21.14 release uh we support exactly same
+[06:52.55]21.14 release uh we support exactly same
+[06:52.56]21.14 release uh we support exactly same cuda matrix as previous release 21.13 so
+[06:56.23]cuda matrix as previous release 21.13 so
+[06:56.24]cuda matrix as previous release 21.13 so it's cuda 12.6 kuda 13.0 and cuda 13.2
+[07:02.31]it's cuda 12.6 kuda 13.0 and cuda 13.2
+[07:02.32]it's cuda 12.6 kuda 13.0 and cuda 13.2 um cuda 13.0 is being published to pipy
+[07:06.47]um cuda 13.0 is being published to pipy
+[07:06.48]um cuda 13.0 is being published to pipy um cuda 13.2 two becomes stable. Um it
+[07:11.03]um cuda 13.2 two becomes stable. Um it
+[07:11.04]um cuda 13.2 two becomes stable. Um it for previous release it was prototype
+[07:13.51]for previous release it was prototype
+[07:13.52]for previous release it was prototype considered as prototype right now it's
+[07:15.35]considered as prototype right now it's
+[07:15.36]considered as prototype right now it's stable. Um so um for the next uh also
+[07:20.71]stable. Um so um for the next uh also
+[07:20.72]stable. Um so um for the next uh also for this release we included rocker
+[07:23.27]for this release we included rocker
+[07:23.28]for this release we included rocker modifications. So rocom 714 wheels are
+[07:26.63]modifications. So rocom 714 wheels are
+[07:26.64]modifications. So rocom 714 wheels are published
+[07:28.15]published
+[07:28.16]published um right now build with uh the rock uh
+[07:31.59]um right now build with uh the rock uh
+[07:31.60]um right now build with uh the rock uh pip SDK.
+[07:33.51]pip SDK.
+[07:33.52]pip SDK. Um so for the next release 2.15 it's I
+[07:37.03]Um so for the next release 2.15 it's I
+[07:37.04]Um so for the next release 2.15 it's I think where the lot of changes are
+[07:38.71]think where the lot of changes are
+[07:38.72]think where the lot of changes are coming um first of all 2 um 14 release
+[07:44.15]coming um first of all 2 um 14 release
+[07:44.16]coming um first of all 2 um 14 release was the last release that we released
+[07:46.47]was the last release that we released
+[07:46.48]was the last release that we released CUDA 12.x wheels so 12.6 six for the
+[07:50.07]CUDA 12.x wheels so 12.6 six for the
+[07:50.08]CUDA 12.x wheels so 12.6 six for the 2.15 release. We will uh remove those
+[07:52.71]2.15 release. We will uh remove those
+[07:52.72]2.15 release. We will uh remove those wheels. There will no longer be shipped
+[07:55.59]wheels. There will no longer be shipped
+[07:55.60]wheels. There will no longer be shipped with PyTorch. However, you are able you
+[07:58.87]with PyTorch. However, you are able you
+[07:58.88]with PyTorch. However, you are able you will still be able to compile
+[08:01.35]will still be able to compile
+[08:01.36]will still be able to compile with those manually
+[08:03.51]with those manually
+[08:03.52]with those manually um because and we are keeping one CUDA
+[08:06.55]um because and we are keeping one CUDA
+[08:06.56]um because and we are keeping one CUDA 12.6 CI built on our system. So we are
+[08:09.51]12.6 CI built on our system. So we are
+[08:09.52]12.6 CI built on our system. So we are ensuring that it's still the case. So
+[08:12.23]ensuring that it's still the case. So
+[08:12.24]ensuring that it's still the case. So there is no regression in this case. Um
+[08:15.51]there is no regression in this case. Um
+[08:15.52]there is no regression in this case. Um with CUDA 12.6 six support um uh that
+[08:18.95]with CUDA 12.6 six support um uh that
+[08:18.96]with CUDA 12.6 six support um uh that we're removing we're no longer be
+[08:21.35]we're removing we're no longer be
+[08:21.36]we're removing we're no longer be supporting pre-built wheels for Maxwell,
+[08:23.83]supporting pre-built wheels for Maxwell,
+[08:23.84]supporting pre-built wheels for Maxwell, Pascal and VA architectures.
+[08:27.59]Pascal and VA architectures.
+[08:27.60]Pascal and VA architectures. Um so the next part uh it's CUDA 13.2
+[08:31.99]Um so the next part uh it's CUDA 13.2
+[08:32.00]Um so the next part uh it's CUDA 13.2 will be published as default CUDA
+[08:34.47]will be published as default CUDA
+[08:34.48]will be published as default CUDA version on PIP and we will introduce
+[08:38.23]version on PIP and we will introduce
+[08:38.24]version on PIP and we will introduce CUDA 13.4 four as a prototype uh CUDA
+[08:42.95]CUDA 13.4 four as a prototype uh CUDA
+[08:42.96]CUDA 13.4 four as a prototype uh CUDA version with support for ver Rubin
+[08:45.27]version with support for ver Rubin
+[08:45.28]version with support for ver Rubin architecture. Um I think this covers
+[08:47.99]architecture. Um I think this covers
+[08:48.00]architecture. Um I think this covers pretty much it in terms of cuda and a
+[08:50.23]pretty much it in terms of cuda and a
+[08:50.24]pretty much it in terms of cuda and a little bit of rocom. Please
+[08:52.23]little bit of rocom. Please
+[08:52.24]little bit of rocom. Please >> if I can make a small comment there's a
+[08:54.55]>> if I can make a small comment there's a
+[08:54.56]>> if I can make a small comment there's a like a lot of numbers lot of versions
+[08:57.27]like a lot of numbers lot of versions
+[08:57.28]like a lot of numbers lot of versions please track the pytor issues and dev
+[09:00.31]please track the pytor issues and dev
+[09:00.32]please track the pytor issues and dev discuss where we publish all those
+[09:02.15]discuss where we publish all those
+[09:02.16]discuss where we publish all those versions because it's they hard to
+[09:04.15]versions because it's they hard to
+[09:04.16]versions because it's they hard to remember and sometimes we have to pivot
+[09:05.99]remember and sometimes we have to pivot
+[09:06.00]remember and sometimes we have to pivot depending on some new hardware
+[09:07.51]depending on some new hardware
+[09:07.52]depending on some new hardware capabilities or whatever but that's the
+[09:09.67]capabilities or whatever but that's the
+[09:09.68]capabilities or whatever but that's the current plans. Thank you.
+[09:12.15]current plans. Thank you.
+[09:12.16]current plans. Thank you. Yeah, and just to add, there's a release
+[09:13.99]Yeah, and just to add, there's a release
+[09:14.00]Yeah, and just to add, there's a release MD file in the PyTorch PyTorch where the
+[09:16.55]MD file in the PyTorch PyTorch where the
+[09:16.56]MD file in the PyTorch PyTorch where the current matrix is published and yeah,
+[09:18.55]current matrix is published and yeah,
+[09:18.56]current matrix is published and yeah, you can go ahead and take a look there
+[09:20.23]you can go ahead and take a look there
+[09:20.24]you can go ahead and take a look there and ask any questions.
+[09:27.99]>> Okay. Um, do we have a next question
+[09:28.00]>> Okay. Um, do we have a next question queued up?
+[09:32.71][snorts]
+[09:32.72][snorts] Okay. Um, thank you, uh, Michael for
+[09:35.19]Okay. Um, thank you, uh, Michael for
+[09:35.20]Okay. Um, thank you, uh, Michael for asking this question. With Agentic RL
+[09:37.11]asking this question. With Agentic RL
+[09:37.12]asking this question. With Agentic RL becoming a bigger part of training, um
+[09:39.35]becoming a bigger part of training, um
+[09:39.36]becoming a bigger part of training, um are you all seeing these workloads
+[09:41.11]are you all seeing these workloads
+[09:41.12]are you all seeing these workloads create different infrastructure
+[09:42.07]create different infrastructure
+[09:42.08]create different infrastructure challenges than traditional model
+[09:43.35]challenges than traditional model
+[09:43.36]challenges than traditional model training? Anything PyTorch needs still
+[09:45.83]training? Anything PyTorch needs still
+[09:45.84]training? Anything PyTorch needs still needs to get better at there? I'm
+[09:47.43]needs to get better at there? I'm
+[09:47.44]needs to get better at there? I'm actually going to um direct this one to
+[09:49.27]actually going to um direct this one to
+[09:49.28]actually going to um direct this one to Joe first and then Andre and Nikita, you
+[09:51.51]Joe first and then Andre and Nikita, you
+[09:51.52]Joe first and then Andre and Nikita, you guys can jump in after. Um Joe, I know
+[09:53.91]guys can jump in after. Um Joe, I know
+[09:53.92]guys can jump in after. Um Joe, I know you care a lot about agentic RL. So
+[09:56.87]you care a lot about agentic RL. So
+[09:56.88]you care a lot about agentic RL. So >> yeah,
+[09:58.15]>> yeah,
+[09:58.16]>> yeah, >> I mean I think um you know if you look
+[10:00.55]>> I mean I think um you know if you look
+[10:00.56]>> I mean I think um you know if you look at it's it's pretty interesting the the
+[10:02.71]at it's it's pretty interesting the the
+[10:02.72]at it's it's pretty interesting the the models coming out these days are coming
+[10:04.15]models coming out these days are coming
+[10:04.16]models coming out these days are coming out fast and furious and I think there
+[10:06.55]out fast and furious and I think there
+[10:06.56]out fast and furious and I think there there was at least a for a while a
+[10:08.31]there was at least a for a while a
+[10:08.32]there was at least a for a while a perception that people are are
+[10:09.51]perception that people are are
+[10:09.52]perception that people are are pre-training models at an increased pace
+[10:11.51]pre-training models at an increased pace
+[10:11.52]pre-training models at an increased pace right but I think a lot of the gains
+[10:12.95]right but I think a lot of the gains
+[10:12.96]right but I think a lot of the gains that that we've seen actually you know
+[10:14.71]that that we've seen actually you know
+[10:14.72]that that we've seen actually you know some of the Chinese models for example
+[10:16.63]some of the Chinese models for example
+[10:16.64]some of the Chinese models for example that are coming out and and versioned
+[10:18.47]that are coming out and and versioned
+[10:18.48]that are coming out and and versioned really fast and the Quen models a lot of
+[10:20.55]really fast and the Quen models a lot of
+[10:20.56]really fast and the Quen models a lot of it is actually due to RL uh and you know
+[10:23.27]it is actually due to RL uh and you know
+[10:23.28]it is actually due to RL uh and you know I think one of the things that we've
+[10:24.71]I think one of the things that we've
+[10:24.72]I think one of the things that we've learned over the is you know if you
+[10:26.79]learned over the is you know if you
+[10:26.80]learned over the is you know if you build a really strong pre-trained base
+[10:29.51]build a really strong pre-trained base
+[10:29.52]build a really strong pre-trained base um to build on you can actually RL over
+[10:32.31]um to build on you can actually RL over
+[10:32.32]um to build on you can actually RL over it and you can actually throw more
+[10:33.51]it and you can actually throw more
+[10:33.52]it and you can actually throw more compute on it and I think the deepseek
+[10:35.35]compute on it and I think the deepseek
+[10:35.36]compute on it and I think the deepseek paper actually taught us a lot of
+[10:37.11]paper actually taught us a lot of
+[10:37.12]paper actually taught us a lot of lessons that kind of confirms for the
+[10:39.11]lessons that kind of confirms for the
+[10:39.12]lessons that kind of confirms for the the bitter lesson pill people among us
+[10:41.99]the bitter lesson pill people among us
+[10:42.00]the bitter lesson pill people among us including myself that you know if you
+[10:43.43]including myself that you know if you
+[10:43.44]including myself that you know if you continue to throw more compute at stable
+[10:46.31]continue to throw more compute at stable
+[10:46.32]continue to throw more compute at stable stable RL using that word stable very
+[10:48.55]stable RL using that word stable very
+[10:48.56]stable RL using that word stable very very uh carefully purposefully uh then
+[10:51.59]very uh carefully purposefully uh then
+[10:51.60]very uh carefully purposefully uh then you can actually extend capabilities of
+[10:53.35]you can actually extend capabilities of
+[10:53.36]you can actually extend capabilities of models over time. And so I think like
+[10:56.55]models over time. And so I think like
+[10:56.56]models over time. And so I think like you know uh in the earlier days I guess
+[10:59.35]you know uh in the earlier days I guess
+[10:59.36]you know uh in the earlier days I guess of RL um and and we started this project
+[11:01.67]of RL um and and we started this project
+[11:01.68]of RL um and and we started this project called OpenM last year when I was
+[11:04.15]called OpenM last year when I was
+[11:04.16]called OpenM last year when I was actually almost one year ago exactly uh
+[11:06.23]actually almost one year ago exactly uh
+[11:06.24]actually almost one year ago exactly uh at the PyTorch conference we uh launched
+[11:08.71]at the PyTorch conference we uh launched
+[11:08.72]at the PyTorch conference we uh launched that project and it continues to grow
+[11:09.99]that project and it continues to grow
+[11:10.00]that project and it continues to grow and I think one the whole goal of it was
+[11:12.07]and I think one the whole goal of it was
+[11:12.08]and I think one the whole goal of it was to democratize the use of reinforcement
+[11:13.91]to democratize the use of reinforcement
+[11:13.92]to democratize the use of reinforcement learning um because it's it's a lot
+[11:16.39]learning um because it's it's a lot
+[11:16.40]learning um because it's it's a lot easier to kind of create an environment
+[11:18.39]easier to kind of create an environment
+[11:18.40]easier to kind of create an environment create your tasks um and then be able to
+[11:20.55]create your tasks um and then be able to
+[11:20.56]create your tasks um and then be able to to set up you know especially today with
+[11:22.87]to set up you know especially today with
+[11:22.88]to set up you know especially today with all the tools available Nemo RL
+[11:25.11]all the tools available Nemo RL
+[11:25.12]all the tools available Nemo RL TRL unsloth, you can actually uh use
+[11:27.67]TRL unsloth, you can actually uh use
+[11:27.68]TRL unsloth, you can actually uh use reinforcement learning um you know way
+[11:30.71]reinforcement learning um you know way
+[11:30.72]reinforcement learning um you know way easier than you could probably like five
+[11:31.99]easier than you could probably like five
+[11:32.00]easier than you could probably like five or 10 years ago in the earlier days um
+[11:34.07]or 10 years ago in the earlier days um
+[11:34.08]or 10 years ago in the earlier days um and actually add capabilities to your
+[11:36.15]and actually add capabilities to your
+[11:36.16]and actually add capabilities to your models bas basically be able to postrain
+[11:38.15]models bas basically be able to postrain
+[11:38.16]models bas basically be able to postrain using reinforcement learning for openw
+[11:39.75]using reinforcement learning for openw
+[11:39.76]using reinforcement learning for openw weight models and I think that's
+[11:41.19]weight models and I think that's
+[11:41.20]weight models and I think that's something we want to continue to
+[11:42.15]something we want to continue to
+[11:42.16]something we want to continue to obviously de democratize and and enable
+[11:44.63]obviously de democratize and and enable
+[11:44.64]obviously de democratize and and enable with developers um and so like Daniel
+[11:46.63]with developers um and so like Daniel
+[11:46.64]with developers um and so like Daniel from Unsloth continues to bear that that
+[11:48.63]from Unsloth continues to bear that that
+[11:48.64]from Unsloth continues to bear that that flag for many uh and obviously we
+[11:50.95]flag for many uh and obviously we
+[11:50.96]flag for many uh and obviously we contribute uh significantly to open
+[11:52.63]contribute uh significantly to open
+[11:52.64]contribute uh significantly to open project and that fits nicely into the
+[11:54.47]project and that fits nicely into the
+[11:54.48]project and that fits nicely into the PyTorch ecosystem and extends it as
+[11:56.79]PyTorch ecosystem and extends it as
+[11:56.80]PyTorch ecosystem and extends it as people use PyTorch and other tools to uh
+[11:58.87]people use PyTorch and other tools to uh
+[11:58.88]people use PyTorch and other tools to uh to to to customize their models for
+[12:01.19]to to to customize their models for
+[12:01.20]to to to customize their models for their tasks.
+[12:03.83]their tasks.
+[12:03.84]their tasks. >> But fundamentally, PyTorch has a lot of
+[12:05.83]>> But fundamentally, PyTorch has a lot of
+[12:05.84]>> But fundamentally, PyTorch has a lot of the things that that folks need. Um we
+[12:08.39]the things that that folks need. Um we
+[12:08.40]the things that that folks need. Um we need these sort of layered packages like
+[12:09.67]need these sort of layered packages like
+[12:09.68]need these sort of layered packages like OpenM but but PyTorch itself. Are there
+[12:11.59]OpenM but but PyTorch itself. Are there
+[12:11.60]OpenM but but PyTorch itself. Are there any changes that you see uh you see
+[12:14.15]any changes that you see uh you see
+[12:14.16]any changes that you see uh you see needed now or in the future in PyTorch?
+[12:16.71]needed now or in the future in PyTorch?
+[12:16.72]needed now or in the future in PyTorch? >> Well, I think
+[12:18.95]>> Well, I think
+[12:18.96]>> Well, I think Oh, sorry. Go for it.
+[12:20.15]Oh, sorry. Go for it.
+[12:20.16]Oh, sorry. Go for it. >> No, no, go ahead. I want to hear your
+[12:21.75]>> No, no, go ahead. I want to hear your
+[12:21.76]>> No, no, go ahead. I want to hear your point of view. on the infrastructure
+[12:23.43]point of view. on the infrastructure
+[12:23.44]point of view. on the infrastructure side like uh the nickel 2 and like the
+[12:26.15]side like uh the nickel 2 and like the
+[12:26.16]side like uh the nickel 2 and like the safer nickel is one of the things that
+[12:27.83]safer nickel is one of the things that
+[12:27.84]safer nickel is one of the things that is constantly painful for post training
+[12:30.23]is constantly painful for post training
+[12:30.24]is constantly painful for post training workflows when you have to restart. So
+[12:32.31]workflows when you have to restart. So
+[12:32.32]workflows when you have to restart. So that would be an infrastructure part but
+[12:33.83]that would be an infrastructure part but
+[12:33.84]that would be an infrastructure part but also we have as Joel Joe said a lot of
+[12:35.59]also we have as Joel Joe said a lot of
+[12:35.60]also we have as Joel Joe said a lot of great partnership. I encourage people to
+[12:38.07]great partnership. I encourage people to
+[12:38.08]great partnership. I encourage people to check out well u maybe not encourage but
+[12:41.11]check out well u maybe not encourage but
+[12:41.12]check out well u maybe not encourage but there are two frameworks that exist in
+[12:43.03]there are two frameworks that exist in
+[12:43.04]there are two frameworks that exist in the pytor side. There is a torch titan
+[12:44.63]the pytor side. There is a torch titan
+[12:44.64]the pytor side. There is a torch titan and torch forge that kind of give you
+[12:47.27]and torch forge that kind of give you
+[12:47.28]and torch forge that kind of give you some recipes on the post training and I
+[12:49.19]some recipes on the post training and I
+[12:49.20]some recipes on the post training and I think you should kind of direct your
+[12:50.55]think you should kind of direct your
+[12:50.56]think you should kind of direct your attention more towards those
+[12:52.23]attention more towards those
+[12:52.24]attention more towards those repositories when you're asking a
+[12:53.75]repositories when you're asking a
+[12:53.76]repositories when you're asking a specific questions about the frameworks
+[12:55.35]specific questions about the frameworks
+[12:55.36]specific questions about the frameworks rather about the like harness rather
+[12:57.91]rather about the like harness rather
+[12:57.92]rather about the like harness rather than like a training framework itself
+[13:00.63]than like a training framework itself
+[13:00.64]than like a training framework itself but support for MFP4 is also very
+[13:02.55]but support for MFP4 is also very
+[13:02.56]but support for MFP4 is also very important for post training pipelines so
+[13:05.11]important for post training pipelines so
+[13:05.12]important for post training pipelines so like all the infrastructures that is
+[13:06.47]like all the infrastructures that is
+[13:06.48]like all the infrastructures that is needed is there but Joe to continue
+[13:09.27]needed is there but Joe to continue
+[13:09.28]needed is there but Joe to continue >> no I I think you're spot on I think
+[13:10.95]>> no I I think you're spot on I think
+[13:10.96]>> no I I think you're spot on I think there you know infra I mean we're we're
+[13:13.11]there you know infra I mean we're we're
+[13:13.12]there you know infra I mean we're we're using a pretty large large amount of
+[13:15.91]using a pretty large large amount of
+[13:15.92]using a pretty large large amount of compute to do RL here in reflection. We
+[13:18.07]compute to do RL here in reflection. We
+[13:18.08]compute to do RL here in reflection. We obviously did a lot of RL meta. Um I
+[13:20.23]obviously did a lot of RL meta. Um I
+[13:20.24]obviously did a lot of RL meta. Um I think infrastructure is the challenge. I
+[13:21.99]think infrastructure is the challenge. I
+[13:22.00]think infrastructure is the challenge. I think there there's a lot of work I
+[13:23.19]think there there's a lot of work I
+[13:23.20]think there there's a lot of work I think to um you know to to scale it up
+[13:26.07]think to um you know to to scale it up
+[13:26.08]think to um you know to to scale it up to make it stable. I think I'm just
+[13:27.51]to make it stable. I think I'm just
+[13:27.52]to make it stable. I think I'm just looking at even like I'm I can't really
+[13:29.67]looking at even like I'm I can't really
+[13:29.68]looking at even like I'm I can't really use examples of what we're doing
+[13:30.71]use examples of what we're doing
+[13:30.72]use examples of what we're doing internally yet because we're still
+[13:31.83]internally yet because we're still
+[13:31.84]internally yet because we're still pretty salty. But like even when we were
+[13:34.07]pretty salty. But like even when we were
+[13:34.08]pretty salty. But like even when we were uh dealing with like fault tolerance in
+[13:36.15]uh dealing with like fault tolerance in
+[13:36.16]uh dealing with like fault tolerance in like the llama days, you know, most of
+[13:37.99]like the llama days, you know, most of
+[13:38.00]like the llama days, you know, most of our uh the faults that we found even in
+[13:39.75]our uh the faults that we found even in
+[13:39.76]our uh the faults that we found even in pre-training or even in post- training
+[13:41.51]pre-training or even in post- training
+[13:41.52]pre-training or even in post- training came from obviously GPUs failing over.
+[13:44.47]came from obviously GPUs failing over.
+[13:44.48]came from obviously GPUs failing over. um you know we had uh yeah we I think
+[13:47.67]um you know we had uh yeah we I think
+[13:47.68]um you know we had uh yeah we I think what something like 30% of of those
+[13:49.59]what something like 30% of of those
+[13:49.60]what something like 30% of of those failures or we had close to like 400 and
+[13:52.15]failures or we had close to like 400 and
+[13:52.16]failures or we had close to like 400 and something GPUs out of the 16,000 GPUs we
+[13:54.63]something GPUs out of the 16,000 GPUs we
+[13:54.64]something GPUs out of the 16,000 GPUs we were training on for the large model
+[13:56.55]were training on for the large model
+[13:56.56]were training on for the large model were failing. We wrote that into the
+[13:57.91]were failing. We wrote that into the
+[13:57.92]were failing. We wrote that into the paper. You can kind of look at the graph
+[13:59.19]paper. You can kind of look at the graph
+[13:59.20]paper. You can kind of look at the graph there. I think like infrastructure
+[14:01.27]there. I think like infrastructure
+[14:01.28]there. I think like infrastructure stability and um and fall tolerance and
+[14:03.99]stability and um and fall tolerance and
+[14:04.00]stability and um and fall tolerance and I think we'll get to that in some of the
+[14:05.27]I think we'll get to that in some of the
+[14:05.28]I think we'll get to that in some of the other questions but that's probably one
+[14:07.27]other questions but that's probably one
+[14:07.28]other questions but that's probably one of the biggest biggest things and I
+[14:08.55]of the biggest biggest things and I
+[14:08.56]of the biggest biggest things and I think that's one of the reasons why like
+[14:09.75]think that's one of the reasons why like
+[14:09.76]think that's one of the reasons why like Tinker is actually like pretty
+[14:11.51]Tinker is actually like pretty
+[14:11.52]Tinker is actually like pretty interesting from from thinking machines.
+[14:13.19]interesting from from thinking machines.
+[14:13.20]interesting from from thinking machines. It's like a, you know, not not to to
+[14:15.11]It's like a, you know, not not to to
+[14:15.12]It's like a, you know, not not to to plug the his product here, but like it
+[14:17.51]plug the his product here, but like it
+[14:17.52]plug the his product here, but like it it actually does um it's actually a
+[14:19.91]it actually does um it's actually a
+[14:19.92]it actually does um it's actually a really uh cool API that actually
+[14:22.07]really uh cool API that actually
+[14:22.08]really uh cool API that actually abstracts that away. And I think that's
+[14:23.91]abstracts that away. And I think that's
+[14:23.92]abstracts that away. And I think that's for those especially the academics I've
+[14:25.59]for those especially the academics I've
+[14:25.60]for those especially the academics I've talked to and researchers like that is
+[14:27.67]talked to and researchers like that is
+[14:27.68]talked to and researchers like that is by far the hardest part. And obviously
+[14:29.43]by far the hardest part. And obviously
+[14:29.44]by far the hardest part. And obviously it's powered by PyTorch which is really
+[14:31.03]it's powered by PyTorch which is really
+[14:31.04]it's powered by PyTorch which is really great. Um but that that is like the the
+[14:33.35]great. Um but that that is like the the
+[14:33.36]great. Um but that that is like the the thing that that needs to be solved for
+[14:34.71]thing that that needs to be solved for
+[14:34.72]thing that that needs to be solved for this to be something that's widespread
+[14:36.07]this to be something that's widespread
+[14:36.08]this to be something that's widespread used. So
+[14:38.71]used. So
+[14:38.72]used. So >> awesome. I think that's a pretty good
+[14:40.55]>> awesome. I think that's a pretty good
+[14:40.56]>> awesome. I think that's a pretty good pretty solid answer to that question.
+[14:43.19]pretty solid answer to that question.
+[14:43.20]pretty solid answer to that question. Um, next up, um, why didn't you add LLM?
+[14:47.11]Um, next up, um, why didn't you add LLM?
+[14:47.12]Um, next up, um, why didn't you add LLM? Why don't didn't you add LLM support
+[14:50.15]Why don't didn't you add LLM support
+[14:50.16]Why don't didn't you add LLM support into the UI so people can talk to an
+[14:52.23]into the UI so people can talk to an
+[14:52.24]into the UI so people can talk to an agent instead of reading through the
+[14:53.67]agent instead of reading through the
+[14:53.68]agent instead of reading through the documentation?
+[14:56.15]documentation?
+[14:56.16]documentation? Uh, who wants to answer this? Uh,
+[14:59.32]Uh, who wants to answer this? Uh,
+[14:59.33]Uh, who wants to answer this? Uh, [laughter]
+[14:59.83][laughter]
+[14:59.84][laughter] >> I'm not sure what UI we're talking
+[15:01.51]>> I'm not sure what UI we're talking
+[15:01.52]>> I'm not sure what UI we're talking about, but yes, like you can ask
+[15:03.11]about, but yes, like you can ask
+[15:03.12]about, but yes, like you can ask questions to an agent uh on the
+[15:05.43]questions to an agent uh on the
+[15:05.44]questions to an agent uh on the pytor.org, work but there's also kind of
+[15:07.91]pytor.org, work but there's also kind of
+[15:07.92]pytor.org, work but there's also kind of a pragmatic approach that um like
+[15:10.39]a pragmatic approach that um like
+[15:10.40]a pragmatic approach that um like running LM for public consumption is not
+[15:13.35]running LM for public consumption is not
+[15:13.36]running LM for public consumption is not cheap and via foundation right so there
+[15:15.67]cheap and via foundation right so there
+[15:15.68]cheap and via foundation right so there are lots of open LLMs that are very very
+[15:18.23]are lots of open LLMs that are very very
+[15:18.24]are lots of open LLMs that are very very good about answering questions about
+[15:19.67]good about answering questions about
+[15:19.68]good about answering questions about PyTorch documentation and we partnered
+[15:21.99]PyTorch documentation and we partnered
+[15:22.00]PyTorch documentation and we partnered with one of the providers early on so
+[15:23.99]with one of the providers early on so
+[15:24.00]with one of the providers early on so you can ask PyTorch questions that I
+[15:26.71]you can ask PyTorch questions that I
+[15:26.72]you can ask PyTorch questions that I don't remember job probably have more
+[15:28.31]don't remember job probably have more
+[15:28.32]don't remember job probably have more upto-ate details about the partnership
+[15:29.91]upto-ate details about the partnership
+[15:29.92]upto-ate details about the partnership like who is the provider but yeah
+[15:34.15]like who is the provider but yeah
+[15:34.16]like who is the provider but yeah >> yeah go to collab and talk an agent,
+[15:36.63]>> yeah go to collab and talk an agent,
+[15:36.64]>> yeah go to collab and talk an agent, right? And it answers your questions
+[15:37.83]right? And it answers your questions
+[15:37.84]right? And it answers your questions about PyTorch.
+[15:39.67]about PyTorch.
+[15:39.68]about PyTorch. >> Actually,
+[15:40.31]>> Actually,
+[15:40.32]>> Actually, >> I would like to add Go ahead.
+[15:41.83]>> I would like to add Go ahead.
+[15:41.84]>> I would like to add Go ahead. >> Go for it, Andre.
+[15:43.27]>> Go for it, Andre.
+[15:43.28]>> Go for it, Andre. >> So, basically, yes. Um, go ahead and
+[15:45.59]>> So, basically, yes. Um, go ahead and
+[15:45.60]>> So, basically, yes. Um, go ahead and create an issue for us describing
+[15:47.75]create an issue for us describing
+[15:47.76]create an issue for us describing exactly where you want to add the LLM
+[15:50.79]exactly where you want to add the LLM
+[15:50.80]exactly where you want to add the LLM and maybe we can look into it. Yes,
+[15:53.11]and maybe we can look into it. Yes,
+[15:53.12]and maybe we can look into it. Yes, because we have extensive documentation
+[15:55.03]because we have extensive documentation
+[15:55.04]because we have extensive documentation and extensive um uh basically release
+[15:58.63]and extensive um uh basically release
+[15:58.64]and extensive um uh basically release notes and there there are multiple
+[16:00.39]notes and there there are multiple
+[16:00.40]notes and there there are multiple sources of documentation. So I think if
+[16:02.71]sources of documentation. So I think if
+[16:02.72]sources of documentation. So I think if you're more direct about it what you
+[16:05.27]you're more direct about it what you
+[16:05.28]you're more direct about it what you want to do maybe we can come come up
+[16:07.83]want to do maybe we can come come up
+[16:07.84]want to do maybe we can come come up with the solutions for this.
+[16:09.75]with the solutions for this.
+[16:09.76]with the solutions for this. >> Yeah and an issue on GitHub is the right
+[16:11.35]>> Yeah and an issue on GitHub is the right
+[16:11.36]>> Yeah and an issue on GitHub is the right way to do that. Go ahead Joe.
+[16:12.71]way to do that. Go ahead Joe.
+[16:12.72]way to do that. Go ahead Joe. >> Yeah. No, I was just gonna say I mean in
+[16:14.95]>> Yeah. No, I was just gonna say I mean in
+[16:14.96]>> Yeah. No, I was just gonna say I mean in the if the the the search obviously we
+[16:17.11]the if the the the search obviously we
+[16:17.12]the if the the the search obviously we use kind of an LM based search now I
+[16:19.03]use kind of an LM based search now I
+[16:19.04]use kind of an LM based search now I think there and I think you know you can
+[16:20.87]think there and I think you know you can
+[16:20.88]think there and I think you know you can pragmatically um
+[16:23.83]pragmatically um
+[16:23.84]pragmatically um you can pragmatically use like Gemini as
+[16:26.31]you can pragmatically use like Gemini as
+[16:26.32]you can pragmatically use like Gemini as well and I think all of our
+[16:27.67]well and I think all of our
+[16:27.68]well and I think all of our documentation is in distribution right
+[16:29.83]documentation is in distribution right
+[16:29.84]documentation is in distribution right and uh it's it's well well indexed um
+[16:32.87]and uh it's it's well well indexed um
+[16:32.88]and uh it's it's well well indexed um and so you know I go into Google and and
+[16:34.55]and so you know I go into Google and and
+[16:34.56]and so you know I go into Google and and and actually Gemini does a really great
+[16:36.39]and actually Gemini does a really great
+[16:36.40]and actually Gemini does a really great job of like of scouring our
+[16:38.15]job of like of scouring our
+[16:38.16]job of like of scouring our documentation and and distilling things
+[16:40.39]documentation and and distilling things
+[16:40.40]documentation and and distilling things down to what I need. So, um, we don't
+[16:42.47]down to what I need. So, um, we don't
+[16:42.48]down to what I need. So, um, we don't actually even need to do a lot embedded
+[16:43.91]actually even need to do a lot embedded
+[16:43.92]actually even need to do a lot embedded in our site, but obviously make sure our
+[16:45.19]in our site, but obviously make sure our
+[16:45.20]in our site, but obviously make sure our docs are updated. Um, and and I mean, we
+[16:48.15]docs are updated. Um, and and I mean, we
+[16:48.16]docs are updated. Um, and and I mean, we like there's obviously the last year
+[16:49.91]like there's obviously the last year
+[16:49.92]like there's obviously the last year we've been trending towards how do you
+[16:51.83]we've been trending towards how do you
+[16:51.84]we've been trending towards how do you build things in a way obviously are good
+[16:53.59]build things in a way obviously are good
+[16:53.60]build things in a way obviously are good for humans, but also like consumable by
+[16:55.51]for humans, but also like consumable by
+[16:55.52]for humans, but also like consumable by LMS as well. And so, I think the team
+[16:57.51]LMS as well. And so, I think the team
+[16:57.52]LMS as well. And so, I think the team has done a great job kind of getting
+[16:59.19]has done a great job kind of getting
+[16:59.20]has done a great job kind of getting things in a place where machines can
+[17:00.71]things in a place where machines can
+[17:00.72]things in a place where machines can read things um along with the humans.
+[17:02.79]read things um along with the humans.
+[17:02.80]read things um along with the humans. So, um, but we continue to improve.
+[17:11.75]>> Sounds great. Uh, next question. Um,
+[17:11.76]>> Sounds great. Uh, next question. Um, Demila B uh asks, "What is the what is
+[17:15.67]Demila B uh asks, "What is the what is
+[17:15.68]Demila B uh asks, "What is the what is still the biggest unresolved limitation
+[17:17.27]still the biggest unresolved limitation
+[17:17.28]still the biggest unresolved limitation in PyTorch today for training large
+[17:19.75]in PyTorch today for training large
+[17:19.76]in PyTorch today for training large dynamic GNN's especially when the graph
+[17:22.87]dynamic GNN's especially when the graph
+[17:22.88]dynamic GNN's especially when the graph topology say changes at every step?"
+[17:26.39]topology say changes at every step?"
+[17:26.40]topology say changes at every step?" That's a great question. Um, who here
+[17:29.75]That's a great question. Um, who here
+[17:29.76]That's a great question. Um, who here feels most confident talking about graph
+[17:32.31]feels most confident talking about graph
+[17:32.32]feels most confident talking about graph neural networks?
+[17:35.19]neural networks?
+[17:35.20]neural networks? Joe, is that an area you've you've
+[17:36.87]Joe, is that an area you've you've
+[17:36.88]Joe, is that an area you've you've looked into or not so much?
+[17:39.43]looked into or not so much?
+[17:39.44]looked into or not so much? I'm probably not the GNN expert here. We
+[17:42.63]I'm probably not the GNN expert here. We
+[17:42.64]I'm probably not the GNN expert here. We have used GNN's in the past for
+[17:44.63]have used GNN's in the past for
+[17:44.64]have used GNN's in the past for interesting kind of scientific
+[17:47.19]interesting kind of scientific
+[17:47.20]interesting kind of scientific use cases. Um especially in the
+[17:50.31]use cases. Um especially in the
+[17:50.32]use cases. Um especially in the chemistry work we did uh with with uh
+[17:53.59]chemistry work we did uh with with uh
+[17:53.60]chemistry work we did uh with with uh with open chemistry. Um and there's
+[17:56.55]with open chemistry. Um and there's
+[17:56.56]with open chemistry. Um and there's they're certainly useful um for those
+[17:59.59]they're certainly useful um for those
+[17:59.60]they're certainly useful um for those types because you have very complex data
+[18:01.19]types because you have very complex data
+[18:01.20]types because you have very complex data that you're you're trying to embed that
+[18:03.19]that you're you're trying to embed that
+[18:03.20]that you're you're trying to embed that information into the model. So, a lot of
+[18:05.51]information into the model. So, a lot of
+[18:05.52]information into the model. So, a lot of different modalities, but I'm I'm
+[18:07.03]different modalities, but I'm I'm
+[18:07.04]different modalities, but I'm I'm probably far from a GNN expert.
+[18:09.67]probably far from a GNN expert.
+[18:09.68]probably far from a GNN expert. >> Yeah.
+[18:10.23]>> Yeah.
+[18:10.24]>> Yeah. >> Yeah. I think the good answer is the one
+[18:13.27]>> Yeah. I think the good answer is the one
+[18:13.28]>> Yeah. I think the good answer is the one that Andrew made to the previous
+[18:14.95]that Andrew made to the previous
+[18:14.96]that Andrew made to the previous question like, you know, if you have a
+[18:16.23]question like, you know, if you have a
+[18:16.24]question like, you know, if you have a particular like I think you should
+[18:18.15]particular like I think you should
+[18:18.16]particular like I think you should probably file an issue against PyTorch
+[18:19.59]probably file an issue against PyTorch
+[18:19.60]probably file an issue against PyTorch Geometric and if they say that you know
+[18:21.75]Geometric and if they say that you know
+[18:21.76]Geometric and if they say that you know that there's a fundamental issue in
+[18:23.19]that there's a fundamental issue in
+[18:23.20]that there's a fundamental issue in PyTorch, you should file an issue
+[18:25.03]PyTorch, you should file an issue
+[18:25.04]PyTorch, you should file an issue against us because we don't know until
+[18:26.63]against us because we don't know until
+[18:26.64]against us because we don't know until we like hear about it. But like I would
+[18:29.51]we like hear about it. But like I would
+[18:29.52]we like hear about it. But like I would say GNN's is not the most hot topic in
+[18:33.27]say GNN's is not the most hot topic in
+[18:33.28]say GNN's is not the most hot topic in uh artificial intelligence in the last
+[18:35.75]uh artificial intelligence in the last
+[18:35.76]uh artificial intelligence in the last 12 months and so we don't like have a
+[18:39.03]12 months and so we don't like have a
+[18:39.04]12 months and so we don't like have a particular focus on those
+[18:41.83]particular focus on those
+[18:41.84]particular focus on those but they should work and there shouldn't
+[18:43.35]but they should work and there shouldn't
+[18:43.36]but they should work and there shouldn't be any limitations other than inherent
+[18:45.27]be any limitations other than inherent
+[18:45.28]be any limitations other than inherent limitations in the architecture that
+[18:46.79]limitations in the architecture that
+[18:46.80]limitations in the architecture that like post training is somewhat slow
+[18:48.95]like post training is somewhat slow
+[18:48.96]like post training is somewhat slow because your graph propagation like
+[18:51.03]because your graph propagation like
+[18:51.04]because your graph propagation like backward propagation across the graph
+[18:52.95]backward propagation across the graph
+[18:52.96]backward propagation across the graph like introduce lots and lots of
+[18:54.31]like introduce lots and lots of
+[18:54.32]like introduce lots and lots of gradients which are somewhat unstable
+[18:55.75]gradients which are somewhat unstable
+[18:55.76]gradients which are somewhat unstable and you need to like be very careful
+[18:57.75]and you need to like be very careful
+[18:57.76]and you need to like be very careful because the trading electron rate should
+[18:59.03]because the trading electron rate should
+[18:59.04]because the trading electron rate should be very low but that's not new. [snorts]
+[19:06.95]>> Okay, thank you folks for taking a swing
+[19:06.96]>> Okay, thank you folks for taking a swing at a challenging question.
+[19:14.39]>> Um Adam's uh question is next. Um how
+[19:14.40]>> Um Adam's uh question is next. Um how does an inductor choose between kublos
+[19:17.43]does an inductor choose between kublos
+[19:17.44]does an inductor choose between kublos cutless and cute DSL kernels and does
+[19:19.83]cutless and cute DSL kernels and does
+[19:19.84]cutless and cute DSL kernels and does the user have any flexibility here? Is
+[19:21.83]the user have any flexibility here? Is
+[19:21.84]the user have any flexibility here? Is this cho is this choice exposed um uh
+[19:25.11]this cho is this choice exposed um uh
+[19:25.12]this cho is this choice exposed um uh for example in FX uh layer?
+[19:28.39]for example in FX uh layer?
+[19:28.40]for example in FX uh layer? >> So I can probably answer this one. Well
+[19:30.39]>> So I can probably answer this one. Well
+[19:30.40]>> So I can probably answer this one. Well like inductor tries to do the best perf
+[19:34.39]like inductor tries to do the best perf
+[19:34.40]like inductor tries to do the best perf right and it like tries to select the
+[19:36.79]right and it like tries to select the
+[19:36.80]right and it like tries to select the ones that it believes will be better. Uh
+[19:39.43]ones that it believes will be better. Uh
+[19:39.44]ones that it believes will be better. Uh you can also do max autotune when it
+[19:41.11]you can also do max autotune when it
+[19:41.12]you can also do max autotune when it should just dutifully iterate over all
+[19:42.87]should just dutifully iterate over all
+[19:42.88]should just dutifully iterate over all the options and try to pick the one that
+[19:44.47]the options and try to pick the one that
+[19:44.48]the options and try to pick the one that works for you. Also there is a hardware
+[19:45.91]works for you. Also there is a hardware
+[19:45.92]works for you. Also there is a hardware limitations and there should be knobs in
+[19:48.23]limitations and there should be knobs in
+[19:48.24]limitations and there should be knobs in the inductor to say use or doesn't use
+[19:50.15]the inductor to say use or doesn't use
+[19:50.16]the inductor to say use or doesn't use certain backends but I don't think there
+[19:53.03]certain backends but I don't think there
+[19:53.04]certain backends but I don't think there is a very easy way to express it through
+[19:55.91]is a very easy way to express it through
+[19:55.92]is a very easy way to express it through the FX graph but you can suggest this
+[19:58.47]the FX graph but you can suggest this
+[19:58.48]the FX graph but you can suggest this one as an improvement. So once again
+[20:00.15]one as an improvement. So once again
+[20:00.16]one as an improvement. So once again file an issue saying that you want this
+[20:02.31]file an issue saying that you want this
+[20:02.32]file an issue saying that you want this one but I kind of want you to think
+[20:04.95]one but I kind of want you to think
+[20:04.96]one but I kind of want you to think about it like why do you want to be
+[20:07.35]about it like why do you want to be
+[20:07.36]about it like why do you want to be explicit like don't we want to converge
+[20:10.31]explicit like don't we want to converge
+[20:10.32]explicit like don't we want to converge to one model and I suspect that cute DSL
+[20:13.35]to one model and I suspect that cute DSL
+[20:13.36]to one model and I suspect that cute DSL is probably something we kind of leaning
+[20:18.15]is probably something we kind of leaning
+[20:18.16]is probably something we kind of leaning towards on the most modern architectures
+[20:19.83]towards on the most modern architectures
+[20:19.84]towards on the most modern architectures like blackfields and probably have
+[20:20.95]like blackfields and probably have
+[20:20.96]like blackfields and probably have common verbs but I think like kublast
+[20:25.67]common verbs but I think like kublast
+[20:25.68]common verbs but I think like kublast will probably give you a much better
+[20:26.95]will probably give you a much better
+[20:26.96]will probably give you a much better perf on and cutless on an architectures
+[20:29.91]perf on and cutless on an architectures
+[20:29.92]perf on and cutless on an architectures because there's kind of a cut off there.
+[20:36.95]>> Okay, any other uh responses on this
+[20:36.96]>> Okay, any other uh responses on this one? Okay, let's move to the next one.
+[20:40.39]one? Okay, let's move to the next one.
+[20:40.40]one? Okay, let's move to the next one. We have I love that there are so many
+[20:42.23]We have I love that there are so many
+[20:42.24]We have I love that there are so many audience questions. So, thank you folks
+[20:43.99]audience questions. So, thank you folks
+[20:44.00]audience questions. So, thank you folks for putting those in. Uh I think that's
+[20:46.15]for putting those in. Uh I think that's
+[20:46.16]for putting those in. Uh I think that's great. Okay. Um we have somebody from
+[20:49.43]great. Okay. Um we have somebody from
+[20:49.44]great. Okay. Um we have somebody from LinkedIn who asked uh which PyTorch 20
+[20:51.91]LinkedIn who asked uh which PyTorch 20
+[20:51.92]LinkedIn who asked uh which PyTorch 20 uh 21.14 uh feature gives the biggest
+[20:54.55]uh 21.14 uh feature gives the biggest
+[20:54.56]uh 21.14 uh feature gives the biggest performance boost for production LLM
+[20:56.47]performance boost for production LLM
+[20:56.48]performance boost for production LLM inference and how easy is it uh to
+[20:59.35]inference and how easy is it uh to
+[20:59.36]inference and how easy is it uh to adopt? Um
+[21:03.19]adopt? Um
+[21:03.20]adopt? Um I don't know that we did an ablation
+[21:04.95]I don't know that we did an ablation
+[21:04.96]I don't know that we did an ablation study of the various different features
+[21:06.63]study of the various different features
+[21:06.64]study of the various different features but does anybody have a um have a
+[21:10.55]but does anybody have a um have a
+[21:10.56]but does anybody have a um have a thought here? I suspect cudgraphs uh
+[21:14.55]thought here? I suspect cudgraphs uh
+[21:14.56]thought here? I suspect cudgraphs uh ability to trace more functions, avoid
+[21:16.79]ability to trace more functions, avoid
+[21:16.80]ability to trace more functions, avoid cudograph breaks and ability to like
+[21:20.15]cudograph breaks and ability to like
+[21:20.16]cudograph breaks and ability to like trace coms uh would be the one maybe
+[21:23.43]trace coms uh would be the one maybe
+[21:23.44]trace coms uh would be the one maybe some of the torch compiler features but
+[21:25.27]some of the torch compiler features but
+[21:25.28]some of the torch compiler features but that depends on the frameworks that
+[21:26.87]that depends on the frameworks that
+[21:26.88]that depends on the frameworks that you're using for your LLM inference,
+[21:29.67]you're using for your LLM inference,
+[21:29.68]you're using for your LLM inference, right?
+[21:31.27]right?
+[21:31.28]right? And they should be pretty easy to adopt.
+[21:33.27]And they should be pretty easy to adopt.
+[21:33.28]And they should be pretty easy to adopt. So like lots of those features were
+[21:34.71]So like lots of those features were
+[21:34.72]So like lots of those features were driven by like asks from users such as
+[21:38.39]driven by like asks from users such as
+[21:38.40]driven by like asks from users such as like VLM or SJAN. So I hope that they
+[21:42.23]like VLM or SJAN. So I hope that they
+[21:42.24]like VLM or SJAN. So I hope that they will be incorporating those features
+[21:43.75]will be incorporating those features
+[21:43.76]will be incorporating those features into their frameworks and NVJMS is also
+[21:47.11]into their frameworks and NVJMS is also
+[21:47.12]into their frameworks and NVJMS is also a great one that probably important for
+[21:50.07]a great one that probably important for
+[21:50.08]a great one that probably important for performance.
+[21:54.95]>> Okay.
+[21:54.96]>> Okay. >> Yeah, I think NVJ specifically on black
+[21:58.39]>> Yeah, I think NVJ specifically on black
+[21:58.40]>> Yeah, I think NVJ specifically on black with low precision I think it's
+[22:00.47]with low precision I think it's
+[22:00.48]with low precision I think it's important. Yeah.
+[22:09.11]>> Okay. Um the next one is from Asam. Uh,
+[22:09.12]>> Okay. Um the next one is from Asam. Uh, and I might be mispronouncing there. I
+[22:10.63]and I might be mispronouncing there. I
+[22:10.64]and I might be mispronouncing there. I apologize if I did. Um, PyTorch, uh,
+[22:13.11]apologize if I did. Um, PyTorch, uh,
+[22:13.12]apologize if I did. Um, PyTorch, uh, 21.14 makes fault tolerance a first
+[22:15.67]21.14 makes fault tolerance a first
+[22:15.68]21.14 makes fault tolerance a first class CTN concept. Does the new model
+[22:18.23]class CTN concept. Does the new model
+[22:18.24]class CTN concept. Does the new model allow a training job to recover from a
+[22:20.23]allow a training job to recover from a
+[22:20.24]allow a training job to recover from a failed rank without reconstructing the
+[22:21.67]failed rank without reconstructing the
+[22:21.68]failed rank without reconstructing the entire distributed process group? And
+[22:23.67]entire distributed process group? And
+[22:23.68]entire distributed process group? And what state is expected to remain valid
+[22:25.59]what state is expected to remain valid
+[22:25.60]what state is expected to remain valid after recovery?
+[22:32.23]Do we have any anyone here who's expert
+[22:32.24]Do we have any anyone here who's expert in the new um torchcom's model?
+[22:41.11]>> [clears throat]
+[22:41.12]>> [clears throat] >> None of us are.
+[22:42.79]>> None of us are.
+[22:42.80]>> None of us are. >> Okay. Not me.
+[22:44.07]>> Okay. Not me.
+[22:44.08]>> Okay. Not me. >> I think we're I think we're going to
+[22:45.35]>> I think we're I think we're going to
+[22:45.36]>> I think we're I think we're going to have to refer this question to um uh to
+[22:48.79]have to refer this question to um uh to
+[22:48.80]have to refer this question to um uh to the discussion. So this would be a great
+[22:50.79]the discussion. So this would be a great
+[22:50.80]the discussion. So this would be a great question for example for discuss
+[22:52.87]question for example for discuss
+[22:52.88]question for example for discuss uh.pytorch or dev discuss. Um so I think
+[22:56.55]uh.pytorch or dev discuss. Um so I think
+[22:56.56]uh.pytorch or dev discuss. Um so I think uh the the specific uh details about
+[22:59.27]uh the the specific uh details about
+[22:59.28]uh the the specific uh details about like what part of the state uh would be
+[23:01.43]like what part of the state uh would be
+[23:01.44]like what part of the state uh would be expected to remain valid uh is the kind
+[23:03.59]expected to remain valid uh is the kind
+[23:03.60]expected to remain valid uh is the kind of thing one of the distributed uh uh
+[23:05.91]of thing one of the distributed uh uh
+[23:05.92]of thing one of the distributed uh uh engineers would be really strong
+[23:08.63]engineers would be really strong
+[23:08.64]engineers would be really strong rice question.
+[23:09.91]rice question.
+[23:09.92]rice question. >> Yeah.
+[23:10.39]>> Yeah.
+[23:10.40]>> Yeah. >> Yep. Exactly. But I want to just flag
+[23:12.15]>> Yep. Exactly. But I want to just flag
+[23:12.16]>> Yep. Exactly. But I want to just flag that this is experimental support and we
+[23:13.83]that this is experimental support and we
+[23:13.84]that this is experimental support and we indeed like seeking your feedback. So
+[23:16.15]indeed like seeking your feedback. So
+[23:16.16]indeed like seeking your feedback. So please try to obtain into this like
+[23:18.63]please try to obtain into this like
+[23:18.64]please try to obtain into this like nickel ch and other CTN default
+[23:20.71]nickel ch and other CTN default
+[23:20.72]nickel ch and other CTN default tolerance features and let us know if
+[23:22.87]tolerance features and let us know if
+[23:22.88]tolerance features and let us know if they work for you or not.
+[23:25.27]they work for you or not.
+[23:25.28]they work for you or not. But yes, like a new model allows for a
+[23:28.07]But yes, like a new model allows for a
+[23:28.08]But yes, like a new model allows for a more graceful recovery, but it doesn't
+[23:30.63]more graceful recovery, but it doesn't
+[23:30.64]more graceful recovery, but it doesn't guarantee that it will work out of the
+[23:32.31]guarantee that it will work out of the
+[23:32.32]guarantee that it will work out of the box. You probably need to like adjust
+[23:34.87]box. You probably need to like adjust
+[23:34.88]box. You probably need to like adjust your training pipeline to uh like take
+[23:38.63]your training pipeline to uh like take
+[23:38.64]your training pipeline to uh like take benefit of that and like recognize this
+[23:40.39]benefit of that and like recognize this
+[23:40.40]benefit of that and like recognize this error as recoverable. But yes, sounds
+[23:43.03]error as recoverable. But yes, sounds
+[23:43.04]error as recoverable. But yes, sounds like a great discuss question.
+[23:50.07]>> Next question.
+[23:50.08]>> Next question. Yes, it's the um uh Shiva Shush um uh
+[23:54.55]Yes, it's the um uh Shiva Shush um uh
+[23:54.56]Yes, it's the um uh Shiva Shush um uh again pronunciation caveat on Apple
+[23:57.83]again pronunciation caveat on Apple
+[23:57.84]again pronunciation caveat on Apple silicon uh 21.14 adds uh native linear
+[24:00.39]silicon uh 21.14 adds uh native linear
+[24:00.40]silicon uh 21.14 adds uh native linear algebra and more metal kernels uh for
+[24:02.63]algebra and more metal kernels uh for
+[24:02.64]algebra and more metal kernels uh for LLM decode on unified memory. Which path
+[24:05.03]LLM decode on unified memory. Which path
+[24:05.04]LLM decode on unified memory. Which path actually moves the needle uh versus 2.13
+[24:07.67]actually moves the needle uh versus 2.13
+[24:07.68]actually moves the needle uh versus 2.13 the new metal kernels or inductor
+[24:09.83]the new metal kernels or inductor
+[24:09.84]the new metal kernels or inductor picking up better epilogs? Any measured
+[24:12.55]picking up better epilogs? Any measured
+[24:12.56]picking up better epilogs? Any measured tokens per second deltas um on the M
+[24:15.11]tokens per second deltas um on the M
+[24:15.12]tokens per second deltas um on the M series or fixed to code loop? And I I
+[24:17.99]series or fixed to code loop? And I I
+[24:18.00]series or fixed to code loop? And I I believe Nikita, you've been really
+[24:19.27]believe Nikita, you've been really
+[24:19.28]believe Nikita, you've been really active in the past with some of the
+[24:20.71]active in the past with some of the
+[24:20.72]active in the past with some of the Apple changes. So I'm gonna toss this
+[24:22.79]Apple changes. So I'm gonna toss this
+[24:22.80]Apple changes. So I'm gonna toss this one to you.
+[24:24.23]one to you.
+[24:24.24]one to you. >> Sure. Well, first of all, we don't
+[24:25.75]>> Sure. Well, first of all, we don't
+[24:25.76]>> Sure. Well, first of all, we don't specifically measure and also it's very
+[24:27.99]specifically measure and also it's very
+[24:28.00]specifically measure and also it's very subjective because like different M
+[24:30.47]subjective because like different M
+[24:30.48]subjective because like different M series have a different behavior. But
+[24:32.31]series have a different behavior. But
+[24:32.32]series have a different behavior. But there is one feature that was introduced
+[24:34.15]there is one feature that was introduced
+[24:34.16]there is one feature that was introduced in 214. we use uh like a new apple
+[24:38.15]in 214. we use uh like a new apple
+[24:38.16]in 214. we use uh like a new apple silicon or like metal framework feature
+[24:40.31]silicon or like metal framework feature
+[24:40.32]silicon or like metal framework feature called metal performance primitives
+[24:41.75]called metal performance primitives
+[24:41.76]called metal performance primitives which is similar to uh I don't know
+[24:45.03]which is similar to uh I don't know
+[24:45.04]which is similar to uh I don't know probably to cut in a sense so it's very
+[24:47.67]probably to cut in a sense so it's very
+[24:47.68]probably to cut in a sense so it's very different it allows one to express
+[24:49.67]different it allows one to express
+[24:49.68]different it allows one to express matrix multiplication it's done in eager
+[24:51.91]matrix multiplication it's done in eager
+[24:51.92]matrix multiplication it's done in eager mode and it can in some cases produce
+[24:55.03]mode and it can in some cases produce
+[24:55.04]mode and it can in some cases produce just of this particular operation like
+[24:57.03]just of this particular operation like
+[24:57.04]just of this particular operation like 3x or even sometimes measured 5x but
+[24:59.75]3x or even sometimes measured 5x but
+[24:59.76]3x or even sometimes measured 5x but this is more like a synthetic benchmark
+[25:01.35]this is more like a synthetic benchmark
+[25:01.36]this is more like a synthetic benchmark not an end to end one performance boost
+[25:03.43]not an end to end one performance boost
+[25:03.44]not an end to end one performance boost so you should give it tries there is no
+[25:06.15]so you should give it tries there is no
+[25:06.16]so you should give it tries there is no inductor peing better epilogues
+[25:08.15]inductor peing better epilogues
+[25:08.16]inductor peing better epilogues necessarily for Apple silicon and yes we
+[25:11.43]necessarily for Apple silicon and yes we
+[25:11.44]necessarily for Apple silicon and yes we we don't do measurements because again
+[25:12.95]we don't do measurements because again
+[25:12.96]we don't do measurements because again it's kind of you cannot measure on the
+[25:14.63]it's kind of you cannot measure on the
+[25:14.64]it's kind of you cannot measure on the pietorch alone you need to measure on a
+[25:16.39]pietorch alone you need to measure on a
+[25:16.40]pietorch alone you need to measure on a particular framework but you can
+[25:18.47]particular framework but you can
+[25:18.48]particular framework but you can probably check those numbers at hugging
+[25:21.75]probably check those numbers at hugging
+[25:21.76]probably check those numbers at hugging face transformers on one of their um
+[25:23.99]face transformers on one of their um
+[25:24.00]face transformers on one of their um frameworks if this is what you're using
+[25:25.59]frameworks if this is what you're using
+[25:25.60]frameworks if this is what you're using for your inference pipelines
+[25:37.35]>> okay Um yes, let's do so. Uh Shibash had
+[25:37.36]>> okay Um yes, let's do so. Uh Shibash had three several questions in a row, so I
+[25:38.95]three several questions in a row, so I
+[25:38.96]three several questions in a row, so I don't know if we'll get to all of them,
+[25:39.91]don't know if we'll get to all of them,
+[25:39.92]don't know if we'll get to all of them, but let's take this next one here.
+[25:41.22]but let's take this next one here.
+[25:41.23]but let's take this next one here. [snorts] Uh the declarative uh dynamic
+[25:43.19][snorts] Uh the declarative uh dynamic
+[25:43.20][snorts] Uh the declarative uh dynamic spec looks useful for Asian workloads
+[25:45.03]spec looks useful for Asian workloads
+[25:45.04]spec looks useful for Asian workloads where context length um changes
+[25:47.51]where context length um changes
+[25:47.52]where context length um changes midsession. Uh if the live shape set
+[25:50.07]midsession. Uh if the live shape set
+[25:50.08]midsession. Uh if the live shape set expands beyond the declared spec, does
+[25:52.87]expands beyond the declared spec, does
+[25:52.88]expands beyond the declared spec, does inductor recompile quietly or can you
+[25:54.87]inductor recompile quietly or can you
+[25:54.88]inductor recompile quietly or can you make it a hard fail uh so that you can
+[25:57.35]make it a hard fail uh so that you can
+[25:57.36]make it a hard fail uh so that you can have more predictable latency? Um does
+[26:01.03]have more predictable latency? Um does
+[26:01.04]have more predictable latency? Um does anybody know the answer to this one? Um
+[26:04.87]anybody know the answer to this one? Um
+[26:04.88]anybody know the answer to this one? Um >> I don't know on top of my head but
+[26:07.19]>> I don't know on top of my head but
+[26:07.20]>> I don't know on top of my head but knowing the development patterns of the
+[26:09.11]knowing the development patterns of the
+[26:09.12]knowing the development patterns of the inductor I suspect there should be an op
+[26:11.75]inductor I suspect there should be an op
+[26:11.76]inductor I suspect there should be an op to make it fail
+[26:14.39]to make it fail
+[26:14.40]to make it fail >> but there also should be a knob like
+[26:16.87]>> but there also should be a knob like
+[26:16.88]>> but there also should be a knob like that was a default orch compile behavior
+[26:19.83]that was a default orch compile behavior
+[26:19.84]that was a default orch compile behavior for quite some time that like if it
+[26:21.43]for quite some time that like if it
+[26:21.44]for quite some time that like if it fails to do something instead of ering
+[26:22.95]fails to do something instead of ering
+[26:22.96]fails to do something instead of ering out it just falls back to either or like
+[26:25.19]out it just falls back to either or like
+[26:25.20]out it just falls back to either or like to the previous behavior. So there are
+[26:27.03]to the previous behavior. So there are
+[26:27.04]to the previous behavior. So there are both nodes exist but you should ask this
+[26:28.87]both nodes exist but you should ask this
+[26:28.88]both nodes exist but you should ask this question and de discuss. Um it's kind of
+[26:31.35]question and de discuss. Um it's kind of
+[26:31.36]question and de discuss. Um it's kind of yeah hard to know all the specifics.
+[26:34.23]yeah hard to know all the specifics.
+[26:34.24]yeah hard to know all the specifics. >> Yeah I feel I I feel I feel like the if
+[26:37.03]>> Yeah I feel I I feel I feel like the if
+[26:37.04]>> Yeah I feel I I feel I feel like the if we don't already have a knob to do this
+[26:38.79]we don't already have a knob to do this
+[26:38.80]we don't already have a knob to do this this would be a knob that that the team
+[26:40.39]this would be a knob that that the team
+[26:40.40]this would be a knob that that the team would likely receive. Well um because
+[26:43.03]would likely receive. Well um because
+[26:43.04]would likely receive. Well um because that that latency uh predictability is
+[26:45.51]that that latency uh predictability is
+[26:45.52]that that latency uh predictability is is pretty important to a lot of use
+[26:46.87]is pretty important to a lot of use
+[26:46.88]is pretty important to a lot of use cases. Okay. Um let's go ahead and move
+[26:49.91]cases. Okay. Um let's go ahead and move
+[26:49.92]cases. Okay. Um let's go ahead and move on to the to the next uh question in the
+[26:53.03]on to the to the next uh question in the
+[26:53.04]on to the to the next uh question in the list here. Um, how will dropping a CUDA
+[26:56.95]list here. Um, how will dropping a CUDA
+[26:56.96]list here. Um, how will dropping a CUDA 12 wheels in 2.15 affect downstream uh
+[27:00.47]12 wheels in 2.15 affect downstream uh
+[27:00.48]12 wheels in 2.15 affect downstream uh C++ libr uh libraries uh or binaries for
+[27:04.31]C++ libr uh libraries uh or binaries for
+[27:04.32]C++ libr uh libraries uh or binaries for for projects such as to sharp, but I
+[27:06.55]for projects such as to sharp, but I
+[27:06.56]for projects such as to sharp, but I know there's there's others. Um, Andre,
+[27:09.19]know there's there's others. Um, Andre,
+[27:09.20]know there's there's others. Um, Andre, do you want to take this one?
+[27:10.39]do you want to take this one?
+[27:10.40]do you want to take this one? >> Yeah. Yes. Uh, so basically I think
+[27:12.47]>> Yeah. Yes. Uh, so basically I think
+[27:12.48]>> Yeah. Yes. Uh, so basically I think right now it would be good time for you
+[27:15.11]right now it would be good time for you
+[27:15.12]right now it would be good time for you to start planning to migrating for coder
+[27:17.59]to start planning to migrating for coder
+[27:17.60]to start planning to migrating for coder 13 and probably the best version would
+[27:20.55]13 and probably the best version would
+[27:20.56]13 and probably the best version would be 13.2 two since this is going to be
+[27:23.59]be 13.2 two since this is going to be
+[27:23.60]be 13.2 two since this is going to be our um stable version for the next 2.15
+[27:27.35]our um stable version for the next 2.15
+[27:27.36]our um stable version for the next 2.15 release. Um and yeah, I think it's and
+[27:30.95]release. Um and yeah, I think it's and
+[27:30.96]release. Um and yeah, I think it's and if you still want to use CUDA2.x, you
+[27:34.39]if you still want to use CUDA2.x, you
+[27:34.40]if you still want to use CUDA2.x, you should be able to compile yourself from
+[27:36.95]should be able to compile yourself from
+[27:36.96]should be able to compile yourself from the source. So this is should still be
+[27:39.35]the source. So this is should still be
+[27:39.36]the source. So this is should still be supported. So you can take a look at how
+[27:42.15]supported. So you can take a look at how
+[27:42.16]supported. So you can take a look at how we compile liptor binaries and basically
+[27:44.63]we compile liptor binaries and basically
+[27:44.64]we compile liptor binaries and basically duplicate the workflow and compile it
+[27:46.95]duplicate the workflow and compile it
+[27:46.96]duplicate the workflow and compile it yourself on your workers. um that that
+[27:50.31]yourself on your workers. um that that
+[27:50.32]yourself on your workers. um that that could be an option for short term like
+[27:52.71]could be an option for short term like
+[27:52.72]could be an option for short term like if you cannot migrate uh faster um I
+[27:56.47]if you cannot migrate uh faster um I
+[27:56.48]if you cannot migrate uh faster um I don't know maybe Nikita wants to chime
+[27:58.07]don't know maybe Nikita wants to chime
+[27:58.08]don't know maybe Nikita wants to chime in here any additional
+[27:59.91]in here any additional
+[27:59.92]in here any additional >> um sure I guess like uh uh two
+[28:05.19]>> um sure I guess like uh uh two
+[28:05.20]>> um sure I guess like uh uh two question like two two points one is that
+[28:07.67]question like two two points one is that
+[28:07.68]question like two two points one is that uh like if you're on an older GPU
+[28:10.15]uh like if you're on an older GPU
+[28:10.16]uh like if you're on an older GPU unfortunately CUDA 13 doesn't support
+[28:11.91]unfortunately CUDA 13 doesn't support
+[28:11.92]unfortunately CUDA 13 doesn't support some of them so you have to stay on the
+[28:14.39]some of them so you have to stay on the
+[28:14.40]some of them so you have to stay on the older PyTorch versions but also one
+[28:16.47]older PyTorch versions but also one
+[28:16.48]older PyTorch versions but also one should not expect any performance
+[28:18.71]should not expect any performance
+[28:18.72]should not expect any performance uh gains or uh like new features for
+[28:23.03]uh gains or uh like new features for
+[28:23.04]uh gains or uh like new features for this older hardware with new releases.
+[28:24.87]this older hardware with new releases.
+[28:24.88]this older hardware with new releases. So like there is no reason for you to
+[28:26.63]So like there is no reason for you to
+[28:26.64]So like there is no reason for you to upgrade. You can continue using 214 uh
+[28:29.75]upgrade. You can continue using 214 uh
+[28:29.76]upgrade. You can continue using 214 uh for your older like pipelines
+[28:33.43]for your older like pipelines
+[28:33.44]for your older like pipelines and TPU binaries will still be there,
+[28:35.35]and TPU binaries will still be there,
+[28:35.36]and TPU binaries will still be there, right? I don't know how much to sharp is
+[28:37.59]right? I don't know how much to sharp is
+[28:37.60]right? I don't know how much to sharp is indeed about like I guess it's most
+[28:39.75]indeed about like I guess it's most
+[28:39.76]indeed about like I guess it's most frequently used on Windows and I don't
+[28:41.91]frequently used on Windows and I don't
+[28:41.92]frequently used on Windows and I don't know how much of that is like
+[28:46.63]know how much of that is like
+[28:46.64]know how much of that is like relevant to people on Windows like using
+[28:49.11]relevant to people on Windows like using
+[28:49.12]relevant to people on Windows like using blackville features like like VFP4
+[28:50.95]blackville features like like VFP4
+[28:50.96]blackville features like like VFP4 because like not available. So use 214
+[28:55.11]because like not available. So use 214
+[28:55.12]because like not available. So use 214 but also yeah like CUDA 12 was released
+[28:59.35]but also yeah like CUDA 12 was released
+[28:59.36]but also yeah like CUDA 12 was released five years ago if I'm not mistaken. So
+[29:01.75]five years ago if I'm not mistaken. So
+[29:01.76]five years ago if I'm not mistaken. So it's it's a good time to upgrade like
+[29:03.59]it's it's a good time to upgrade like
+[29:03.60]it's it's a good time to upgrade like ask yourself why do you need to be on
+[29:05.11]ask yourself why do you need to be on
+[29:05.12]ask yourself why do you need to be on CUDA 12 in 2026 or like heading towards
+[29:08.55]CUDA 12 in 2026 or like heading towards
+[29:08.56]CUDA 12 in 2026 or like heading towards 2027
+[29:11.48]2027
+[29:11.49]2027 [snorts]
+[29:11.99][snorts]
+[29:12.00][snorts] >> though I' though I've known people who
+[29:13.51]>> though I' though I've known people who
+[29:13.52]>> though I' though I've known people who have stayed on old CUDA versions for a
+[29:15.11]have stayed on old CUDA versions for a
+[29:15.12]have stayed on old CUDA versions for a long time but but yes
+[29:18.63]long time but but yes
+[29:18.64]long time but but yes okay
+[29:20.31]okay
+[29:20.32]okay next question
+[29:23.27]next question
+[29:23.28]next question um okay so this one is a simple one and
+[29:25.11]um okay so this one is a simple one and
+[29:25.12]um okay so this one is a simple one and this uh came from the the community uh
+[29:28.07]this uh came from the the community uh
+[29:28.08]this uh came from the the community uh questions ahead of time uh if you're on
+[29:30.07]questions ahead of time uh if you're on
+[29:30.08]questions ahead of time uh if you're on AMD what change for uh rockcomm in 2.14.
+[29:35.19]AMD what change for uh rockcomm in 2.14.
+[29:35.20]AMD what change for uh rockcomm in 2.14. Andre, do you want to talk to this one?
+[29:37.19]Andre, do you want to talk to this one?
+[29:37.20]Andre, do you want to talk to this one? >> Yes. Yes. So, basically for romcom
+[29:39.99]>> Yes. Yes. So, basically for romcom
+[29:40.00]>> Yes. Yes. So, basically for romcom specifically, uh we removed the rocom
+[29:43.19]specifically, uh we removed the rocom
+[29:43.20]specifically, uh we removed the rocom 7.1 support. Uh no wheels are no longer
+[29:47.11]7.1 support. Uh no wheels are no longer
+[29:47.12]7.1 support. Uh no wheels are no longer shipped with 214 PyTorch. So, um uh if
+[29:52.55]shipped with 214 PyTorch. So, um uh if
+[29:52.56]shipped with 214 PyTorch. So, um uh if you're on roam 7.1, I think you need to
+[29:55.19]you're on roam 7.1, I think you need to
+[29:55.20]you're on roam 7.1, I think you need to migrate to either Rocomm 7.2 or 714. Uh
+[29:59.99]migrate to either Rocomm 7.2 or 714. Uh
+[30:00.00]migrate to either Rocomm 7.2 or 714. Uh those are two versions that are
+[30:02.31]those are two versions that are
+[30:02.32]those are two versions that are supported currently by 214 PyTorch. Um
+[30:06.63]supported currently by 214 PyTorch. Um
+[30:06.64]supported currently by 214 PyTorch. Um 714 is the latest one and it is using uh
+[30:10.23]714 is the latest one and it is using uh
+[30:10.24]714 is the latest one and it is using uh the rock pdk 7.2 it's the same version
+[30:14.71]the rock pdk 7.2 it's the same version
+[30:14.72]the rock pdk 7.2 it's the same version that we also shipped with previous
+[30:16.79]that we also shipped with previous
+[30:16.80]that we also shipped with previous release of torch. So it's uh more
+[30:19.67]release of torch. So it's uh more
+[30:19.68]release of torch. So it's uh more similar to what rocom 7.1 was. So I
+[30:22.79]similar to what rocom 7.1 was. So I
+[30:22.80]similar to what rocom 7.1 was. So I think you so you have a choice
+[30:24.95]think you so you have a choice
+[30:24.96]think you so you have a choice basically. I think the best way is to
+[30:26.87]basically. I think the best way is to
+[30:26.88]basically. I think the best way is to migrate straight to 714. Um but yeah, I
+[30:31.19]migrate straight to 714. Um but yeah, I
+[30:31.20]migrate straight to 714. Um but yeah, I think that's about it. Yes.
+[30:35.32]think that's about it. Yes.
+[30:35.33]think that's about it. Yes. [snorts]
+[30:37.83]>> Okay.
+[30:37.84]>> Okay. >> And there are some advanced features
+[30:39.59]>> And there are some advanced features
+[30:39.60]>> And there are some advanced features which are available in 714 like he file
+[30:42.55]which are available in 714 like he file
+[30:42.56]which are available in 714 like he file which is similar to coup file like
+[30:44.87]which is similar to coup file like
+[30:44.88]which is similar to coup file like direct storage access from GPUs and you
+[30:47.99]direct storage access from GPUs and you
+[30:48.00]direct storage access from GPUs and you can use more hip solver functions for
+[30:50.47]can use more hip solver functions for
+[30:50.48]can use more hip solver functions for example torch and alf uses that one.
+[30:54.63]example torch and alf uses that one.
+[30:54.64]example torch and alf uses that one. >> Yes. And the packaging is actually a lot
+[30:56.95]>> Yes. And the packaging is actually a lot
+[30:56.96]>> Yes. And the packaging is actually a lot better and a lot more modern for 714.
+[31:05.03]>> Okay.
+[31:05.04]>> Okay. Um I think our next question is going to
+[31:07.83]Um I think our next question is going to
+[31:07.84]Um I think our next question is going to be kind of a little bit of a broader
+[31:09.75]be kind of a little bit of a broader
+[31:09.76]be kind of a little bit of a broader question. Um uh so it seems like the
+[31:12.95]question. Um uh so it seems like the
+[31:12.96]question. Um uh so it seems like the diversity in the Okay, here we are. Uh
+[31:15.83]diversity in the Okay, here we are. Uh
+[31:15.84]diversity in the Okay, here we are. Uh it seems like the diversity in hardware
+[31:17.19]it seems like the diversity in hardware
+[31:17.20]it seems like the diversity in hardware in the AI world is exploding lately. At
+[31:19.59]in the AI world is exploding lately. At
+[31:19.60]in the AI world is exploding lately. At least that's what I see on on on uh uh
+[31:22.47]least that's what I see on on on uh uh
+[31:22.48]least that's what I see on on on uh uh in my news passing by. uh my uh screen
+[31:26.47]in my news passing by. uh my uh screen
+[31:26.48]in my news passing by. uh my uh screen every day. Uh how do we think about
+[31:28.55]every day. Uh how do we think about
+[31:28.56]every day. Uh how do we think about platform support um within the PyTorch
+[31:31.27]platform support um within the PyTorch
+[31:31.28]platform support um within the PyTorch community? I'd love to hear from from
+[31:33.35]community? I'd love to hear from from
+[31:33.36]community? I'd love to hear from from Joe on this and then I'm sure Andrea and
+[31:35.59]Joe on this and then I'm sure Andrea and
+[31:35.60]Joe on this and then I'm sure Andrea and Nikita may also want to chime in with
+[31:37.19]Nikita may also want to chime in with
+[31:37.20]Nikita may also want to chime in with details.
+[31:38.15]details.
+[31:38.16]details. >> Yeah,
+[31:39.67]>> Yeah,
+[31:39.68]>> Yeah, >> I mean we know we've been I'm coming at
+[31:42.55]>> I mean we know we've been I'm coming at
+[31:42.56]>> I mean we know we've been I'm coming at Harbor 180 for a long time with PyTorch.
+[31:45.43]Harbor 180 for a long time with PyTorch.
+[31:45.44]Harbor 180 for a long time with PyTorch. I think we've been trying uh to support
+[31:47.19]I think we've been trying uh to support
+[31:47.20]I think we've been trying uh to support a lot of different backends. We there's
+[31:49.11]a lot of different backends. We there's
+[31:49.12]a lot of different backends. We there's working groups in the in the foundation.
+[31:51.75]working groups in the in the foundation.
+[31:51.76]working groups in the in the foundation. I think you know in some ways like you
+[31:55.75]I think you know in some ways like you
+[31:55.76]I think you know in some ways like you know there's a couple different angles.
+[31:57.11]know there's a couple different angles.
+[31:57.12]know there's a couple different angles. One obviously we wanted to have a
+[31:58.55]One obviously we wanted to have a
+[31:58.56]One obviously we wanted to have a diverse set of of hardware vendors and
+[32:01.19]diverse set of of hardware vendors and
+[32:01.20]diverse set of of hardware vendors and and a hardware ecosystem to give choice
+[32:02.87]and a hardware ecosystem to give choice
+[32:02.88]and a hardware ecosystem to give choice to developers because not just at the
+[32:05.27]to developers because not just at the
+[32:05.28]to developers because not just at the cloud. I think everyone sort of thinks
+[32:06.39]cloud. I think everyone sort of thinks
+[32:06.40]cloud. I think everyone sort of thinks of like the cloud side is like the
+[32:07.91]of like the cloud side is like the
+[32:07.92]of like the cloud side is like the default but like running on device
+[32:09.91]default but like running on device
+[32:09.92]default but like running on device running you know um within wearables
+[32:11.91]running you know um within wearables
+[32:11.92]running you know um within wearables like there's there's like a lot going on
+[32:14.31]like there's there's like a lot going on
+[32:14.32]like there's there's like a lot going on in different hardware architectures and
+[32:15.91]in different hardware architectures and
+[32:15.92]in different hardware architectures and that's why this like compiler and kernel
+[32:18.07]that's why this like compiler and kernel
+[32:18.08]that's why this like compiler and kernel ecosystems is so diverse. I think that's
+[32:20.47]ecosystems is so diverse. I think that's
+[32:20.48]ecosystems is so diverse. I think that's like one piece. I think pragmatically
+[32:22.55]like one piece. I think pragmatically
+[32:22.56]like one piece. I think pragmatically though like like compute is scarce these
+[32:25.03]though like like compute is scarce these
+[32:25.04]though like like compute is scarce these days and you know being able to run on
+[32:27.75]days and you know being able to run on
+[32:27.76]days and you know being able to run on Nvidia, being able to run on AMD, being
+[32:29.43]Nvidia, being able to run on AMD, being
+[32:29.44]Nvidia, being able to run on AMD, being able to run on TPUs. I think it's
+[32:30.95]able to run on TPUs. I think it's
+[32:30.96]able to run on TPUs. I think it's actually um you know things have like
+[32:34.79]actually um you know things have like
+[32:34.80]actually um you know things have like you know big labs or folks that that
+[32:36.71]you know big labs or folks that that
+[32:36.72]you know big labs or folks that that need a lot of compute have have had to
+[32:38.95]need a lot of compute have have had to
+[32:38.96]need a lot of compute have have had to learn how to run on on you know a lot of
+[32:41.35]learn how to run on on you know a lot of
+[32:41.36]learn how to run on on you know a lot of different architectures. I think like if
+[32:43.19]different architectures. I think like if
+[32:43.20]different architectures. I think like if I look at anthropic they run on Nvidia,
+[32:44.95]I look at anthropic they run on Nvidia,
+[32:44.96]I look at anthropic they run on Nvidia, they run on Tranium, they run on TPUs.
+[32:47.67]they run on Tranium, they run on TPUs.
+[32:47.68]they run on Tranium, they run on TPUs. Um even in like different workflows like
+[32:50.63]Um even in like different workflows like
+[32:50.64]Um even in like different workflows like I know we're talking a lot about
+[32:51.91]I know we're talking a lot about
+[32:51.92]I know we're talking a lot about training typically but you know training
+[32:54.95]training typically but you know training
+[32:54.96]training typically but you know training RL like we're talking about running on
+[32:56.71]RL like we're talking about running on
+[32:56.72]RL like we're talking about running on GPUs. We run environments in CPUs. So
+[32:59.27]GPUs. We run environments in CPUs. So
+[32:59.28]GPUs. We run environments in CPUs. So all of a sudden you see the Intel stock
+[33:00.79]all of a sudden you see the Intel stock
+[33:00.80]all of a sudden you see the Intel stock up these days because they're selling a
+[33:02.39]up these days because they're selling a
+[33:02.40]up these days because they're selling a lot more CPUs for RL which is good. Um
+[33:05.59]lot more CPUs for RL which is good. Um
+[33:05.60]lot more CPUs for RL which is good. Um you know when you you run reinforcement
+[33:08.15]you know when you you run reinforcement
+[33:08.16]you know when you you run reinforcement learning you're running a lot of
+[33:09.11]learning you're running a lot of
+[33:09.12]learning you're running a lot of inference. um at inference time you're
+[33:11.35]inference. um at inference time you're
+[33:11.36]inference. um at inference time you're running a ton of inference obviously
+[33:13.03]running a ton of inference obviously
+[33:13.04]running a ton of inference obviously like you're doing a lot of compute time
+[33:15.19]like you're doing a lot of compute time
+[33:15.20]like you're doing a lot of compute time inference time compute um scaling that
+[33:17.11]inference time compute um scaling that
+[33:17.12]inference time compute um scaling that up in different axes um and so I think
+[33:19.43]up in different axes um and so I think
+[33:19.44]up in different axes um and so I think like you know you might run that on on
+[33:21.67]like you know you might run that on on
+[33:21.68]like you know you might run that on on different architecture you might run AMD
+[33:23.35]different architecture you might run AMD
+[33:23.36]different architecture you might run AMD you might run on on on different things
+[33:24.79]you might run on on on different things
+[33:24.80]you might run on on on different things so I think the hardware diversity is
+[33:26.31]so I think the hardware diversity is
+[33:26.32]so I think the hardware diversity is like is great for developers and I think
+[33:28.23]like is great for developers and I think
+[33:28.24]like is great for developers and I think that even going back like a year or
+[33:30.55]that even going back like a year or
+[33:30.56]that even going back like a year or longer we've been talking about this and
+[33:32.55]longer we've been talking about this and
+[33:32.56]longer we've been talking about this and um for PyTorch even back in we've been
+[33:34.47]um for PyTorch even back in we've been
+[33:34.48]um for PyTorch even back in we've been working with AMD since what 2018 um I'm
+[33:37.59]working with AMD since what 2018 um I'm
+[33:37.60]working with AMD since what 2018 um I'm so you remember those days right So, I I
+[33:39.75]so you remember those days right So, I I
+[33:39.76]so you remember those days right So, I I think it's it's I I wouldn't even say
+[33:41.11]think it's it's I I wouldn't even say
+[33:41.12]think it's it's I I wouldn't even say it's exploding lately. I actually think
+[33:42.87]it's exploding lately. I actually think
+[33:42.88]it's exploding lately. I actually think it's been exploding for a long time and
+[33:44.71]it's been exploding for a long time and
+[33:44.72]it's been exploding for a long time and I think um we just continue to grow and
+[33:47.75]I think um we just continue to grow and
+[33:47.76]I think um we just continue to grow and obviously Nvidia gets a lot of the
+[33:49.03]obviously Nvidia gets a lot of the
+[33:49.04]obviously Nvidia gets a lot of the headlines as they as they well deserve.
+[33:51.51]headlines as they as they well deserve.
+[33:51.52]headlines as they as they well deserve. Um but there's definitely a lot of
+[33:52.95]Um but there's definitely a lot of
+[33:52.96]Um but there's definitely a lot of architectures out there that are are
+[33:54.39]architectures out there that are are
+[33:54.40]architectures out there that are are needed and um and it's just going to
+[33:57.91]needed and um and it's just going to
+[33:57.92]needed and um and it's just going to continue to kind of grow in different
+[33:59.35]continue to kind of grow in different
+[33:59.36]continue to kind of grow in different directions. Um, and I think we're going
+[34:01.67]directions. Um, and I think we're going
+[34:01.68]directions. Um, and I think we're going to get inference is obviously much more
+[34:03.59]to get inference is obviously much more
+[34:03.60]to get inference is obviously much more important these days for many. Um, and
+[34:06.07]important these days for many. Um, and
+[34:06.08]important these days for many. Um, and it has to be much more efficient to be
+[34:07.83]it has to be much more efficient to be
+[34:07.84]it has to be much more efficient to be able to scale and that's just going to
+[34:09.43]able to scale and that's just going to
+[34:09.44]able to scale and that's just going to necessitate different types of
+[34:10.55]necessitate different types of
+[34:10.56]necessitate different types of architectures. Disagregated inference
+[34:12.15]architectures. Disagregated inference
+[34:12.16]architectures. Disagregated inference for example where you separate pre-fill
+[34:13.43]for example where you separate pre-fill
+[34:13.44]for example where you separate pre-fill and decode um is a major trend right now
+[34:15.91]and decode um is a major trend right now
+[34:15.92]and decode um is a major trend right now and has been for the last several
+[34:16.95]and has been for the last several
+[34:16.96]and has been for the last several months. Um, so I think that's it's going
+[34:19.27]months. Um, so I think that's it's going
+[34:19.28]months. Um, so I think that's it's going to continue to innovate obviously where
+[34:20.95]to continue to innovate obviously where
+[34:20.96]to continue to innovate obviously where the workloads are going to be. So would
+[34:22.79]the workloads are going to be. So would
+[34:22.80]the workloads are going to be. So would love others to to chime in though.
+[34:25.91]love others to to chime in though.
+[34:25.92]love others to to chime in though. >> Yeah. Um, Nikita and Andre, do you want
+[34:30.23]>> Yeah. Um, Nikita and Andre, do you want
+[34:30.24]>> Yeah. Um, Nikita and Andre, do you want to say anything about distributed or
+[34:31.99]to say anything about distributed or
+[34:32.00]to say anything about distributed or sorry about uh heterogeneous hardware?
+[34:34.71]sorry about uh heterogeneous hardware?
+[34:34.72]sorry about uh heterogeneous hardware? >> Uh, sure. Um, yes. Uh, basically on
+[34:37.99]>> Uh, sure. Um, yes. Uh, basically on
+[34:38.00]>> Uh, sure. Um, yes. Uh, basically on PyTorch, PyTorch specifically, we've
+[34:40.23]PyTorch, PyTorch specifically, we've
+[34:40.24]PyTorch, PyTorch specifically, we've been working on the project called CRCR,
+[34:43.83]been working on the project called CRCR,
+[34:43.84]been working on the project called CRCR, it's a cross repository CI relay. So, it
+[34:47.03]it's a cross repository CI relay. So, it
+[34:47.04]it's a cross repository CI relay. So, it lets partner back ends to run their own
+[34:49.35]lets partner back ends to run their own
+[34:49.36]lets partner back ends to run their own CI against PyTorch changes. So on the
+[34:52.47]CI against PyTorch changes. So on the
+[34:52.48]CI against PyTorch changes. So on the PyTorch PRS and report result back to us
+[34:56.47]PyTorch PRS and report result back to us
+[34:56.48]PyTorch PRS and report result back to us um on the PyTorch HUD page. Uh so we
+[35:00.31]um on the PyTorch HUD page. Uh so we
+[35:00.32]um on the PyTorch HUD page. Uh so we developed this with the partners um in
+[35:03.43]developed this with the partners um in
+[35:03.44]developed this with the partners um in the past few months and basically it's
+[35:06.55]the past few months and basically it's
+[35:06.56]the past few months and basically it's pretty much released right now for this
+[35:09.35]pretty much released right now for this
+[35:09.36]pretty much released right now for this um 2015 um 2014 release and this is a
+[35:14.23]um 2015 um 2014 release and this is a
+[35:14.24]um 2015 um 2014 release and this is a new feature in the Hut. So if you go to
+[35:16.31]new feature in the Hut. So if you go to
+[35:16.32]new feature in the Hut. So if you go to our hot page, there's the CRCR
+[35:19.91]our hot page, there's the CRCR
+[35:19.92]our hot page, there's the CRCR button. You can go and access this to
+[35:22.55]button. You can go and access this to
+[35:22.56]button. You can go and access this to have a like a preview. Uh so basically
+[35:25.19]have a like a preview. Uh so basically
+[35:25.20]have a like a preview. Uh so basically it's the way it's um configured. It's um
+[35:27.99]it's the way it's um configured. It's um
+[35:28.00]it's the way it's um configured. It's um the four levels of access. So level one
+[35:30.79]the four levels of access. So level one
+[35:30.80]the four levels of access. So level one is on boarding. So events are forwarded
+[35:33.67]is on boarding. So events are forwarded
+[35:33.68]is on boarding. So events are forwarded to downstream uh repositories and um
+[35:38.15]to downstream uh repositories and um
+[35:38.16]to downstream uh repositories and um upstream receive no feedback. So PyTorch
+[35:40.63]upstream receive no feedback. So PyTorch
+[35:40.64]upstream receive no feedback. So PyTorch we don't know what our
+[35:43.43]we don't know what our
+[35:43.44]we don't know what our tests are running on the downstream
+[35:46.79]tests are running on the downstream
+[35:46.80]tests are running on the downstream repos but tests are happening. So L2 is
+[35:50.15]repos but tests are happening. So L2 is
+[35:50.16]repos but tests are happening. So L2 is observation. It's when we actually uh
+[35:53.11]observation. It's when we actually uh
+[35:53.12]observation. It's when we actually uh PyTorch receives the results
+[35:56.47]PyTorch receives the results
+[35:56.48]PyTorch receives the results uh of the downstream um tests and able
+[36:00.07]uh of the downstream um tests and able
+[36:00.08]uh of the downstream um tests and able to visualize and see what are the
+[36:02.55]to visualize and see what are the
+[36:02.56]to visualize and see what are the failures and this helps like um uh
+[36:05.59]failures and this helps like um uh
+[36:05.60]failures and this helps like um uh observation uh and uh um L3 it's stable
+[36:11.19]observation uh and uh um L3 it's stable
+[36:11.20]observation uh and uh um L3 it's stable um it's where we are currently at um
+[36:15.11]um it's where we are currently at um
+[36:15.12]um it's where we are currently at um it's non-blocking run check on PR so
+[36:18.07]it's non-blocking run check on PR so
+[36:18.08]it's non-blocking run check on PR so it's basically you apply um flow out of
+[36:21.67]it's basically you apply um flow out of
+[36:21.68]it's basically you apply um flow out of tree lab out CR flow CRCR label to the
+[36:25.03]tree lab out CR flow CRCR label to the
+[36:25.04]tree lab out CR flow CRCR label to the PR and the results from the uh
+[36:27.83]PR and the results from the uh
+[36:27.84]PR and the results from the uh downstream repositories appear on your
+[36:30.15]downstream repositories appear on your
+[36:30.16]downstream repositories appear on your PyTorch PR and um
+[36:34.31]PyTorch PR and um
+[36:34.32]PyTorch PR and um currently we're working with Nindia
+[36:37.51]currently we're working with Nindia
+[36:37.52]currently we're working with Nindia Windowsci Red Hat IBM Spire Ascent NPU
+[36:41.99]Windowsci Red Hat IBM Spire Ascent NPU
+[36:42.00]Windowsci Red Hat IBM Spire Ascent NPU Google TPU and VLM repos for that. So
+[36:46.05]Google TPU and VLM repos for that. So
+[36:46.07]Google TPU and VLM repos for that. So [clears throat] this will help with um
+[36:48.55][clears throat] this will help with um
+[36:48.56][clears throat] this will help with um onboarding different um vendors,
+[36:51.11]onboarding different um vendors,
+[36:51.12]onboarding different um vendors, different architectures and different
+[36:53.27]different architectures and different
+[36:53.28]different architectures and different repositories uh and uh maintainers of
+[36:57.19]repositories uh and uh maintainers of
+[36:57.20]repositories uh and uh maintainers of those repositories should be able to
+[36:59.11]those repositories should be able to
+[36:59.12]those repositories should be able to onboard very quickly and get results
+[37:02.07]onboard very quickly and get results
+[37:02.08]onboard very quickly and get results testing for PyTorch pretty quickly and
+[37:05.51]testing for PyTorch pretty quickly and
+[37:05.52]testing for PyTorch pretty quickly and supported on PR testing and on nightly
+[37:08.07]supported on PR testing and on nightly
+[37:08.08]supported on PR testing and on nightly testing. So there are kind of two modes
+[37:10.31]testing. So there are kind of two modes
+[37:10.32]testing. So there are kind of two modes for this and yeah I think this is a very
+[37:13.03]for this and yeah I think this is a very
+[37:13.04]for this and yeah I think this is a very uh interesting uh part of the PyTorch
+[37:15.75]uh interesting uh part of the PyTorch
+[37:15.76]uh interesting uh part of the PyTorch project that we're currently developing
+[37:17.51]project that we're currently developing
+[37:17.52]project that we're currently developing and going to develop for
+[37:20.07]and going to develop for
+[37:20.08]and going to develop for um
+[37:21.59]um
+[37:21.60]um I don't know maybe Nikita
+[37:22.87]I don't know maybe Nikita
+[37:22.88]I don't know maybe Nikita >> yeah and maybe uh like one more yeah one
+[37:26.07]>> yeah and maybe uh like one more yeah one
+[37:26.08]>> yeah and maybe uh like one more yeah one more thing that like on the API side
+[37:27.67]more thing that like on the API side
+[37:27.68]more thing that like on the API side there's a torch accelerate API which
+[37:29.43]there's a torch accelerate API which
+[37:29.44]there's a torch accelerate API which tries to abstract away different devices
+[37:31.99]tries to abstract away different devices
+[37:32.00]tries to abstract away different devices different names different capabilities
+[37:34.23]different names different capabilities
+[37:34.24]different names different capabilities so you can write once for accelerated
+[37:36.71]so you can write once for accelerated
+[37:36.72]so you can write once for accelerated compute and it should on not I don't
+[37:39.51]compute and it should on not I don't
+[37:39.52]compute and it should on not I don't know I don't want to repeat the Java
+[37:41.83]know I don't want to repeat the Java
+[37:41.84]know I don't want to repeat the Java everywhere but it will run on multiple
+[37:44.39]everywhere but it will run on multiple
+[37:44.40]everywhere but it will run on multiple compute and we try to like align all our
+[37:46.87]compute and we try to like align all our
+[37:46.88]compute and we try to like align all our operator implementation this is why CRCR
+[37:49.03]operator implementation this is why CRCR
+[37:49.04]operator implementation this is why CRCR is there is that uh like vendors can
+[37:52.07]is there is that uh like vendors can
+[37:52.08]is there is that uh like vendors can make sure that like their hardware
+[37:54.71]make sure that like their hardware
+[37:54.72]make sure that like their hardware report the same results as we expect it
+[37:58.47]report the same results as we expect it
+[37:58.48]report the same results as we expect it would and developers will have fewer
+[38:00.87]would and developers will have fewer
+[38:00.88]would and developers will have fewer surprises when they use this like
+[38:02.95]surprises when they use this like
+[38:02.96]surprises when they use this like abstraction to dispatch their job to
+[38:05.91]abstraction to dispatch their job to
+[38:05.92]abstraction to dispatch their job to accelerator available but yes it is very
+[38:07.75]accelerator available but yes it is very
+[38:07.76]accelerator available but yes it is very important because you need to be on more
+[38:10.31]important because you need to be on more
+[38:10.32]important because you need to be on more platforms.
+[38:15.11]>> Yeah, I think I think I mean I I think
+[38:15.12]>> Yeah, I think I think I mean I I think this whole area is really fascinating
+[38:16.47]this whole area is really fascinating
+[38:16.48]this whole area is really fascinating within PyTorch because like uh like how
+[38:20.23]within PyTorch because like uh like how
+[38:20.24]within PyTorch because like uh like how do you how do you have like a consistent
+[38:22.31]do you how do you have like a consistent
+[38:22.32]do you how do you have like a consistent experience across the such different
+[38:23.99]experience across the such different
+[38:24.00]experience across the such different hardware and then how do we do QA? How
+[38:27.51]hardware and then how do we do QA? How
+[38:27.52]hardware and then how do we do QA? How do we deal with like new hardware
+[38:29.19]do we deal with like new hardware
+[38:29.20]do we deal with like new hardware emerging which may or may not be in the
+[38:30.95]emerging which may or may not be in the
+[38:30.96]emerging which may or may not be in the cloud for us to test? and how do we do
+[38:33.03]cloud for us to test? and how do we do
+[38:33.04]cloud for us to test? and how do we do like the the the the
+[38:35.43]like the the the the
+[38:35.44]like the the the the um the the the continuous integration
+[38:38.07]um the the the continuous integration
+[38:38.08]um the the the continuous integration testing in a distributed fashion. Um so
+[38:40.87]testing in a distributed fashion. Um so
+[38:40.88]testing in a distributed fashion. Um so so this is an area where like just a lot
+[38:43.35]so this is an area where like just a lot
+[38:43.36]so this is an area where like just a lot of effort has gone and I think we've
+[38:44.63]of effort has gone and I think we've
+[38:44.64]of effort has gone and I think we've just gotten like this part of PyTorch
+[38:46.07]just gotten like this part of PyTorch
+[38:46.08]just gotten like this part of PyTorch has gotten a lot more mature. So I
+[38:47.59]has gotten a lot more mature. So I
+[38:47.60]has gotten a lot more mature. So I imagine for hardware vendors it's way
+[38:49.83]imagine for hardware vendors it's way
+[38:49.84]imagine for hardware vendors it's way easier to sort of contemplate getting
+[38:52.07]easier to sort of contemplate getting
+[38:52.08]easier to sort of contemplate getting their their platform properly supported
+[38:53.59]their their platform properly supported
+[38:53.60]their their platform properly supported in PyTorch now than it was you know two
+[38:55.51]in PyTorch now than it was you know two
+[38:55.52]in PyTorch now than it was you know two years ago three years ago. So okay I
+[38:57.83]years ago three years ago. So okay I
+[38:57.84]years ago three years ago. So okay I think
+[38:58.79]think
+[38:58.80]think >> want to add sorry last last point to
+[39:01.27]>> want to add sorry last last point to
+[39:01.28]>> want to add sorry last last point to this and it's the way it's developed
+[39:03.19]this and it's the way it's developed
+[39:03.20]this and it's the way it's developed right now it's a lot more secure than it
+[39:05.91]right now it's a lot more secure than it
+[39:05.92]right now it's a lot more secure than it used to be. So there's no um sharing of
+[39:08.63]used to be. So there's no um sharing of
+[39:08.64]used to be. So there's no um sharing of the keys nothing like that. So on
+[39:10.95]the keys nothing like that. So on
+[39:10.96]the keys nothing like that. So on boarding and from infrastructure point
+[39:13.11]boarding and from infrastructure point
+[39:13.12]boarding and from infrastructure point of view it's very fast and secure and uh
+[39:16.63]of view it's very fast and secure and uh
+[39:16.64]of view it's very fast and secure and uh uh very straightforward. We set up
+[39:18.55]uh very straightforward. We set up
+[39:18.56]uh very straightforward. We set up specific repository CRC test when
+[39:21.29]specific repository CRC test when
+[39:21.30]specific repository CRC test when [clears throat] you can go and look at
+[39:22.39][clears throat] you can go and look at
+[39:22.40][clears throat] you can go and look at the on boarding guide and can start on
+[39:24.95]the on boarding guide and can start on
+[39:24.96]the on boarding guide and can start on boarding.
+[39:26.47]boarding.
+[39:26.48]boarding. >> Yeah. Awesome. Okay. I think we have a
+[39:30.39]>> Yeah. Awesome. Okay. I think we have a
+[39:30.40]>> Yeah. Awesome. Okay. I think we have a next question lined up.
+[39:33.75]next question lined up.
+[39:33.76]next question lined up. Okay. And this again thank you
+[39:35.83]Okay. And this again thank you
+[39:35.84]Okay. And this again thank you Shivashish uh for asking uh three
+[39:38.87]Shivashish uh for asking uh three
+[39:38.88]Shivashish uh for asking uh three interesting and challenging questions uh
+[39:41.27]interesting and challenging questions uh
+[39:41.28]interesting and challenging questions uh uh for us to answer here. Uh so for
+[39:43.51]uh for us to answer here. Uh so for
+[39:43.52]uh for us to answer here. Uh so for draft then verify loops uh which would
+[39:45.67]draft then verify loops uh which would
+[39:45.68]draft then verify loops uh which would be sort of speculative decoding style
+[39:47.59]be sort of speculative decoding style
+[39:47.60]be sort of speculative decoding style style is could a graph capture um in the
+[39:51.03]style is could a graph capture um in the
+[39:51.04]style is could a graph capture um in the uh torch while loop u uh mode usable on
+[39:54.31]uh torch while loop u uh mode usable on
+[39:54.32]uh torch while loop u uh mode usable on the verify step in 214 or does that
+[39:56.63]the verify step in 214 or does that
+[39:56.64]the verify step in 214 or does that control uh flow still force a graph
+[39:59.03]control uh flow still force a graph
+[39:59.04]control uh flow still force a graph break um do we do we know the answer to
+[40:03.11]break um do we do we know the answer to
+[40:03.12]break um do we do we know the answer to that among the
+[40:04.39]that among the
+[40:04.40]that among the >> I think generically you cannot answer
+[40:06.63]>> I think generically you cannot answer
+[40:06.64]>> I think generically you cannot answer this question because it depends on the
+[40:08.31]this question because it depends on the
+[40:08.32]this question because it depends on the workflow it should be usable and that's
+[40:11.51]workflow it should be usable and that's
+[40:11.52]workflow it should be usable and that's uh what the new um like abstractions
+[40:14.55]uh what the new um like abstractions
+[40:14.56]uh what the new um like abstractions that we talked about in the highlights
+[40:16.95]that we talked about in the highlights
+[40:16.96]that we talked about in the highlights are for but there could be some cases
+[40:18.79]are for but there could be some cases
+[40:18.80]are for but there could be some cases when it's not but we you already have uh
+[40:21.59]when it's not but we you already have uh
+[40:21.60]when it's not but we you already have uh toggles to test that you can just wrap
+[40:24.63]toggles to test that you can just wrap
+[40:24.64]toggles to test that you can just wrap your code with like aborton graph break
+[40:27.43]your code with like aborton graph break
+[40:27.44]your code with like aborton graph break and then you know that you produced a
+[40:29.43]and then you know that you produced a
+[40:29.44]and then you know that you produced a graph break or not but it's kind of I I
+[40:31.83]graph break or not but it's kind of I I
+[40:31.84]graph break or not but it's kind of I I don't think there's one one answer that
+[40:33.35]don't think there's one one answer that
+[40:33.36]don't think there's one one answer that fits them all like we try to make those
+[40:36.63]fits them all like we try to make those
+[40:36.64]fits them all like we try to make those not cause graph breaks but depending on
+[40:39.27]not cause graph breaks but depending on
+[40:39.28]not cause graph breaks but depending on the CUDA version you're on the hardware
+[40:41.03]the CUDA version you're on the hardware
+[40:41.04]the CUDA version you're on the hardware capabilities is a Python version and so
+[40:43.19]capabilities is a Python version and so
+[40:43.20]capabilities is a Python version and so on and so forth. It can cause graph
+[40:44.87]on and so forth. It can cause graph
+[40:44.88]on and so forth. It can cause graph break. So please check if it doesn't
+[40:48.79]break. So please check if it doesn't
+[40:48.80]break. So please check if it doesn't create great if it does file an issue
+[40:51.11]create great if it does file an issue
+[40:51.12]create great if it does file an issue but we try to eliminate as graph breaks
+[40:53.43]but we try to eliminate as graph breaks
+[40:53.44]but we try to eliminate as graph breaks as much as possible because it slows
+[40:55.51]as much as possible because it slows
+[40:55.52]as much as possible because it slows down
+[40:57.19]down
+[40:57.20]down your pipelines.
+[40:59.83]your pipelines.
+[40:59.84]your pipelines. >> Okay, awesome. Um, can we jump next to
+[41:02.71]>> Okay, awesome. Um, can we jump next to
+[41:02.72]>> Okay, awesome. Um, can we jump next to the question about Envy Gym uh Q5? Uh,
+[41:07.03]the question about Envy Gym uh Q5? Uh,
+[41:07.04]the question about Envy Gym uh Q5? Uh, Basil,
+[41:13.35]>> sorry to do that verbally rather than in
+[41:13.36]>> sorry to do that verbally rather than in the chat.
+[41:25.35]So, this is one of the key things that
+[41:25.36]So, this is one of the key things that we highlighted at the be at the
+[41:26.71]we highlighted at the be at the
+[41:26.72]we highlighted at the be at the beginning and I wanted to make sure we
+[41:27.83]beginning and I wanted to make sure we
+[41:27.84]beginning and I wanted to make sure we we took a moment to talk about it among
+[41:29.51]we took a moment to talk about it among
+[41:29.52]we took a moment to talk about it among the questions. Uh so what is NVGEM? Um
+[41:32.71]the questions. Uh so what is NVGEM? Um
+[41:32.72]the questions. Uh so what is NVGEM? Um kind of a generic question and how do I
+[41:34.31]kind of a generic question and how do I
+[41:34.32]kind of a generic question and how do I turn it on? Um uh so uh Nikita do you
+[41:38.63]turn it on? Um uh so uh Nikita do you
+[41:38.64]turn it on? Um uh so uh Nikita do you want to jump on this or Andre?
+[41:40.55]want to jump on this or Andre?
+[41:40.56]want to jump on this or Andre? >> Sure. But we already somewhat covered it
+[41:42.95]>> Sure. But we already somewhat covered it
+[41:42.96]>> Sure. But we already somewhat covered it when the other user asked a question
+[41:44.55]when the other user asked a question
+[41:44.56]when the other user asked a question about different uh good gen backends and
+[41:48.23]about different uh good gen backends and
+[41:48.24]about different uh good gen backends and I said that there is a like you can't do
+[41:50.39]I said that there is a like you can't do
+[41:50.40]I said that there is a like you can't do it over FX graph but there is a toggles
+[41:52.71]it over FX graph but there is a toggles
+[41:52.72]it over FX graph but there is a toggles and specifically for NVJ there's max to
+[41:56.31]and specifically for NVJ there's max to
+[41:56.32]and specifically for NVJ there's max to tune gem backends
+[41:57.91]tune gem backends
+[41:57.92]tune gem backends >> list and if you add NVJM here so it's
+[42:00.39]>> list and if you add NVJM here so it's
+[42:00.40]>> list and if you add NVJM here so it's not enabled by default but then it will
+[42:02.47]not enabled by default but then it will
+[42:02.48]not enabled by default but then it will be enabled and it will allow some more
+[42:04.47]be enabled and it will allow some more
+[42:04.48]be enabled and it will allow some more advanced epilog fusion and yeah NVJM is
+[42:08.07]advanced epilog fusion and yeah NVJM is
+[42:08.08]advanced epilog fusion and yeah NVJM is um QGSL gem back end that based on
+[42:12.31]um QGSL gem back end that based on
+[42:12.32]um QGSL gem back end that based on cutless
+[42:14.23]cutless
+[42:14.24]cutless and it allows you to like yeah fuse
+[42:17.11]and it allows you to like yeah fuse
+[42:17.12]and it allows you to like yeah fuse mules and fusions and get generate even
+[42:19.27]mules and fusions and get generate even
+[42:19.28]mules and fusions and get generate even faster uh yeah uh kernels specifically
+[42:23.35]faster uh yeah uh kernels specifically
+[42:23.36]faster uh yeah uh kernels specifically if you do low precision data types like
+[42:25.11]if you do low precision data types like
+[42:25.12]if you do low precision data types like in VFP4 but it requires you to have an
+[42:27.59]in VFP4 but it requires you to have an
+[42:27.60]in VFP4 but it requires you to have an Nvidia cutless DSL installed on your
+[42:30.07]Nvidia cutless DSL installed on your
+[42:30.08]Nvidia cutless DSL installed on your system and blackwell as well so like you
+[42:33.67]system and blackwell as well so like you
+[42:33.68]system and blackwell as well so like you unfortunately cannot use 44 [laughter]
+[42:35.91]unfortunately cannot use 44 [laughter]
+[42:35.92]unfortunately cannot use 44 [laughter] on your ampers or hoppers
+[42:45.67]Okay, I see a question from Jose Silva
+[42:45.68]Okay, I see a question from Jose Silva on the on the chat. Um,
+[42:50.15]on the on the chat. Um,
+[42:50.16]on the on the chat. Um, okay, awesome. Thank you, Basil. Um, if
+[42:52.87]okay, awesome. Thank you, Basil. Um, if
+[42:52.88]okay, awesome. Thank you, Basil. Um, if I train a vision model on CUDA and
+[42:55.35]I train a vision model on CUDA and
+[42:55.36]I train a vision model on CUDA and export it using AOT inductor to C++
+[42:58.31]export it using AOT inductor to C++
+[42:58.32]export it using AOT inductor to C++ binaries for a machine running an Intel
+[43:01.75]binaries for a machine running an Intel
+[43:01.76]binaries for a machine running an Intel Iris iGPU. Um, is dynamic shape and
+[43:05.19]Iris iGPU. Um, is dynamic shape and
+[43:05.20]Iris iGPU. Um, is dynamic shape and anti-quantization supported out of the
+[43:06.95]anti-quantization supported out of the
+[43:06.96]anti-quantization supported out of the box on those targets? On those XPU
+[43:09.59]box on those targets? On those XPU
+[43:09.60]box on those targets? On those XPU targets?
+[43:11.85]targets?
+[43:11.86]targets? [laughter]
+[43:13.03][laughter]
+[43:13.04][laughter] >> That's quite a specific question.
+[43:14.87]>> That's quite a specific question.
+[43:14.88]>> That's quite a specific question. >> I was just going to say I don't know
+[43:16.39]>> I was just going to say I don't know
+[43:16.40]>> I was just going to say I don't know that case is covered in rci. Uh,
+[43:19.06]that case is covered in rci. Uh,
+[43:19.07]that case is covered in rci. Uh, [laughter]
+[43:20.15][laughter]
+[43:20.16][laughter] >> it might be covered in rci, but maybe
+[43:22.47]>> it might be covered in rci, but maybe
+[43:22.48]>> it might be covered in rci, but maybe not intel Iris iGPU in particular. Like
+[43:25.51]not intel Iris iGPU in particular. Like
+[43:25.52]not intel Iris iGPU in particular. Like I think they're trying to cover a more
+[43:28.07]I think they're trying to cover a more
+[43:28.08]I think they're trying to cover a more >> modern GPUs. Uh
+[43:31.43]>> modern GPUs. Uh
+[43:31.44]>> modern GPUs. Uh but I guess you never know until you try
+[43:35.35]but I guess you never know until you try
+[43:35.36]but I guess you never know until you try and then you can probably file an issue
+[43:37.91]and then you can probably file an issue
+[43:37.92]and then you can probably file an issue if it doesn't work.
+[43:38.87]if it doesn't work.
+[43:38.88]if it doesn't work. >> Yeah, file is
+[43:39.75]>> Yeah, file is
+[43:39.76]>> Yeah, file is >> exactly [laughter]
+[43:42.95]>> help us out.
+[43:42.96]>> help us out. >> And we do have Yeah, we do have support
+[43:44.95]>> And we do have Yeah, we do have support
+[43:44.96]>> And we do have Yeah, we do have support for XPU devices. So on both PyTorch and
+[43:47.91]for XPU devices. So on both PyTorch and
+[43:47.92]for XPU devices. So on both PyTorch and torch vision. So uh if you have a PR in
+[43:51.51]torch vision. So uh if you have a PR in
+[43:51.52]torch vision. So uh if you have a PR in mind, you can go and open a PR against
+[43:54.15]mind, you can go and open a PR against
+[43:54.16]mind, you can go and open a PR against PyTorch Vision CI.
+[43:57.83]PyTorch Vision CI.
+[43:57.84]PyTorch Vision CI. But like I guess if I read the question
+[44:00.23]But like I guess if I read the question
+[44:00.24]But like I guess if I read the question correctly, if you train model on CUDA,
+[44:02.31]correctly, if you train model on CUDA,
+[44:02.32]correctly, if you train model on CUDA, can you export it for XPU? You need to
+[44:04.47]can you export it for XPU? You need to
+[44:04.48]can you export it for XPU? You need to make some changes to your model first,
+[44:06.07]make some changes to your model first,
+[44:06.08]make some changes to your model first, right? You need to like transfer your
+[44:08.23]right? You need to like transfer your
+[44:08.24]right? You need to like transfer your model to XPU, make sure that it works
+[44:10.47]model to XPU, make sure that it works
+[44:10.48]model to XPU, make sure that it works and then AOT inductor should work on XPU
+[44:13.75]and then AOT inductor should work on XPU
+[44:13.76]and then AOT inductor should work on XPU same as it works on any other back ends.
+[44:15.59]same as it works on any other back ends.
+[44:15.60]same as it works on any other back ends. But I'm not even sure if int 8
+[44:18.47]But I'm not even sure if int 8
+[44:18.48]But I'm not even sure if int 8 contisation is supported through
+[44:20.07]contisation is supported through
+[44:20.08]contisation is supported through inductor even for CUDA. like I think
+[44:24.39]inductor even for CUDA. like I think
+[44:24.40]inductor even for CUDA. like I think that there are lots of like layers to
+[44:25.99]that there are lots of like layers to
+[44:26.00]that there are lots of like layers to unload here. So please file an issue but
+[44:28.87]unload here. So please file an issue but
+[44:28.88]unload here. So please file an issue but I also kind of think why do you want an
+[44:32.55]I also kind of think why do you want an
+[44:32.56]I also kind of think why do you want an int 8 rather than like well int 8 and
+[44:38.31]int 8 rather than like well int 8 and
+[44:38.32]int 8 rather than like well int 8 and and check the spec if iGPU even support
+[44:40.39]and check the spec if iGPU even support
+[44:40.40]and check the spec if iGPU even support an int8ate uh fast smart n I know that
+[44:43.19]an int8ate uh fast smart n I know that
+[44:43.20]an int8ate uh fast smart n I know that CPUs do but I'm not sure about GPUs in
+[44:45.75]CPUs do but I'm not sure about GPUs in
+[44:45.76]CPUs do but I'm not sure about GPUs in particular.
+[44:57.03]Um
+[44:57.04]Um I think Basil's pulling the one that we
+[45:01.83]I think Basil's pulling the one that we
+[45:01.84]I think Basil's pulling the one that we mentioned to him here.
+[45:09.51]Maybe in the meantime we can do a small
+[45:09.52]Maybe in the meantime we can do a small uh note about PyTorch release matrix. So
+[45:12.87]uh note about PyTorch release matrix. So
+[45:12.88]uh note about PyTorch release matrix. So one of the changes that is in 214 is
+[45:15.51]one of the changes that is in 214 is
+[45:15.52]one of the changes that is in 214 is that we mandate that all of your
+[45:17.35]that we mandate that all of your
+[45:17.36]that we mandate that all of your extensions will be compiled with oh here
+[45:19.19]extensions will be compiled with oh here
+[45:19.20]extensions will be compiled with oh here you go C++ 20 by default. So if you're
+[45:21.51]you go C++ 20 by default. So if you're
+[45:21.52]you go C++ 20 by default. So if you're using an older compiler, you really need
+[45:23.59]using an older compiler, you really need
+[45:23.60]using an older compiler, you really need to update. It is 2026 and majority of
+[45:26.39]to update. It is 2026 and majority of
+[45:26.40]to update. It is 2026 and majority of the compiler should be able to support
+[45:28.39]the compiler should be able to support
+[45:28.40]the compiler should be able to support C++ 20. Uh but that's
+[45:32.15]C++ 20. Uh but that's
+[45:32.16]C++ 20. Uh but that's backward compatibility breaking change.
+[45:33.67]backward compatibility breaking change.
+[45:33.68]backward compatibility breaking change. And with that, I don't know, Andrew, do
+[45:35.35]And with that, I don't know, Andrew, do
+[45:35.36]And with that, I don't know, Andrew, do you want to Oh, Chris, do you want to
+[45:36.71]you want to Oh, Chris, do you want to
+[45:36.72]you want to Oh, Chris, do you want to read the question first?
+[45:37.75]read the question first?
+[45:37.76]read the question first? >> Yeah. Yeah. Yeah. So, so this this
+[45:39.27]>> Yeah. Yeah. Yeah. So, so this this
+[45:39.28]>> Yeah. Yeah. Yeah. So, so this this question which I think was going in the
+[45:40.55]question which I think was going in the
+[45:40.56]question which I think was going in the same direction that that Nikita was was
+[45:42.79]same direction that that Nikita was was
+[45:42.80]same direction that that Nikita was was thinking is do I still have to upgrade
+[45:44.95]thinking is do I still have to upgrade
+[45:44.96]thinking is do I still have to upgrade um torch vision every time I upgrade
+[45:47.11]um torch vision every time I upgrade
+[45:47.12]um torch vision every time I upgrade grade pietorch which I know was a
+[45:48.31]grade pietorch which I know was a
+[45:48.32]grade pietorch which I know was a headache that people uh had to deal with
+[45:49.99]headache that people uh had to deal with
+[45:50.00]headache that people uh had to deal with for a very long time that um Andre do
+[45:52.79]for a very long time that um Andre do
+[45:52.80]for a very long time that um Andre do you want to respond to this?
+[45:54.07]you want to respond to this?
+[45:54.08]you want to respond to this? >> Yes. Yes. Um so torch vision uh 0.29 is
+[45:58.15]>> Yes. Yes. Um so torch vision uh 0.29 is
+[45:58.16]>> Yes. Yes. Um so torch vision uh 0.29 is a stable uh with respect to 21.14. So it
+[46:03.51]a stable uh with respect to 21.14. So it
+[46:03.52]a stable uh with respect to 21.14. So it will keep working with later version
+[46:05.43]will keep working with later version
+[46:05.44]will keep working with later version 2.15 2.16 and later. Uh the only catch
+[46:09.11]2.15 2.16 and later. Uh the only catch
+[46:09.12]2.15 2.16 and later. Uh the only catch here if you need to um introduce new
+[46:11.35]here if you need to um introduce new
+[46:11.36]here if you need to um introduce new CUDA version you may need to download
+[46:14.95]CUDA version you may need to download
+[46:14.96]CUDA version you may need to download um version of torch vision compiled with
+[46:17.83]um version of torch vision compiled with
+[46:17.84]um version of torch vision compiled with this CUDA version. Um but yes um like as
+[46:22.07]this CUDA version. Um but yes um like as
+[46:22.08]this CUDA version. Um but yes um like as um
+[46:23.91]um
+[46:23.92]um as a basic you no longer need matching
+[46:26.71]as a basic you no longer need matching
+[46:26.72]as a basic you no longer need matching torch vision to install every torch
+[46:28.87]torch vision to install every torch
+[46:28.88]torch vision to install every torch upgrade and uh in the future we may not
+[46:33.19]upgrade and uh in the future we may not
+[46:33.20]upgrade and uh in the future we may not do torch vision at the same time as
+[46:35.35]do torch vision at the same time as
+[46:35.36]do torch vision at the same time as torch. So the releases could be um a
+[46:39.03]torch. So the releases could be um a
+[46:39.04]torch. So the releases could be um a little bit decoupled because of this. So
+[46:42.07]little bit decoupled because of this. So
+[46:42.08]little bit decoupled because of this. So I think it's something good for us. It's
+[46:44.63]I think it's something good for us. It's
+[46:44.64]I think it's something good for us. It's a good news.
+[46:50.71]>> Just next next question, please.
+[46:50.72]>> Just next next question, please. >> Next question.
+[46:53.83]>> Next question.
+[46:53.84]>> Next question. >> Okay. So, what is new for writing
+[46:56.47]>> Okay. So, what is new for writing
+[46:56.48]>> Okay. So, what is new for writing dynamic models that still compile? Well,
+[47:00.31]dynamic models that still compile? Well,
+[47:00.32]dynamic models that still compile? Well, um Andre, do you want to take this one
+[47:03.27]um Andre, do you want to take this one
+[47:03.28]um Andre, do you want to take this one as as as well?
+[47:06.39]as as as well?
+[47:06.40]as as as well? >> I think we answered this question kind
+[47:08.47]>> I think we answered this question kind
+[47:08.48]>> I think we answered this question kind of twice already. There was a question
+[47:10.07]of twice already. There was a question
+[47:10.08]of twice already. There was a question separate. Like if we want to highlight
+[47:11.83]separate. Like if we want to highlight
+[47:11.84]separate. Like if we want to highlight the features there is a torch switch uh
+[47:14.71]the features there is a torch switch uh
+[47:14.72]the features there is a torch switch uh torch while loop that is captured across
+[47:16.47]torch while loop that is captured across
+[47:16.48]torch while loop that is captured across codraph and dynamic spec and people
+[47:19.59]codraph and dynamic spec and people
+[47:19.60]codraph and dynamic spec and people already asked about dynamic spec and
+[47:21.19]already asked about dynamic spec and
+[47:21.20]already asked about dynamic spec and whether it will cause inductor to fail
+[47:24.07]whether it will cause inductor to fail
+[47:24.08]whether it will cause inductor to fail when it goes above like an upper
+[47:25.75]when it goes above like an upper
+[47:25.76]when it goes above like an upper boundary. People talked about uh asked
+[47:28.23]boundary. People talked about uh asked
+[47:28.24]boundary. People talked about uh asked about specialization but yes those are
+[47:29.83]about specialization but yes those are
+[47:29.84]about specialization but yes those are the features that you should try and
+[47:32.79]the features that you should try and
+[47:32.80]the features that you should try and like uh they will improve your VSC to
+[47:35.99]like uh they will improve your VSC to
+[47:36.00]like uh they will improve your VSC to compile model with dynamically shaped
+[47:38.95]compile model with dynamically shaped
+[47:38.96]compile model with dynamically shaped inputs like you will have fun um
+[47:41.75]inputs like you will have fun um
+[47:41.76]inputs like you will have fun um compiled artifacts that works for
+[47:43.43]compiled artifacts that works for
+[47:43.44]compiled artifacts that works for multiple shapes. So once again it's in
+[47:45.75]multiple shapes. So once again it's in
+[47:45.76]multiple shapes. So once again it's in the torch switch [laughter] torch loop
+[47:48.87]the torch switch [laughter] torch loop
+[47:48.88]the torch switch [laughter] torch loop and dynamics back.
+[47:51.75]and dynamics back.
+[47:51.76]and dynamics back. >> Uh can we jump to question 14 in our
+[47:54.63]>> Uh can we jump to question 14 in our
+[47:54.64]>> Uh can we jump to question 14 in our prepared ones? Um
+[47:58.15]prepared ones? Um
+[47:58.16]prepared ones? Um this is the everpresent Torch script uh
+[48:02.23]this is the everpresent Torch script uh
+[48:02.24]this is the everpresent Torch script uh topic [snorts]
+[48:04.15]topic [snorts]
+[48:04.16]topic [snorts] trying to touch on things that we
+[48:05.43]trying to touch on things that we
+[48:05.44]trying to touch on things that we haven't already discussed. Okay. So I
+[48:07.75]haven't already discussed. Okay. So I
+[48:07.76]haven't already discussed. Okay. So I still use Torch script. Should I be
+[48:09.43]still use Torch script. Should I be
+[48:09.44]still use Torch script. Should I be worried? Um Nikita, do you want to
+[48:11.91]worried? Um Nikita, do you want to
+[48:11.92]worried? Um Nikita, do you want to answer this one?
+[48:13.51]answer this one?
+[48:13.52]answer this one? Yes, we've been saying that to script
+[48:16.23]Yes, we've been saying that to script
+[48:16.24]Yes, we've been saying that to script has been deprecated since I think 211 or
+[48:20.55]has been deprecated since I think 211 or
+[48:20.56]has been deprecated since I think 211 or 212 and it has not been really working
+[48:23.75]212 and it has not been really working
+[48:23.76]212 and it has not been really working even like you cannot use script on you
+[48:25.99]even like you cannot use script on you
+[48:26.00]even like you cannot use script on you cannot trace the store script on Python
+[48:28.23]cannot trace the store script on Python
+[48:28.24]cannot trace the store script on Python 314 and I'm not sure what is the status
+[48:31.11]314 and I'm not sure what is the status
+[48:31.12]314 and I'm not sure what is the status of 312 or 313 like it's just being
+[48:33.99]of 312 or 313 like it's just being
+[48:34.00]of 312 or 313 like it's just being deprecated there are bugs there are
+[48:35.75]deprecated there are bugs there are
+[48:35.76]deprecated there are bugs there are security problems it supports less and
+[48:38.23]security problems it supports less and
+[48:38.24]security problems it supports less and less operators I don't think you can
+[48:39.99]less operators I don't think you can
+[48:40.00]less operators I don't think you can capture anything that support
+[48:43.19]capture anything that support
+[48:43.20]capture anything that support flotate or whatever. So don't use to
+[48:45.27]flotate or whatever. So don't use to
+[48:45.28]flotate or whatever. So don't use to script anymore. So AOTI expert is a
+[48:48.07]script anymore. So AOTI expert is a
+[48:48.08]script anymore. So AOTI expert is a pretty uh like mature framework at this
+[48:52.47]pretty uh like mature framework at this
+[48:52.48]pretty uh like mature framework at this point. Use this one. If you need to use
+[48:54.39]point. Use this one. If you need to use
+[48:54.40]point. Use this one. If you need to use script, you can use an older PyTorch but
+[48:56.23]script, you can use an older PyTorch but
+[48:56.24]script, you can use an older PyTorch but like be aware of the limitation. Be like
+[48:58.47]like be aware of the limitation. Be like
+[48:58.48]like be aware of the limitation. Be like we will be happy if there is a community
+[49:00.63]we will be happy if there is a community
+[49:00.64]we will be happy if there is a community maintainer who want to like look into
+[49:03.19]maintainer who want to like look into
+[49:03.20]maintainer who want to like look into the torch script but we are not actively
+[49:06.07]the torch script but we are not actively
+[49:06.08]the torch script but we are not actively working on new features or have anyone
+[49:08.31]working on new features or have anyone
+[49:08.32]working on new features or have anyone who actively like triages in common
+[49:10.23]who actively like triages in common
+[49:10.24]who actively like triages in common issues. So unless they are security
+[49:12.55]issues. So unless they are security
+[49:12.56]issues. So unless they are security related they will probably stay as is
+[49:16.95]related they will probably stay as is
+[49:16.96]related they will probably stay as is and craft and script is not a security
+[49:18.95]and craft and script is not a security
+[49:18.96]and craft and script is not a security issue unfortunately.
+[49:25.27]>> Okay we have I think we have one left
+[49:25.28]>> Okay we have I think we have one left one more remaining um prepared question.
+[49:29.19]one more remaining um prepared question.
+[49:29.20]one more remaining um prepared question. Um
+[49:30.95]Um
+[49:30.96]Um >> we switch to community ones or whatever.
+[49:33.43]>> we switch to community ones or whatever.
+[49:33.44]>> we switch to community ones or whatever. >> No I
+[49:35.27]>> No I
+[49:35.28]>> No I okay I think we have one more prepared
+[49:36.55]okay I think we have one more prepared
+[49:36.56]okay I think we have one more prepared one. If there are community ones let's
+[49:37.99]one. If there are community ones let's
+[49:38.00]one. If there are community ones let's go back and make sure we catch them
+[49:39.43]go back and make sure we catch them
+[49:39.44]go back and make sure we catch them before we end. Um, so I hear that uh
+[49:42.15]before we end. Um, so I hear that uh
+[49:42.16]before we end. Um, so I hear that uh 21.14 supports Python 315. Can I just
+[49:46.07]21.14 supports Python 315. Can I just
+[49:46.08]21.14 supports Python 315. Can I just pip install Torch on it? Um, Andre, do
+[49:48.47]pip install Torch on it? Um, Andre, do
+[49:48.48]pip install Torch on it? Um, Andre, do you want to take this one?
+[49:49.91]you want to take this one?
+[49:49.92]you want to take this one? >> Um, yes. Uh, so basically the short
+[49:52.31]>> Um, yes. Uh, so basically the short
+[49:52.32]>> Um, yes. Uh, so basically the short answer, we do support 315. Uh, but it's
+[49:55.99]answer, we do support 315. Uh, but it's
+[49:56.00]answer, we do support 315. Uh, but it's only available via download pytorch.org.
+[49:59.11]only available via download pytorch.org.
+[49:59.12]only available via download pytorch.org. So pip install torch will not work with
+[50:02.63]So pip install torch will not work with
+[50:02.64]So pip install torch will not work with 315 for this release 2014. Um
+[50:07.35]315 for this release 2014. Um
+[50:07.36]315 for this release 2014. Um having said that in the future uh we are
+[50:09.91]having said that in the future uh we are
+[50:09.92]having said that in the future uh we are planning on um uh publishing for the
+[50:13.51]planning on um uh publishing for the
+[50:13.52]planning on um uh publishing for the next release 2.15 we're publishing uh
+[50:16.71]next release 2.15 we're publishing uh
+[50:16.72]next release 2.15 we're publishing uh 315 Python to the pipy as a default one.
+[50:21.35]315 Python to the pipy as a default one.
+[50:21.36]315 Python to the pipy as a default one. We also be duplicating Python 3.10 for
+[50:25.03]We also be duplicating Python 3.10 for
+[50:25.04]We also be duplicating Python 3.10 for the next release. I think it's very
+[50:26.63]the next release. I think it's very
+[50:26.64]the next release. I think it's very important if you're still running 3.10
+[50:29.83]important if you're still running 3.10
+[50:29.84]important if you're still running 3.10 for next release it will not be
+[50:31.83]for next release it will not be
+[50:31.84]for next release it will not be supported. no wheels published and um
+[50:35.35]supported. no wheels published and um
+[50:35.36]supported. no wheels published and um compiling from source will not be
+[50:37.35]compiling from source will not be
+[50:37.36]compiling from source will not be possible. So we'll be migrating or
+[50:40.07]possible. So we'll be migrating or
+[50:40.08]possible. So we'll be migrating or supporting minimum 311.
+[50:42.71]supporting minimum 311.
+[50:42.72]supporting minimum 311. Um but yes for the current version 310
+[50:46.47]Um but yes for the current version 310
+[50:46.48]Um but yes for the current version 310 3.15 including uh free threaded 3.15T is
+[50:51.11]3.15 including uh free threaded 3.15T is
+[50:51.12]3.15 including uh free threaded 3.15T is are supported. However, one more call
+[50:54.07]are supported. However, one more call
+[50:54.08]are supported. However, one more call out is that torch compile is still not
+[50:56.39]out is that torch compile is still not
+[50:56.40]out is that torch compile is still not enabled for 315 and 315T.
+[51:00.23]enabled for 315 and 315T.
+[51:00.24]enabled for 315 and 315T. Um yes I think that's that's about uh
+[51:03.83]Um yes I think that's that's about uh
+[51:03.84]Um yes I think that's that's about uh covers it. I don't know if anybody else
+[51:06.47]covers it. I don't know if anybody else
+[51:06.48]covers it. I don't know if anybody else have any additional thoughts.
+[51:10.71]have any additional thoughts.
+[51:10.72]have any additional thoughts. Oh, maybe like kind of a reason why we
+[51:13.11]Oh, maybe like kind of a reason why we
+[51:13.12]Oh, maybe like kind of a reason why we don't support 310 anymore because uh it
+[51:15.67]don't support 310 anymore because uh it
+[51:15.68]don't support 310 anymore because uh it reached its end of life per um like uh
+[51:19.03]reached its end of life per um like uh
+[51:19.04]reached its end of life per um like uh Python end of life policy for the
+[51:21.19]Python end of life policy for the
+[51:21.20]Python end of life policy for the releases and we also will be like so we
+[51:24.55]releases and we also will be like so we
+[51:24.56]releases and we also will be like so we constantly reviewing the supported
+[51:26.39]constantly reviewing the supported
+[51:26.40]constantly reviewing the supported platforms and unfortunately retires the
+[51:28.39]platforms and unfortunately retires the
+[51:28.40]platforms and unfortunately retires the ones that like go out of support so we
+[51:31.67]ones that like go out of support so we
+[51:31.68]ones that like go out of support so we probably also be stopping supporting
+[51:33.11]probably also be stopping supporting
+[51:33.12]probably also be stopping supporting like Mac OS I forget what was released
+[51:35.75]like Mac OS I forget what was released
+[51:35.76]like Mac OS I forget what was released from three years ago but the typical and
+[51:37.83]from three years ago but the typical and
+[51:37.84]from three years ago but the typical and life cycle for those releases are also
+[51:39.67]life cycle for those releases are also
+[51:39.68]life cycle for those releases are also three So we will be returning that one
+[51:42.47]three So we will be returning that one
+[51:42.48]three So we will be returning that one as well. And again CUDA 12 that was
+[51:45.59]as well. And again CUDA 12 that was
+[51:45.60]as well. And again CUDA 12 that was mentioned before. Let's repeat it again
+[51:47.27]mentioned before. Let's repeat it again
+[51:47.28]mentioned before. Let's repeat it again that CUDA 12 support is going away. So
+[51:49.27]that CUDA 12 support is going away. So
+[51:49.28]that CUDA 12 support is going away. So you should still be able to build from
+[51:50.63]you should still be able to build from
+[51:50.64]you should still be able to build from source. We try not to break that thing.
+[51:53.27]source. We try not to break that thing.
+[51:53.28]source. We try not to break that thing. And I don't think we will actively kind
+[51:55.27]And I don't think we will actively kind
+[51:55.28]And I don't think we will actively kind of break 310 but we will not be done
+[51:58.31]of break 310 but we will not be done
+[51:58.32]of break 310 but we will not be done like testing it. So it will get broken
+[52:01.35]like testing it. So it will get broken
+[52:01.36]like testing it. So it will get broken eventually.
+[52:03.27]eventually.
+[52:03.28]eventually. Cool.
+[52:04.63]Cool.
+[52:04.64]Cool. >> Okay. I think we have a couple more
+[52:06.39]>> Okay. I think we have a couple more
+[52:06.40]>> Okay. I think we have a couple more questions lined up. Um, so, uh, Brian
+[52:09.91]questions lined up. Um, so, uh, Brian
+[52:09.92]questions lined up. Um, so, uh, Brian asks, "How can I use PyTorch to create
+[52:11.99]asks, "How can I use PyTorch to create
+[52:12.00]asks, "How can I use PyTorch to create my own LLMs?"
+[52:14.07]my own LLMs?"
+[52:14.08]my own LLMs?" Anyone [laughter] want to?
+[52:17.51]Anyone [laughter] want to?
+[52:17.52]Anyone [laughter] want to? >> There are lots of great tutorials. I
+[52:19.51]>> There are lots of great tutorials. I
+[52:19.52]>> There are lots of great tutorials. I want to say that like that tell how you
+[52:21.91]want to say that like that tell how you
+[52:21.92]want to say that like that tell how you can write
+[52:23.11]can write
+[52:23.12]can write >> like LLM training and inference like
+[52:25.35]>> like LLM training and inference like
+[52:25.36]>> like LLM training and inference like Andrew Corp's uh like tiny story will be
+[52:29.03]Andrew Corp's uh like tiny story will be
+[52:29.04]Andrew Corp's uh like tiny story will be like a good one if you want to get
+[52:30.79]like a good one if you want to get
+[52:30.80]like a good one if you want to get familiar with LLMs. But if you want to
+[52:33.51]familiar with LLMs. But if you want to
+[52:33.52]familiar with LLMs. But if you want to train your own [laughter] like I don't
+[52:35.67]train your own [laughter] like I don't
+[52:35.68]train your own [laughter] like I don't know uh
+[52:38.15]know uh
+[52:38.16]know uh leading model using just PyTorch you
+[52:41.43]leading model using just PyTorch you
+[52:41.44]leading model using just PyTorch you need a pretty substantial hardware
+[52:43.11]need a pretty substantial hardware
+[52:43.12]need a pretty substantial hardware investments uh which might be a bigger
+[52:45.59]investments uh which might be a bigger
+[52:45.60]investments uh which might be a bigger blocker
+[52:46.47]blocker
+[52:46.48]blocker >> and also you need a lot of data right so
+[52:49.35]>> and also you need a lot of data right so
+[52:49.36]>> and also you need a lot of data right so like I think the bottleneck is not your
+[52:52.47]like I think the bottleneck is not your
+[52:52.48]like I think the bottleneck is not your framework but your infrastructure and
+[52:55.03]framework but your infrastructure and
+[52:55.04]framework but your infrastructure and your data
+[52:56.95]your data
+[52:56.96]your data >> yeah I was going to say
+[52:59.27]>> yeah I was going to say
+[52:59.28]>> yeah I was going to say >> there there are some folks out there
+[53:00.79]>> there there are some folks out there
+[53:00.80]>> there there are some folks out there creating opensource models models that
+[53:02.71]creating opensource models models that
+[53:02.72]creating opensource models models that you could then maybe [laughter]
+[53:03.99]you could then maybe [laughter]
+[53:04.00]you could then maybe [laughter] refine. I don't know, Joe.
+[53:07.03]refine. I don't know, Joe.
+[53:07.04]refine. I don't know, Joe. >> Hopefully soon. Yeah, hopefully. Uh when
+[53:10.39]>> Hopefully soon. Yeah, hopefully. Uh when
+[53:10.40]>> Hopefully soon. Yeah, hopefully. Uh when those models models are hard to build, I
+[53:12.07]those models models are hard to build, I
+[53:12.08]those models models are hard to build, I have to say. Um no, I I I think like
+[53:15.19]have to say. Um no, I I I think like
+[53:15.20]have to say. Um no, I I I think like building models from scratch, like
+[53:16.55]building models from scratch, like
+[53:16.56]building models from scratch, like really good ones obviously is expensive.
+[53:18.47]really good ones obviously is expensive.
+[53:18.48]really good ones obviously is expensive. I think, you know, to Nikita's point,
+[53:19.99]I think, you know, to Nikita's point,
+[53:20.00]I think, you know, to Nikita's point, there's a definitely hardware is is a
+[53:22.31]there's a definitely hardware is is a
+[53:22.32]there's a definitely hardware is is a big challenge. I think there there's
+[53:24.47]big challenge. I think there there's
+[53:24.48]big challenge. I think there there's some really cool like I I'll I'll plug
+[53:26.87]some really cool like I I'll I'll plug
+[53:26.88]some really cool like I I'll I'll plug Unslo because like Daniel and Michael
+[53:28.79]Unslo because like Daniel and Michael
+[53:28.80]Unslo because like Daniel and Michael are really great and they have a great
+[53:30.07]are really great and they have a great
+[53:30.08]are really great and they have a great ecosystem. They have great tools. Uh you
+[53:32.39]ecosystem. They have great tools. Uh you
+[53:32.40]ecosystem. They have great tools. Uh you could basically pick out, you know, open
+[53:34.63]could basically pick out, you know, open
+[53:34.64]could basically pick out, you know, open source models and you can use unsloth
+[53:36.79]source models and you can use unsloth
+[53:36.80]source models and you can use unsloth and and and kind of like do RL and and
+[53:40.31]and and and kind of like do RL and and
+[53:40.32]and and and kind of like do RL and and SFT and and be able to do it really
+[53:41.91]SFT and and be able to do it really
+[53:41.92]SFT and and be able to do it really quick like quickly and cheaply. Uh even
+[53:44.55]quick like quickly and cheaply. Uh even
+[53:44.56]quick like quickly and cheaply. Uh even in notebooks um like there's actually a
+[53:46.87]in notebooks um like there's actually a
+[53:46.88]in notebooks um like there's actually a ton of examples there. So uh but like
+[53:48.95]ton of examples there. So uh but like
+[53:48.96]ton of examples there. So uh but like creating it from scratch is like quite
+[53:50.47]creating it from scratch is like quite
+[53:50.48]creating it from scratch is like quite expensive u quite involved. Uh we've
+[53:53.03]expensive u quite involved. Uh we've
+[53:53.04]expensive u quite involved. Uh we've kind of um we're we're at the point now
+[53:55.11]kind of um we're we're at the point now
+[53:55.12]kind of um we're we're at the point now as a community where it's just it's like
+[53:56.71]as a community where it's just it's like
+[53:56.72]as a community where it's just it's like prohibitively expensive to to do that as
+[53:59.03]prohibitively expensive to to do that as
+[53:59.04]prohibitively expensive to to do that as an individual. Um, but that said,
+[54:01.11]an individual. Um, but that said,
+[54:01.12]an individual. Um, but that said, there's a ton of great open models out
+[54:02.71]there's a ton of great open models out
+[54:02.72]there's a ton of great open models out there. Um, and you can play with them
+[54:04.23]there. Um, and you can play with them
+[54:04.24]there. Um, and you can play with them and you can customize them and you can
+[54:05.67]and you can customize them and you can
+[54:05.68]and you can customize them and you can run them locally now with Olana and
+[54:07.43]run them locally now with Olana and
+[54:07.44]run them locally now with Olana and other platforms. Um, so I think that's
+[54:09.51]other platforms. Um, so I think that's
+[54:09.52]other platforms. Um, so I think that's like um, yeah, obviously Karpath's uh,
+[54:12.07]like um, yeah, obviously Karpath's uh,
+[54:12.08]like um, yeah, obviously Karpath's uh, project is is super cool as well. U,
+[54:14.55]project is is super cool as well. U,
+[54:14.56]project is is super cool as well. U, there's a lot going on there. Um, but I
+[54:16.07]there's a lot going on there. Um, but I
+[54:16.08]there's a lot going on there. Um, but I wouldn't worry about training from
+[54:17.11]wouldn't worry about training from
+[54:17.12]wouldn't worry about training from scratch because there's just a ton to
+[54:18.15]scratch because there's just a ton to
+[54:18.16]scratch because there's just a ton to build on right now. It's just readily
+[54:19.51]build on right now. It's just readily
+[54:19.52]build on right now. It's just readily available.
+[54:21.67]available.
+[54:21.68]available. >> Yeah. Awesome. Uh, I think we had one or
+[54:25.75]>> Yeah. Awesome. Uh, I think we had one or
+[54:25.76]>> Yeah. Awesome. Uh, I think we had one or two more questions. Um so uh this one is
+[54:28.55]two more questions. Um so uh this one is
+[54:28.56]two more questions. Um so uh this one is from Manukumar.
+[54:31.11]from Manukumar.
+[54:31.12]from Manukumar. Uh
+[54:33.03]Uh
+[54:33.04]Uh are there any uh Google Summer of Code
+[54:35.59]are there any uh Google Summer of Code
+[54:35.60]are there any uh Google Summer of Code uh projects uh focused around PyTorch? I
+[54:38.95]uh projects uh focused around PyTorch? I
+[54:38.96]uh projects uh focused around PyTorch? I don't know if there are. Does anybody
+[54:41.11]don't know if there are. Does anybody
+[54:41.12]don't know if there are. Does anybody know among this group?
+[54:45.19]know among this group?
+[54:45.20]know among this group? >> I don't know. But that's a good idea.
+[54:47.19]>> I don't know. But that's a good idea.
+[54:47.20]>> I don't know. But that's a good idea. Like I think
+[54:54.39]maybe pitch a few few ideas to Google.
+[54:54.40]maybe pitch a few few ideas to Google. But like as name suggest, it's a Google
+[54:55.99]But like as name suggest, it's a Google
+[54:56.00]But like as name suggest, it's a Google summer of code. We don't run it. So if
+[54:59.35]summer of code. We don't run it. So if
+[54:59.36]summer of code. We don't run it. So if somebody wants to organize it, that
+[55:01.03]somebody wants to organize it, that
+[55:01.04]somebody wants to organize it, that sounds great. And like
+[55:02.39]sounds great. And like
+[55:02.40]sounds great. And like >> yeah,
+[55:02.87]>> yeah,
+[55:02.88]>> yeah, >> if somebody
+[55:05.03]>> if somebody
+[55:05.04]>> if somebody >> Yeah, we'll be happy to support.
+[55:07.51]>> Yeah, we'll be happy to support.
+[55:07.52]>> Yeah, we'll be happy to support. >> Yep.
+[55:08.07]>> Yep.
+[55:08.08]>> Yep. >> We should we should reach out to our uh
+[55:10.23]>> We should we should reach out to our uh
+[55:10.24]>> We should we should reach out to our uh our our Google um PyTorch Foundation. Uh
+[55:13.91]our our Google um PyTorch Foundation. Uh
+[55:13.92]our our Google um PyTorch Foundation. Uh uh
+[55:14.31]uh
+[55:14.32]uh >> there you go.
+[55:15.11]>> there you go.
+[55:15.12]>> there you go. >> And see what we can help.
+[55:18.63]>> And see what we can help.
+[55:18.64]>> And see what we can help. >> Exactly. Okay. Awesome. Um, Basil, were
+[55:22.07]>> Exactly. Okay. Awesome. Um, Basil, were
+[55:22.08]>> Exactly. Okay. Awesome. Um, Basil, were there any more questions in the in the
+[55:23.91]there any more questions in the in the
+[55:23.92]there any more questions in the in the comments? Oh, okay. Uh, no, I think
+[55:28.07]comments? Oh, okay. Uh, no, I think
+[55:28.08]comments? Oh, okay. Uh, no, I think Okay. Well, yeah, this is a slightly
+[55:29.51]Okay. Well, yeah, this is a slightly
+[55:29.52]Okay. Well, yeah, this is a slightly different question. With the silicon
+[55:30.87]different question. With the silicon
+[55:30.88]different question. With the silicon market exploding, how is PyTorch
+[55:32.95]market exploding, how is PyTorch
+[55:32.96]market exploding, how is PyTorch ensuring that the XPU, you know,
+[55:34.87]ensuring that the XPU, you know,
+[55:34.88]ensuring that the XPU, you know, torch.xpu can compile and run um models
+[55:37.99]torch.xpu can compile and run um models
+[55:38.00]torch.xpu can compile and run um models across Nvidia, AMD, and Intel chips with
+[55:40.87]across Nvidia, AMD, and Intel chips with
+[55:40.88]across Nvidia, AMD, and Intel chips with um zero performance loss.
+[55:43.59]um zero performance loss.
+[55:43.60]um zero performance loss. Um
+[55:49.43]>> I think it's a loaded question but also
+[55:49.44]>> I think it's a loaded question but also like uh it's very hard to define what
+[55:51.35]like uh it's very hard to define what
+[55:51.36]like uh it's very hard to define what zero component
+[55:52.87]zero component
+[55:52.88]zero component >> right
+[55:53.59]>> right
+[55:53.60]>> right >> don't think there is any like hardware
+[55:56.31]>> don't think there is any like hardware
+[55:56.32]>> don't think there is any like hardware spec that you can say well this this
+[55:59.67]spec that you can say well this this
+[55:59.68]spec that you can say well this this piece of silicon is exactly the same as
+[56:01.51]piece of silicon is exactly the same as
+[56:01.52]piece of silicon is exactly the same as another piece of silicon and also like a
+[56:03.43]another piece of silicon and also like a
+[56:03.44]another piece of silicon and also like a pure
+[56:04.55]pure
+[56:04.56]pure >> uh like a feature parity but as Andrew
+[56:08.23]>> uh like a feature parity but as Andrew
+[56:08.24]>> uh like a feature parity but as Andrew say there is CRC and there is in general
+[56:10.95]say there is CRC and there is in general
+[56:10.96]say there is CRC and there is in general and you should direct
+[56:13.11]and you should direct
+[56:13.12]and you should direct like project experience development
+[56:15.03]like project experience development
+[56:15.04]like project experience development partnership with Intel which is part of
+[56:16.71]partnership with Intel which is part of
+[56:16.72]partnership with Intel which is part of the PyTorch Foundation and they doing
+[56:19.75]the PyTorch Foundation and they doing
+[56:19.76]the PyTorch Foundation and they doing their best and community doing their
+[56:21.67]their best and community doing their
+[56:21.68]their best and community doing their best and what you can do to make sure
+[56:23.99]best and what you can do to make sure
+[56:24.00]best and what you can do to make sure that it is the case if you notice that
+[56:25.67]that it is the case if you notice that
+[56:25.68]that it is the case if you notice that something was working on your black fill
+[56:28.47]something was working on your black fill
+[56:28.48]something was working on your black fill and doesn't work on XPU please file an
+[56:30.79]and doesn't work on XPU please file an
+[56:30.80]and doesn't work on XPU please file an issue and I guess there will be people
+[56:32.39]issue and I guess there will be people
+[56:32.40]issue and I guess there will be people who happy to answer if this can be
+[56:34.63]who happy to answer if this can be
+[56:34.64]who happy to answer if this can be addressed in some way but yeah like
+[56:38.95]addressed in some way but yeah like
+[56:38.96]addressed in some way but yeah like we we want heterogeneity we want uh like
+[56:42.23]we we want heterogeneity we want uh like
+[56:42.24]we we want heterogeneity we want uh like models to work. We talked about torch
+[56:44.39]models to work. We talked about torch
+[56:44.40]models to work. We talked about torch accelerate. We talked about CRCR. We
+[56:46.71]accelerate. We talked about CRCR. We
+[56:46.72]accelerate. We talked about CRCR. We talked a lot about like a newer romcom.
+[56:48.79]talked a lot about like a newer romcom.
+[56:48.80]talked a lot about like a newer romcom. So there are lots of initiative but I
+[56:50.47]So there are lots of initiative but I
+[56:50.48]So there are lots of initiative but I guess zero performance loss is just
+[56:52.95]guess zero performance loss is just
+[56:52.96]guess zero performance loss is just unattainable and it's also I'm not sure
+[56:55.51]unattainable and it's also I'm not sure
+[56:55.52]unattainable and it's also I'm not sure what it means by
+[56:56.47]what it means by
+[56:56.48]what it means by >> not well defined. It's not well defined
+[56:58.15]>> not well defined. It's not well defined
+[56:58.16]>> not well defined. It's not well defined because different hardware performs you
+[57:00.07]because different hardware performs you
+[57:00.08]because different hardware performs you know just just behaves differently. Um
+[57:02.87]know just just behaves differently. Um
+[57:02.88]know just just behaves differently. Um and we try and give you lots of knobs
+[57:04.47]and we try and give you lots of knobs
+[57:04.48]and we try and give you lots of knobs and lots of capabilities but uh
+[57:07.11]and lots of capabilities but uh
+[57:07.12]and lots of capabilities but uh >> we try to reduce overhead with every
+[57:08.63]>> we try to reduce overhead with every
+[57:08.64]>> we try to reduce overhead with every release like the majority of the
+[57:10.31]release like the majority of the
+[57:10.32]release like the majority of the releases the features the kind of
+[57:11.51]releases the features the kind of
+[57:11.52]releases the features the kind of unspoken features that we don't talk
+[57:13.03]unspoken features that we don't talk
+[57:13.04]unspoken features that we don't talk about is we always try to bring a little
+[57:15.91]about is we always try to bring a little
+[57:15.92]about is we always try to bring a little bit of performance here and there.
+[57:19.83]bit of performance here and there.
+[57:19.84]bit of performance here and there. >> Yeah, just to add to it I think one of
+[57:21.83]>> Yeah, just to add to it I think one of
+[57:21.84]>> Yeah, just to add to it I think one of the interesting project maybe for you to
+[57:23.83]the interesting project maybe for you to
+[57:23.84]the interesting project maybe for you to look into is VLM. This is like they run
+[57:27.11]look into is VLM. This is like they run
+[57:27.12]look into is VLM. This is like they run multiple different models on different
+[57:29.27]multiple different models on different
+[57:29.28]multiple different models on different hardware and like as an example so you
+[57:32.15]hardware and like as an example so you
+[57:32.16]hardware and like as an example so you can explore it a little bit and I think
+[57:33.91]can explore it a little bit and I think
+[57:33.92]can explore it a little bit and I think it's open source and the CI is open
+[57:36.39]it's open source and the CI is open
+[57:36.40]it's open source and the CI is open source so um just as an example to look
+[57:40.31]source so um just as an example to look
+[57:40.32]source so um just as an example to look into could be interesting.
+[57:44.23]into could be interesting.
+[57:44.24]into could be interesting. >> Um I feel like we have answered this but
+[57:45.83]>> Um I feel like we have answered this but
+[57:45.84]>> Um I feel like we have answered this but I'll just quickly uh just just uh shout
+[57:48.15]I'll just quickly uh just just uh shout
+[57:48.16]I'll just quickly uh just just uh shout it out here. So somebody asked on the on
+[57:49.91]it out here. So somebody asked on the on
+[57:49.92]it out here. So somebody asked on the on the comment thread um is it uh is
+[57:52.63]the comment thread um is it uh is
+[57:52.64]the comment thread um is it uh is PyTorch supporting the newest CUDA? I
+[57:55.19]PyTorch supporting the newest CUDA? I
+[57:55.20]PyTorch supporting the newest CUDA? I think we're we're either on the newest
+[57:58.71]think we're we're either on the newest
+[57:58.72]think we're we're either on the newest CUDA or pretty close. And usually if you
+[58:00.55]CUDA or pretty close. And usually if you
+[58:00.56]CUDA or pretty close. And usually if you jump on nightlys, you can get the latest
+[58:02.39]jump on nightlys, you can get the latest
+[58:02.40]jump on nightlys, you can get the latest and greatest.
+[58:03.75]and greatest.
+[58:03.76]and greatest. >> Um, so Andre, you should your head when
+[58:07.75]>> Um, so Andre, you should your head when
+[58:07.76]>> Um, so Andre, you should your head when I said that. So I must have said
+[58:08.87]I said that. So I must have said
+[58:08.88]I said that. So I must have said something slightly wrong. So jump in
+[58:09.99]something slightly wrong. So jump in
+[58:10.00]something slightly wrong. So jump in here and correct me.
+[58:10.63]here and correct me.
+[58:10.64]here and correct me. >> So for 214, we're supporting up to CUDA
+[58:14.15]>> So for 214, we're supporting up to CUDA
+[58:14.16]>> So for 214, we're supporting up to CUDA 13.2. This is not the latest. The latest
+[58:17.19]13.2. This is not the latest. The latest
+[58:17.20]13.2. This is not the latest. The latest was um is 13.4 and it was released just
+[58:20.95]was um is 13.4 and it was released just
+[58:20.96]was um is 13.4 and it was released just like a week after we released PyTorch.
+[58:23.67]like a week after we released PyTorch.
+[58:23.68]like a week after we released PyTorch. So it's like we did not include it yet
+[58:25.59]So it's like we did not include it yet
+[58:25.60]So it's like we did not include it yet but it will be included in the next
+[58:27.35]but it will be included in the next
+[58:27.36]but it will be included in the next release of PyTorch and it is already in
+[58:30.15]release of PyTorch and it is already in
+[58:30.16]release of PyTorch and it is already in nightly and it has been in nightly for
+[58:32.87]nightly and it has been in nightly for
+[58:32.88]nightly and it has been in nightly for quite some time. So if you really want
+[58:35.43]quite some time. So if you really want
+[58:35.44]quite some time. So if you really want to have the latest CUDA download nightly
+[58:37.91]to have the latest CUDA download nightly
+[58:37.92]to have the latest CUDA download nightly and it should work uh for Linux only for
+[58:40.95]and it should work uh for Linux only for
+[58:40.96]and it should work uh for Linux only for Windows I think it's going to be enabled
+[58:43.43]Windows I think it's going to be enabled
+[58:43.44]Windows I think it's going to be enabled pretty soon maybe within one or two
+[58:46.07]pretty soon maybe within one or two
+[58:46.08]pretty soon maybe within one or two weeks.
+[58:50.95]>> Awesome. Well I think that was a good
+[58:50.96]>> Awesome. Well I think that was a good note to end on. Um, I think we had uh
+[58:53.59]note to end on. Um, I think we had uh
+[58:53.60]note to end on. Um, I think we had uh some fun conver fun conversation.
+[58:55.72]some fun conver fun conversation.
+[58:55.73]some fun conver fun conversation. [snorts]
+[58:56.39][snorts]
+[58:56.40][snorts] Um, a little a little repetition in the
+[58:58.39]Um, a little a little repetition in the
+[58:58.40]Um, a little a little repetition in the questions, but I think that's sort of
+[58:59.43]questions, but I think that's sort of
+[58:59.44]questions, but I think that's sort of built into the way we do things. So,
+[59:00.95]built into the way we do things. So,
+[59:00.96]built into the way we do things. So, thank you uh to my experts for uh for
+[59:03.83]thank you uh to my experts for uh for
+[59:03.84]thank you uh to my experts for uh for for putting up with that. Um, uh, so
+[59:07.11]for putting up with that. Um, uh, so
+[59:07.12]for putting up with that. Um, uh, so let's uh just in terms of closing
+[59:08.87]let's uh just in terms of closing
+[59:08.88]let's uh just in terms of closing remarks, um, thanks as always have to
+[59:10.95]remarks, um, thanks as always have to
+[59:10.96]remarks, um, thanks as always have to start with the contributors across the
+[59:12.47]start with the contributors across the
+[59:12.48]start with the contributors across the community who put in the steady effort
+[59:14.23]community who put in the steady effort
+[59:14.24]community who put in the steady effort that makes PyTorch what it is. So 500
+[59:17.19]that makes PyTorch what it is. So 500
+[59:17.20]that makes PyTorch what it is. So 500 odd people uh contributed to this uh
+[59:20.15]odd people uh contributed to this uh
+[59:20.16]odd people uh contributed to this uh particular release and it's been a
+[59:21.91]particular release and it's been a
+[59:21.92]particular release and it's been a number near that for the last several
+[59:23.67]number near that for the last several
+[59:23.68]number near that for the last several releases. Uh so it's just huge community
+[59:25.91]releases. Uh so it's just huge community
+[59:25.92]releases. Uh so it's just huge community effort. Uh and you know what we're
+[59:27.51]effort. Uh and you know what we're
+[59:27.52]effort. Uh and you know what we're talking about here is that effort. Uh so
+[59:29.59]talking about here is that effort. Uh so
+[59:29.60]talking about here is that effort. Uh so uh so thanks to all those folks. Uh
+[59:31.43]uh so thanks to all those folks. Uh
+[59:31.44]uh so thanks to all those folks. Uh thanks also to the three of you uh here
+[59:33.59]thanks also to the three of you uh here
+[59:33.60]thanks also to the three of you uh here on on on on stage answering these
+[59:35.67]on on on on stage answering these
+[59:35.68]on on on on stage answering these questions. Uh many of which you were
+[59:37.83]questions. Uh many of which you were
+[59:37.84]questions. Uh many of which you were answering un completely unprepared
+[59:39.75]answering un completely unprepared
+[59:39.76]answering un completely unprepared because they they were audience
+[59:41.03]because they they were audience
+[59:41.04]because they they were audience questions [laughter] in. So, thank you
+[59:43.11]questions [laughter] in. So, thank you
+[59:43.12]questions [laughter] in. So, thank you for being brave uh and wise. Um so, uh
+[59:46.79]for being brave uh and wise. Um so, uh
+[59:46.80]for being brave uh and wise. Um so, uh and being generous with your time and
+[59:48.07]and being generous with your time and
+[59:48.08]and being generous with your time and your expertise. Uh thanks also to behind
+[59:50.31]your expertise. Uh thanks also to behind
+[59:50.32]your expertise. Uh thanks also to behind the scenes uh Basil and Jyn who were
+[59:52.47]the scenes uh Basil and Jyn who were
+[59:52.48]the scenes uh Basil and Jyn who were scrambling to to get the uh the the
+[59:54.87]scrambling to to get the uh the the
+[59:54.88]scrambling to to get the uh the the questions uh from the from the
+[59:57.19]questions uh from the from the
+[59:57.20]questions uh from the from the discussion thread into uh into uh the
+[59:59.91]discussion thread into uh into uh the
+[59:59.92]discussion thread into uh into uh the screen here. So, thank you guys for
+[60:01.19]screen here. So, thank you guys for
+[60:01.20]screen here. So, thank you guys for working your magic. I appreciate that.
+[60:03.35]working your magic. I appreciate that.
+[60:03.36]working your magic. I appreciate that. Uh and then also thanks to everybody who
+[60:05.43]Uh and then also thanks to everybody who
+[60:05.44]Uh and then also thanks to everybody who joined and asked questions because you
+[60:06.87]joined and asked questions because you
+[60:06.88]joined and asked questions because you made this a good conversation. Uh we
+[60:09.51]made this a good conversation. Uh we
+[60:09.52]made this a good conversation. Uh we really appreciate it and keep building
+[60:10.95]really appreciate it and keep building
+[60:10.96]really appreciate it and keep building awesome things with PyTorch. Uh just a
+[60:13.27]awesome things with PyTorch. Uh just a
+[60:13.28]awesome things with PyTorch. Uh just a couple of resources uh for you to think
+[60:14.95]couple of resources uh for you to think
+[60:14.96]couple of resources uh for you to think about um a as we wrap up here. Um there
+[60:18.39]about um a as we wrap up here. Um there
+[60:18.40]about um a as we wrap up here. Um there are we released a blog with this release
+[60:21.43]are we released a blog with this release
+[60:21.44]are we released a blog with this release uh which has a lot of detailed uh
+[60:23.03]uh which has a lot of detailed uh
+[60:23.04]uh which has a lot of detailed uh details about the various different
+[60:24.15]details about the various different
+[60:24.16]details about the various different features. There's also the release
+[60:25.43]features. There's also the release
+[60:25.44]features. There's also the release notes. You should be able to find both
+[60:26.79]notes. You should be able to find both
+[60:26.80]notes. You should be able to find both of those really easily. We may drop
+[60:28.79]of those really easily. We may drop
+[60:28.80]of those really easily. We may drop links to them here. I'm not I'm not sure
+[60:30.07]links to them here. I'm not I'm not sure
+[60:30.08]links to them here. I'm not I'm not sure whether that will happen or not. Um also
+[60:32.23]whether that will happen or not. Um also
+[60:32.24]whether that will happen or not. Um also the developer communities. So
+[60:33.83]the developer communities. So
+[60:33.84]the developer communities. So discuss.pyarch.org
+[60:35.35]discuss.pyarch.org
+[60:35.36]discuss.pyarch.org and devdiscuss.pyrush.org
+[60:37.19]and devdiscuss.pyrush.org
+[60:37.20]and devdiscuss.pyrush.org are great uh for asking really detailed
+[60:39.59]are great uh for asking really detailed
+[60:39.60]are great uh for asking really detailed questions like you guys uh did here. Um
+[60:41.91]questions like you guys uh did here. Um
+[60:41.92]questions like you guys uh did here. Um and you'll you'll you'll be able to get
+[60:43.27]and you'll you'll you'll be able to get
+[60:43.28]and you'll you'll you'll be able to get the the the experts uh um across the
+[60:45.91]the the the experts uh um across the
+[60:45.92]the the the experts uh um across the community to answer. Um also there's
+[60:48.07]community to answer. Um also there's
+[60:48.08]community to answer. Um also there's some events coming up that I want to
+[60:50.15]some events coming up that I want to
+[60:50.16]some events coming up that I want to make people aware of. Uh so PyTorch
+[60:52.31]make people aware of. Uh so PyTorch
+[60:52.32]make people aware of. Uh so PyTorch Conference North America will be in San
+[60:54.07]Conference North America will be in San
+[60:54.08]Conference North America will be in San Jose in just a little bit more than a
+[60:55.99]Jose in just a little bit more than a
+[60:56.00]Jose in just a little bit more than a month. Um so that's October 20th and
+[60:57.83]month. Um so that's October 20th and
+[60:57.84]month. Um so that's October 20th and 21st. I think all of us will be here.
+[61:00.31]21st. I think all of us will be here.
+[61:00.32]21st. I think all of us will be here. All of us here will be will be there. Um
+[61:02.55]All of us here will be will be there. Um
+[61:02.56]All of us here will be will be there. Um and um uh you know it's a great chance
+[61:05.83]and um uh you know it's a great chance
+[61:05.84]and um uh you know it's a great chance to to to learn a ton about PyTorch and
+[61:08.55]to to to learn a ton about PyTorch and
+[61:08.56]to to to learn a ton about PyTorch and say hello to to to fellow uh uh members
+[61:11.35]say hello to to to fellow uh uh members
+[61:11.36]say hello to to to fellow uh uh members of the community. Um I'm certainly
+[61:12.95]of the community. Um I'm certainly
+[61:12.96]of the community. Um I'm certainly looking forward to it and if you're um
+[61:15.19]looking forward to it and if you're um
+[61:15.20]looking forward to it and if you're um part of the global audience um there are
+[61:17.03]part of the global audience um there are
+[61:17.04]part of the global audience um there are a bunch of PyTorch, you know, we've been
+[61:18.71]a bunch of PyTorch, you know, we've been
+[61:18.72]a bunch of PyTorch, you know, we've been really proliferating uh global events uh
+[61:20.95]really proliferating uh global events uh
+[61:20.96]really proliferating uh global events uh this year and I imagine that will
+[61:22.71]this year and I imagine that will
+[61:22.72]this year and I imagine that will continue. Uh so we had an event in Paris
+[61:24.95]continue. Uh so we had an event in Paris
+[61:24.96]continue. Uh so we had an event in Paris in the spring which was a lot of fun. We
+[61:26.95]in the spring which was a lot of fun. We
+[61:26.96]in the spring which was a lot of fun. We just completed events uh well a while
+[61:28.47]just completed events uh well a while
+[61:28.48]just completed events uh well a while ago in India and then more recently in
+[61:30.15]ago in India and then more recently in
+[61:30.16]ago in India and then more recently in China and I think we have one planned in
+[61:32.15]China and I think we have one planned in
+[61:32.16]China and I think we have one planned in Japan for later this year. So um and
+[61:35.59]Japan for later this year. So um and
+[61:35.60]Japan for later this year. So um and then I think there are pie days and
+[61:37.43]then I think there are pie days and
+[61:37.44]then I think there are pie days and smaller events happening all the time in
+[61:39.35]smaller events happening all the time in
+[61:39.36]smaller events happening all the time in lots of different places. So uh look
+[61:41.59]lots of different places. So uh look
+[61:41.60]lots of different places. So uh look look at the piece.org website for uh for
+[61:44.71]look at the piece.org website for uh for
+[61:44.72]look at the piece.org website for uh for u events near you. So I think that's it
+[61:47.19]u events near you. So I think that's it
+[61:47.20]u events near you. So I think that's it >> and last but no there is one more thing
+[61:49.67]>> and last but no there is one more thing
+[61:49.68]>> and last but no there is one more thing last but not least thank you very much
+[61:50.95]last but not least thank you very much
+[61:50.96]last but not least thank you very much Chris for being a fantastic moderator.
+[61:52.71]Chris for being a fantastic moderator.
+[61:52.72]Chris for being a fantastic moderator. We could not have wished for a better
+[61:53.99]We could not have wished for a better
+[61:54.00]We could not have wished for a better moderator here and without you it would
+[61:55.75]moderator here and without you it would
+[61:55.76]moderator here and without you it would be a very different event. So, thank
+[61:57.11]be a very different event. So, thank
+[61:57.12]be a very different event. So, thank you.
+[61:57.99]you.
+[61:58.00]you. >> Thank you, Chris. Great job.
+[62:00.39]>> Thank you, Chris. Great job.
+[62:00.40]>> Thank you, Chris. Great job. >> Bye-bye.
+[62:00.95]>> Bye-bye.
+[62:00.96]>> Bye-bye. >> Thank you.

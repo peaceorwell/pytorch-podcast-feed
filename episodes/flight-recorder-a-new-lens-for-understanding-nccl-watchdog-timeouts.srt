@@ -1,0 +1,723 @@
+1
+00:00:00,000 --> 00:00:06,745
+Ava: Your large-scale training job runs for hours, then one line appears: NCCL watchdog timeout.
+
+2
+00:00:06,745 --> 00:00:11,562
+The message tells you almost nothing, and the whole job is stuck.
+
+3
+00:00:11,562 --> 00:00:15,470
+Why should engineers care about Flight Recorder?
+
+4
+00:00:15,470 --> 00:00:20,588
+Brian: Because Flight Recorder can turn that vague timeout into a cross-rank timeline.
+
+5
+00:00:20,588 --> 00:00:27,676
+It helps show which collective diverged, which rank went missing, and where the original call came from.
+
+6
+00:00:27,676 --> 00:00:33,066
+Ava: Let’s start with the basics. What exactly is a collective in PyTorch?
+
+7
+00:00:33,066 --> 00:00:38,185
+Brian: In distributed training, ranks need to synchronize or exchange results.
+
+8
+00:00:38,185 --> 00:00:43,376
+A collective is an operation that involves all ranks in a process group.
+
+9
+00:00:43,376 --> 00:00:50,720
+For example, all_reduce sums a tensor across the group and writes the result back to that tensor.
+
+10
+00:00:50,720 --> 00:00:54,862
+Ava: And different training systems use different collectives?
+
+11
+00:00:54,862 --> 00:00:58,057
+Brian: Right. DDP commonly uses all-reduce.
+
+12
+00:00:58,057 --> 00:01:05,335
+FSDP, which means Fully Sharded Data Parallel, uses all-gather and reduce-scatter.
+
+13
+00:01:05,335 --> 00:01:08,436
+TorchRec often uses all-to-all.
+
+14
+00:01:08,436 --> 00:01:12,962
+Ava: Where does the call go when I write dist. all_reduce?
+
+15
+00:01:12,962 --> 00:01:20,180
+Brian: It passes through the C++ PyTorch dispatcher and a PyBind layer, then reaches c10d.
+
+16
+00:01:20,180 --> 00:01:30,184
+The c10d layer calls a communication backend, such as NCCL for GPU communication or Gloo for CPU communication.
+
+17
+00:01:30,184 --> 00:01:35,646
+Ava: Why have c10d in the middle? Why not call NCCL directly?
+
+18
+00:01:35,646 --> 00:01:41,979
+Brian: PyTorch needs control information before handing work to the communication library.
+
+19
+00:01:41,979 --> 00:01:45,260
+One important feature is the c10d watchdog.
+
+20
+00:01:45,260 --> 00:01:53,012
+This post focuses on NCCL, but the watchdog mechanism can monitor other distributed backends too.
+
+21
+00:01:53,012 --> 00:01:57,010
+Ava: So what does the NCCL watchdog actually watch?
+
+22
+00:01:57,010 --> 00:02:02,685
+Brian: NCCL collectives are scheduled by the CPU and run asynchronously on the GPU.
+
+23
+00:02:02,685 --> 00:02:08,435
+NCCL itself doesn’t provide built-in error checking for a misused collective.
+
+24
+00:02:08,435 --> 00:02:18,120
+If ranks call different collectives, pass invalid arguments, or otherwise misuse the API, the GPU operation can hang forever.
+
+25
+00:02:18,120 --> 00:02:21,782
+Ava: And PyTorch catches that with a Work object?
+
+26
+00:02:21,782 --> 00:02:22,086
+Brian: Yes.
+
+27
+00:02:22,086 --> 00:02:29,073
+The CPU-side Work object wraps the NCCL call with two CUDA events, one before and one after.
+
+28
+00:02:29,073 --> 00:02:37,731
+The watchdog thread periodically checks whether the collective completed on the GPU within a user-defined timeout.
+
+29
+00:02:37,731 --> 00:02:40,132
+The default is ten minutes.
+
+30
+00:02:40,132 --> 00:02:44,562
+Ava: When the limit is exceeded, it throws the famous error.
+
+31
+00:02:44,562 --> 00:02:48,205
+Brian: Exactly. But the name is a little misleading.
+
+32
+00:02:48,205 --> 00:02:54,599
+The error is raised by PyTorch’s NCCL watchdog, not by the NCCL library itself.
+
+33
+00:02:54,599 --> 00:03:02,720
+NCCL appears in the name because the timed-out collective was launched through the NCCL backend.
+
+34
+00:03:02,720 --> 00:03:05,391
+Ava: Why is this error so hard to debug?
+
+35
+00:03:05,391 --> 00:03:11,998
+The log has a sequence number and an operation type, but that doesn’t seem enough.
+
+36
+00:03:11,998 --> 00:03:15,953
+Brian: There are two major reasons. First, it’s a catch-all error.
+
+37
+00:03:15,953 --> 00:03:28,236
+Almost anything that makes a rank wait indefinitely can end in the same timeout: a CPU-side hang, a GPU hang, a CUDA deadlock, invalid collective arguments, or a network problem.
+
+38
+00:03:28,236 --> 00:03:32,282
+Ava: So the timeout doesn’t identify the layer that failed.
+
+39
+00:03:32,282 --> 00:03:36,718
+Brian: Right. Second, the error is raised from the watchdog thread.
+
+40
+00:03:36,718 --> 00:03:41,745
+To avoid that thread hanging too, the log contains limited metadata.
+
+41
+00:03:41,745 --> 00:03:50,080
+The stack trace is from the watchdog thread, not from the main PyTorch thread that scheduled the collective.
+
+42
+00:03:50,080 --> 00:03:52,806
+Ava: That’s a pretty important distinction.
+
+43
+00:03:52,806 --> 00:03:58,412
+Brian: It is. Also, the rank that reports the timeout is rarely the rank that caused it.
+
+44
+00:03:58,412 --> 00:04:06,860
+And the collective shown in the error may simply be the one where the problem became visible, not the original cause.
+
+45
+00:04:06,860 --> 00:04:13,690
+Ava: So rerunning with CUDA_LAUNCH_BLOCKING can take hours and still be frustrating.
+
+46
+00:04:13,690 --> 00:04:14,265
+Brian: Exactly.
+
+47
+00:04:14,265 --> 00:04:24,096
+The article says debugging without Flight Recorder can take hours or longer, often requiring another run with extra debugging flags.
+
+48
+00:04:24,096 --> 00:04:28,262
+Ava: Let’s talk about how collectives normally execute.
+
+49
+00:04:28,262 --> 00:04:34,841
+Brian: The CPU schedules a sequence of compute kernels and NCCL collectives onto the GPU.
+
+50
+00:04:34,841 --> 00:04:41,179
+Later, at a CPU-GPU synchronization point, the CPU waits for the GPU to finish.
+
+51
+00:04:41,179 --> 00:04:45,220
+There are two important synchronization types.
+
+52
+00:04:45,220 --> 00:04:48,042
+Ava: The first is between GPUs?
+
+53
+00:04:48,042 --> 00:04:48,361
+Brian: Yes.
+
+54
+00:04:48,361 --> 00:04:56,579
+Inter-rank GPU-GPU synchronization means every GPU in the process group synchronizes before continuing.
+
+55
+00:04:56,579 --> 00:05:03,392
+Barrier collectives, such as all_reduce, are common sources of watchdog timeouts.
+
+56
+00:05:03,392 --> 00:05:08,182
+Ava: And the second is one rank’s CPU waiting for its own GPU.
+
+57
+00:05:08,182 --> 00:05:12,886
+Brian: Exactly. That can be explicit, such as torch. cuda.
+
+58
+00:05:12,886 --> 00:05:19,692
+synchronize, or implicit, such as moving a tensor between CPU and GPU.
+
+59
+00:05:19,692 --> 00:05:24,146
+Ava: The article says a collective can time out in two broad ways.
+
+60
+00:05:24,146 --> 00:05:30,719
+Brian: Either the collective kernel itself runs too long or hangs, or the ranks become desynchronized.
+
+61
+00:05:30,719 --> 00:05:35,704
+Their collective metadata or state differs when the timeout occurs.
+
+62
+00:05:35,704 --> 00:05:38,742
+Ava: Which one is more common in practice?
+
+63
+00:05:38,742 --> 00:05:48,133
+Brian: Across Meta’s fleet, almost all observed timeouts came from collective desynchronization, not simple slowness or a collective kernel hang.
+
+64
+00:05:48,133 --> 00:05:52,352
+That means increasing the timeout usually won’t fix the issue.
+
+65
+00:05:52,352 --> 00:05:54,812
+You have to resolve the desync.
+
+66
+00:05:54,812 --> 00:05:57,490
+Ava: What causes that desync?
+
+67
+00:05:57,490 --> 00:06:09,888
+Brian: The article groups causes into four categories: CPU-side issues, GPU compute kernel hangs, misconfigured collective arguments, and network or hardware issues.
+
+68
+00:06:09,888 --> 00:06:13,262
+Ava: Let’s take CPU-side issues first.
+
+69
+00:06:13,262 --> 00:06:20,877
+Brian: For a process group, every rank must execute the same, or complementary, collectives in exactly the same order.
+
+70
+00:06:20,877 --> 00:06:29,596
+If one rank schedules nothing, or schedules a different collective, another rank can wait forever and eventually time out.
+
+71
+00:06:29,596 --> 00:06:32,802
+Ava: What if the CPU is simply slow?
+
+72
+00:06:32,802 --> 00:06:40,364
+Brian: Suppose data loading, checkpointing, or PT2 compilation makes some ranks take longer than the watchdog threshold.
+
+73
+00:06:40,364 --> 00:06:45,182
+Those ranks don’t schedule the next collective, while another rank does.
+
+74
+00:06:45,182 --> 00:06:50,216
+The rank that did schedule it may be the one that reports the timeout.
+
+75
+00:06:50,216 --> 00:06:54,382
+Ava: PT2 compilation sounds especially tricky.
+
+76
+00:06:54,382 --> 00:06:55,977
+Brian: It is data-dependent.
+
+77
+00:06:55,977 --> 00:07:03,798
+Compiler cache behavior and dynamic-shape recompilation can make compilation times differ across ranks.
+
+78
+00:07:03,798 --> 00:07:09,265
+If that difference exceeds the watchdog threshold, a timeout can result.
+
+79
+00:07:09,265 --> 00:07:13,260
+This problem motivated PT2 compiler collectives.
+
+80
+00:07:13,260 --> 00:07:18,986
+Ava: And CPU execution divergence means the ranks follow different code paths.
+
+81
+00:07:18,986 --> 00:07:19,278
+Brian: Yes.
+
+82
+00:07:19,278 --> 00:07:26,222
+Data-dependent conditionals can make ranks schedule different collectives or skip one entirely.
+
+83
+00:07:26,222 --> 00:07:28,415
+Data imbalance is one example.
+
+84
+00:07:28,415 --> 00:07:35,344
+If one rank runs out of data earlier, it may leave the training loop one iteration sooner.
+
+85
+00:07:35,344 --> 00:07:38,454
+Ava: Error handling can create the same problem?
+
+86
+00:07:38,454 --> 00:07:42,596
+Brian: Absolutely. An exception handler is rank-specific logic.
+
+87
+00:07:42,596 --> 00:07:52,064
+It might get stuck on the CPU, call another GPU synchronization during teardown, or swallow the exception and continue training.
+
+88
+00:07:52,064 --> 00:07:56,852
+Any of those can leave ranks waiting in incompatible states.
+
+89
+00:07:56,852 --> 00:08:01,330
+Ava: There’s also an edge case involving multiple process groups.
+
+90
+00:08:01,330 --> 00:08:01,837
+Brian: Right.
+
+91
+00:08:01,837 --> 00:08:11,379
+In N-D parallelism, such as FSDP, different process groups may schedule collectives back-to-back on the same GPU.
+
+92
+00:08:11,379 --> 00:08:18,979
+Without proper synchronization, GPU communication execution order can differ across ranks.
+
+93
+00:08:18,979 --> 00:08:19,570
+NCCL 2.
+
+94
+00:08:19,570 --> 00:08:26,760
+26 introduces NCCL_LAUNCH_ORDER_IMPLICIT to enforce the same order as scheduling.
+
+95
+00:08:26,760 --> 00:08:30,086
+Ava: What about a real GPU compute hang?
+
+96
+00:08:30,086 --> 00:08:33,306
+Brian: CUDA execution is sequential within a stream.
+
+97
+00:08:33,306 --> 00:08:38,315
+If a compute kernel hangs, the GPU can’t reach a scheduled collective.
+
+98
+00:08:38,315 --> 00:08:42,108
+The CPU then blocks at a later synchronization point.
+
+99
+00:08:42,108 --> 00:08:49,900
+Depending on the timing, the symptoms can look like a missing collective or a collective state mismatch.
+
+100
+00:08:49,900 --> 00:08:53,514
+Ava: Next is invalid collective arguments.
+
+101
+00:08:53,514 --> 00:08:59,590
+Brian: Usually, input and output tensor types and shapes must agree across ranks.
+
+102
+00:08:59,590 --> 00:09:03,285
+Some operations have global requirements too.
+
+103
+00:09:03,285 --> 00:09:11,024
+For all_to_all_single, the input and output size splits define the communication topology.
+
+104
+00:09:11,024 --> 00:09:18,166
+Ava: So if rank X expects more data from rank Y than Y sends, a receive can wait forever.
+
+105
+00:09:18,166 --> 00:09:23,223
+Brian: Exactly. PyTorch can’t fully verify those NCCL assumptions.
+
+106
+00:09:23,223 --> 00:09:31,716
+An invalid split can leave ncclRecv blocked forever, which later appears as a watchdog timeout.
+
+107
+00:09:31,716 --> 00:09:35,546
+Ava: And the fourth category is the infrastructure layer.
+
+108
+00:09:35,546 --> 00:09:43,664
+Brian: Network or hardware issues account for roughly twenty to thirty percent of the timeouts observed in the article.
+
+109
+00:09:43,664 --> 00:09:47,216
+Transient link or port flaps are common examples.
+
+110
+00:09:47,216 --> 00:09:57,352
+Faulty GPU hardware can also cause hangs across multiple unrelated jobs, often with repeated failures or hardware signals such as XIDs.
+
+111
+00:09:57,352 --> 00:10:02,142
+Ava: Now let’s get to Flight Recorder. What is it recording?
+
+112
+00:10:02,142 --> 00:10:07,891
+Brian: It’s a per-rank, CPU-side ring buffer shared across all process groups.
+
+113
+00:10:07,891 --> 00:10:18,580
+For each collective launch, it records the type, state, input and output data types, input and output sizes, and the CPU call stack.
+
+114
+00:10:18,580 --> 00:10:22,412
+Python and C++ stacks can both be recorded.
+
+115
+00:10:22,412 --> 00:10:25,522
+Ava: What states does a collective move through?
+
+116
+00:10:25,522 --> 00:10:35,129
+Brian: Four states: not scheduled, also called missing; scheduled from the CPU; started on the GPU; and completed on the GPU.
+
+117
+00:10:35,129 --> 00:10:42,888
+Each collective also gets a monotonically increasing sequence ID within each process group.
+
+118
+00:10:42,888 --> 00:10:47,750
+Ava: How does the data get dumped when the job is already falling apart?
+
+119
+00:10:47,750 --> 00:10:55,635
+Brian: If TORCH_NCCL_DUMP_ON_TIMEOUT is set, the watchdog triggers an immediate dump to storage.
+
+120
+00:10:55,635 --> 00:11:04,756
+Users can also retrieve records through a Python API, write to a pipe file, or use an HTTP request.
+
+121
+00:11:04,756 --> 00:11:09,018
+Ava: But what if the rank that’s hanging can’t dump its own records?
+
+122
+00:11:09,018 --> 00:11:11,440
+Brian: That was a key design problem.
+
+123
+00:11:11,440 --> 00:11:16,284
+Flight Recorder uses a side TCP/IP channel through TCPStore.
+
+124
+00:11:16,284 --> 00:11:26,000
+One rank broadcasts a timeout signal, and a dedicated monitor thread on each rank receives it and triggers the dump.
+
+125
+00:11:26,000 --> 00:11:30,358
+Ava: How do they avoid several process groups dumping at once?
+
+126
+00:11:30,358 --> 00:11:36,263
+Brian: Only the monitor thread for the default process group checks signals and starts the dump.
+
+127
+00:11:36,263 --> 00:11:41,107
+Other monitor threads briefly sleep, giving the main dump time to finish.
+
+128
+00:11:41,107 --> 00:11:51,012
+The design is best effort because the system is fragile during a timeout, but inside Meta it achieved a near one-hundred-percent full dump rate.
+
+129
+00:11:51,012 --> 00:11:55,898
+Ava: Why analyze after the timeout instead of coordinating live?
+
+130
+00:11:55,898 --> 00:12:01,876
+Brian: The system is already fragmented, and a single dead rank can break coordination.
+
+131
+00:12:01,876 --> 00:12:05,538
+Waiting live would also waste training resources.
+
+132
+00:12:05,538 --> 00:12:12,016
+So the design first writes raw records, then aggregates and analyzes them offline.
+
+133
+00:12:12,016 --> 00:12:15,222
+Ava: What does the post-timeout analysis look for?
+
+134
+00:12:15,222 --> 00:12:24,839
+Brian: It aligns records from all ranks by sequence ID, collective type, and scheduling order, then groups them by process group.
+
+135
+00:12:24,839 --> 00:12:32,756
+The goal is to find missing ranks and mismatches in type, state, call stack, data type, or size.
+
+136
+00:12:32,756 --> 00:12:36,730
+Ava: Can those mismatches point to the root-cause category?
+
+137
+00:12:36,730 --> 00:12:42,206
+Brian: Usually. CPU slowness often looks like a missing rank or state mismatch.
+
+138
+00:12:42,206 --> 00:12:47,226
+CPU divergence can show a different collective type or call stack.
+
+139
+00:12:47,226 --> 00:12:51,790
+Misconfigured arguments often show dtype or size mismatches.
+
+140
+00:12:51,790 --> 00:12:57,768
+Network issues may show every rank in the started state, with no mismatch.
+
+141
+00:12:57,768 --> 00:13:00,758
+Ava: Is there a tool for doing that alignment?
+
+142
+00:13:00,758 --> 00:13:03,015
+Brian: PyTorch provides fr_trace.
+
+143
+00:13:03,015 --> 00:13:12,220
+It enumerates collective mismatches, participating ranks, metadata, and one representative call stack.
+
+144
+00:13:12,220 --> 00:13:15,642
+Ava: Meta also built a visualization, right?
+
+145
+00:13:15,642 --> 00:13:21,270
+Brian: Yes. They place global collective scheduling order on the horizontal axis.
+
+146
+00:13:21,270 --> 00:13:25,605
+Each row represents a rank and process-group combination.
+
+147
+00:13:25,605 --> 00:13:32,907
+Cells represent collectives, and colors identify combinations of collective type and call stack.
+
+148
+00:13:32,907 --> 00:13:37,592
+Selecting cells opens an icicle chart of the call stacks.
+
+149
+00:13:37,592 --> 00:13:42,382
+Ava: That sounds useful for scanning a huge distributed trace.
+
+150
+00:13:42,382 --> 00:13:43,525
+Brian: That’s the idea.
+
+151
+00:13:43,525 --> 00:13:50,170
+The visualization makes mismatched colors easy to spot and helps compare call stacks quickly.
+
+152
+00:13:50,170 --> 00:13:58,236
+Grouping by process group is especially useful for N-D parallelism and cross-process-group scheduling races.
+
+153
+00:13:58,236 --> 00:14:03,386
+Ava: But Flight Recorder alone doesn’t show what the CPU main thread was doing.
+
+154
+00:14:03,386 --> 00:14:09,121
+Brian: Correct. Effective debugging also needs distributed CPU call-stack telemetry.
+
+155
+00:14:09,121 --> 00:14:19,325
+You want to know whether the CPU was loading data, compiling, waiting at a barrier, synchronizing with the GPU, or handling an exception.
+
+156
+00:14:19,325 --> 00:14:26,080
+The article mentions open-source tools such as py-spy for collecting that information.
+
+157
+00:14:26,080 --> 00:14:28,662
+Ava: What did the case studies reveal?
+
+158
+00:14:28,662 --> 00:14:37,572
+Brian: In one recommendation-system case, metric computation used collectives, but faulty conditional logic caused some ranks to skip them.
+
+159
+00:14:37,572 --> 00:14:43,052
+Flight Recorder’s divergent collective and call stacks isolated the problem.
+
+160
+00:14:43,052 --> 00:14:46,930
+Ava: And the all_to_all case was more subtle.
+
+161
+00:14:46,930 --> 00:14:52,311
+Brian: Yes. Some GPUs were stuck in two different, consecutive all_to_all calls.
+
+162
+00:14:52,311 --> 00:14:57,619
+At first, every rank seemed to run all_to_all, so the cause was unclear.
+
+163
+00:14:57,619 --> 00:15:03,368
+The call stacks showed that different variants came from different operations.
+
+164
+00:15:03,368 --> 00:15:13,080
+Invalid input sizes let some ranks finish the first collective and move to the next while others were still stuck in the first.
+
+165
+00:15:13,080 --> 00:15:17,822
+Ava: That explains why looking only at the operation name was not enough.
+
+166
+00:15:17,822 --> 00:15:24,292
+Brian: Exactly. Sequence, call stack, and argument metadata matter together.
+
+167
+00:15:24,292 --> 00:15:26,850
+Ava: What’s next for Flight Recorder?
+
+168
+00:15:26,850 --> 00:15:39,824
+Brian: The team plans to integrate it with TorchComm, validate it with host-side optimizations such as CUDA graphs, and extend it beyond NCCL to backends including MTIA and Gloo.
+
+169
+00:15:39,824 --> 00:15:44,398
+Ava: Let’s close with the three points I should remember. First?
+
+170
+00:15:44,398 --> 00:15:47,380
+Brian: A watchdog timeout is a catch-all symptom.
+
+171
+00:15:47,380 --> 00:15:53,196
+The reporting rank and the reported collective may not be the original cause.
+
+172
+00:15:53,196 --> 00:15:54,650
+Ava: Second?
+
+173
+00:15:54,650 --> 00:16:03,489
+Brian: Most timeouts observed at Meta came from cross-rank desynchronization, especially CPU-side slowness or divergent execution.
+
+174
+00:16:03,489 --> 00:16:07,216
+Raising the timeout usually doesn’t solve that.
+
+175
+00:16:07,216 --> 00:16:08,838
+Ava: And third?
+
+176
+00:16:08,838 --> 00:16:20,300
+Brian: Flight Recorder preserves per-rank collective history, then aligns it offline so you can locate missing ranks, metadata mismatches, and the relevant call stacks.
+
+177
+00:16:20,300 --> 00:16:25,450
+Ava: That’s a much better lens than staring at one generic stack trace.
+
+178
+00:16:25,450 --> 00:16:26,085
+Brian: Exactly.
+
+179
+00:16:26,085 --> 00:16:32,439
+When the watchdog fires, the useful question is not just, “Which rank timed out?
+
+180
+00:16:32,439 --> 00:16:36,840
+” It’s, “Where did the ranks first stop agreeing? ”
+
+181
+00:16:36,840 --> 00:16:40,286
+Ava: Thanks for listening. We’ll see you next time.

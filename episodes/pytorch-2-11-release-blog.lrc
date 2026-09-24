@@ -1,0 +1,110 @@
+[ti:PyTorch 2.11: Differentiable Collectives, FlashAttention-4, and More]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: If your distributed training code needs gradients through communication, PyTorch 2.
+[00:06.09]11 could change what you can build.
+[00:08.66]And if you're on Hopper or Blackwell, attention kernels may get much faster.
+[00:14.23]Brian, what landed in this release?
+[00:17.15]Brian: A lot, actually. PyTorch 2.
+[00:19.15]11 has differentiable collectives, a FlashAttention-4 backend for FlexAttention, a much broader MPS story, GPU export for RNNs and LSTMs, and several device and inference improvements.
+[00:33.10]Ava: Let's start with the distributed training change.
+[00:36.42]The phrase “differentiable collectives” sounds important, but also a little abstract.
+[00:42.52]Brian: Sure. A collective is a communication operation used by distributed workers. In 2.
+[00:48.74]11, functional collectives can support differentiation.
+[00:52.91]That means a training workflow can backpropagate through the collective operation itself.
+[01:00.01]Ava: Wait, so communication can now sit inside the gradient path?
+[01:05.40]Brian: Exactly. That's the key idea.
+[01:07.49]Before this support, researchers might need custom autograd functions for some advanced workflows.
+[01:14.58]With differentiable collectives, those workflows may be implemented without writing those custom functions.
+[01:22.67]Ava: The article calls this a significant step for distributed deep learning research and advanced training techniques.
+[01:30.15]Does it promise a specific new algorithm?
+[01:33.19]Brian: No. It doesn't name a benchmark or one particular algorithm.
+[01:37.73]The claim is about enabling a class of training workflows.
+[01:42.12]The feature is also listed under API-UNSTABLE, so users should expect the interface to keep changing.
+[01:50.10]Ava: Got it.
+[01:50.65]So the practical message is: gradients through communication are now possible, but the API isn't frozen yet.
+[01:59.50]Brian: Right. That's a good way to put it.
+[02:02.54]Ava: Now let's talk about attention.
+[02:04.92]What does the new FlashAttention-4 backend actually do inside FlexAttention?
+[02:11.12]Brian: On Hopper and Blackwell GPUs, FlexAttention can use a FlashAttention-4 backend.
+[02:17.31]PyTorch can automatically generate CuTeDSL score and mask modification functions, then just-in-time instantiate FlashAttention-4 kernels.
+[02:28.39]Ava: Can you unpack that? What should an engineer picture?
+[02:32.51]Brian: Picture FlexAttention as the flexible front end.
+[02:36.03]You describe how scores or masks should be modified.
+[02:39.84]The backend then creates specialized kernels for that description.
+[02:44.69]Here, those kernels come from FlashAttention-4, using CuTeDSL, and they're instantiated just in time.
+[02:52.44]Ava: And the result is faster execution?
+[02:56.06]Brian: The article reports one point two to three point two times speedups over the existing Triton implementation on compute-bound workloads.
+[03:04.71]Ava: That's a wide range. So it depends heavily on the workload.
+[03:09.98]Brian: Yes. The statement is specifically for compute-bound workloads.
+[03:14.65]We shouldn't turn it into a universal speed claim.
+[03:18.35]Also, this backend is still under active development, and its setup details and limitations are described in a separate FlexAttention and FlashAttention-4 post.
+[03:30.54]Ava: So: promising numbers, specific hardware, specific workload, and a moving API.
+[03:37.80]Brian: Exactly. Hopper and Blackwell matter here, and the feature may change as it stabilizes.
+[03:45.21]Ava: Let's move to Apple Silicon. MPS has been expanding for a while. What's new in 2. 11?
+[03:53.29]Brian: MPS gets error reporting support and more operator coverage.
+[03:58.25]New distribution functions include log_normal, cauchy, and geometric.
+[04:03.95]There are also operator migrations, such as erfcx, and grid_sampler_2d now supports all operation modes.
+[04:12.55]Finally, baddbmm and addbmm are extended to integer and complex types.
+[04:18.69]Ava: The error reporting sounds especially useful. What problem does it catch?
+[04:24.35]Brian: Asynchronous error reporting can detect out-of-bounds access during GPU indexing operations.
+[04:30.98]The article gives an example where an MPS tensor is indexed with an invalid index, and torch.
+[04:37.68]mps. synchronize raises an index-out-of-bounds error.
+[04:41.86]Ava: So the failure might surface when you synchronize, rather than exactly where the indexing line runs.
+[04:48.93]Brian: Right. That's the important debugging detail.
+[04:52.22]GPU work can be asynchronous, and synchronization is where the error is reported in that example.
+[04:59.67]Ava: Next, export support.
+[05:01.61]The release says RNN modules, including LSTM and GRU, can now be exported on GPUs.
+[05:09.18]Why does that matter?
+[05:11.47]Brian: It broadens the model types that can be deployed with torch.
+[05:15.88]export for production inference.
+[05:18.23]In addition, tracing LSTM with dynamic shapes is now supported.
+[05:23.22]Ava: And the GRU API stays the same?
+[05:26.37]Brian: Yes. The article says the GRU API is unchanged, while the new API is LSTM.
+[05:32.62]So teams working with recurrent models get a larger export path without an API change for GRU.
+[05:40.91]Ava: That sounds practical for production teams. What else is happening on AMD GPUs?
+[05:47.59]Brian: ROCm gets device-side assertions, which should improve debugging.
+[05:52.49]It also gets significant TopK optimizations and radix-select improvements.
+[05:58.06]Those improvements cache data in shared memory, helping both developer experience and performance on AMD GPUs.
+[06:06.69]Ava: Let's switch vendors again. What's XPU Graph?
+[06:11.09]Brian: XPU Graph is for Intel GPUs.
+[06:13.54]It captures a sequence of XPU operations into a runtime execution graph.
+[06:19.83]You can replay that graph multiple times.
+[06:23.76]Ava: And replaying avoids repeated overhead?
+[06:27.15]Brian: Yes.
+[06:27.48]It reduces CPU overhead, including kernel-launch overhead and Python-runtime overhead.
+[06:34.56]The goal is better workload performance on Intel GPUs.
+[06:39.01]The article points users to the API documentation for usage details.
+[06:44.95]Ava: There's also FP16 GEMM on CPUs through OpenBLAS. Is that mainly for servers?
+[06:52.79]Brian: The article frames it as useful for CPU-based deployments, especially edge devices and CPU-only inference scenarios.
+[07:01.85]OpenBLAS now provides FP16 half-precision GEMM support there, which can make FP16 inference faster.
+[07:09.94]Ava: Now, a release detail that can break build environments: CUDA.
+[07:15.33]Brian: Starting with 2.
+[07:16.70]11, CUDA 13 is the default installed version for both x86_64 and ARM platforms.
+[07:23.47]Users who need another build can still use CPU-only packages or CUDA 12.
+[07:29.63]8 builds from the relevant wheel subfolders.
+[07:33.75]Ava: So upgrading may mean checking which CUDA wheel your deployment expects.
+[07:39.41]Brian: Yes, especially if your environment is pinned to CUDA 12. 8.
+[07:44.46]Ava: And TorchScript?
+[07:46.59]Brian: TorchScript was deprecated in 2. 10. The guidance is to use torch.
+[07:51.78]export instead of the jit trace and script APIs, and to use ExecuTorch instead of the embedded runtime.
+[08:00.23]Ava: So 2. 11 reinforces a migration that's already underway.
+[08:06.29]Brian: That's right.
+[08:07.22]The release blog points readers to a PTC talk for more detail, but the main direction is clear: torch.
+[08:14.50]export for export workflows, and ExecuTorch for the embedded runtime.
+[08:19.77]Ava: How large was this release effort?
+[08:23.05]Brian: The release includes 2,723 commits from 432 contributors since PyTorch 2. 10.
+[08:29.86]The project thanks the community and encourages users to try the changes and report issues.
+[08:38.26]Ava: And the release rhythm is changing too.
+[08:41.46]Brian: For 2026, PyTorch moves from quarterly releases to one release every two months.
+[08:47.44]That means users may see features arrive more often, but they'll also need to track compatibility more closely.
+[08:56.09]Ava: Before we close, give me the three points I should remember.
+[09:00.88]Brian: First, differentiable functional collectives let gradients pass through collective operations, opening advanced distributed-training workflows without custom autograd functions.
+[09:13.43]Second, FlexAttention can use FlashAttention-4 on Hopper and Blackwell, with reported one point two to three point two times speedups on compute-bound workloads, while the backend remains under active development.
+[09:28.52]Third, 2.
+[09:29.16]11 expands deployment and hardware support: MPS operators and error reporting, GPU export for RNNs and LSTMs, ROCm debugging and TopK work, Intel XPU Graph, and CPU FP16 GEMM.
+[09:41.91]Ava: And the migration notes are CUDA 13 by default, TorchScript deprecated, and releases every two months in 2026.
+[09:51.67]Brian: Exactly.
+[09:52.29]Check the current documentation before relying on the API-UNSTABLE features, and report issues as you try them.
+[10:01.21]Ava: That's PyTorch 2. 11.
+[10:02.80]Thanks for listening, and we'll be back with another paper-to-practice conversation.

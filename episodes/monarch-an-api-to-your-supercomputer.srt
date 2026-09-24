@@ -1,0 +1,515 @@
+1
+00:00:00,000 --> 00:00:06,088
+Ava: What if your laptop could control a thousand GPUs as easily as it runs a Python script?
+
+2
+00:00:06,088 --> 00:00:15,254
+That’s the promise behind Monarch, and it matters because distributed training can become painfully slow to develop and debug.
+
+3
+00:00:15,254 --> 00:00:20,357
+Brian: Exactly. Monarch is a distributed programming framework for PyTorch.
+
+4
+00:00:20,357 --> 00:00:31,588
+Its goal is to make a huge cluster feel like one coherent, directly controllable system, almost as if your laptop had thousands of GPUs attached.
+
+5
+00:00:31,588 --> 00:00:34,530
+Ava: So this is bigger than a job launcher?
+
+6
+00:00:34,530 --> 00:00:39,940
+Brian: Much bigger. A complete training system can live in one Python program.
+
+7
+00:00:39,940 --> 00:00:44,741
+Monarch exposes simple primitives for hosts, procs, and actors.
+
+8
+00:00:44,741 --> 00:00:53,168
+Then higher-level features, such as fault tolerance and orchestration, can be built as reusable libraries.
+
+9
+00:00:53,168 --> 00:01:00,646
+Ava: That sounds especially useful for distributed reinforcement learning, where many moving parts have to work together.
+
+10
+00:01:00,646 --> 00:01:03,491
+Brian: Right. The article starts with that pain.
+
+11
+00:01:03,491 --> 00:01:10,359
+Huge clusters are hard to use, and distributed reinforcement learning makes the setup more complex.
+
+12
+00:01:10,359 --> 00:01:14,799
+When you change something, the turnaround time can be very slow.
+
+13
+00:01:14,799 --> 00:01:21,324
+Debugging is frustrating because the system is spread across many processes and machines.
+
+14
+00:01:21,324 --> 00:01:24,314
+Ava: Monarch tries to make that feel local?
+
+15
+00:01:24,314 --> 00:01:29,350
+Brian: Yes. The central idea is that the distributed system should feel local.
+
+16
+00:01:29,350 --> 00:01:32,400
+Monarch is also designed for agentic usage.
+
+17
+00:01:32,400 --> 00:01:43,816
+An agent can run development tasks on a dev machine, and Monarch can turn that dev machine into a supercomputer with consistent infrastructure abstractions.
+
+18
+00:01:43,816 --> 00:01:48,582
+Ava: When you say agentic usage, what can the agent actually do?
+
+19
+00:01:48,582 --> 00:01:58,258
+Brian: It can manage and debug running code, sync dependencies and data, launch new code, and provision more hosts, procs, and actors.
+
+20
+00:01:58,258 --> 00:02:03,332
+The same model works across different deployment environments.
+
+21
+00:02:03,332 --> 00:02:05,779
+Ava: Let’s start with the file system.
+
+22
+00:02:05,779 --> 00:02:10,282
+The article mentions an RDMA-Powered Remote File System.
+
+23
+00:02:10,282 --> 00:02:14,048
+Brian: The client exposes a read-only mounted filesystem.
+
+24
+00:02:14,048 --> 00:02:21,730
+Monarch distributes those files to every host in the job through RDMA, or Remote Direct Memory Access.
+
+25
+00:02:21,730 --> 00:02:28,632
+That makes it much faster to sync code, dependencies, and containers while you iterate.
+
+26
+00:02:28,632 --> 00:02:36,230
+Ava: So instead of repeatedly copying files through a slower path, the cluster sees a shared read-only view?
+
+27
+00:02:36,230 --> 00:02:43,145
+Brian: That’s the basic idea. The RDMA filesystem is built on Monarch RDMA buffers and PyFuse.
+
+28
+00:02:43,145 --> 00:02:52,396
+The practical benefit is quick iteration: update your code or dependencies, and get them across the job quickly.
+
+29
+00:02:52,396 --> 00:02:57,882
+Ava: The second feature is Distributed SQL Telemetry. Why SQL?
+
+30
+00:02:57,882 --> 00:03:06,268
+Brian: Because SQL is a familiar way to inspect structured state, and agents already work well with SQL-based APIs.
+
+31
+00:03:06,268 --> 00:03:10,462
+Monarch includes a lightweight distributed SQL engine.
+
+32
+00:03:10,462 --> 00:03:18,344
+It collects live state information, pyspy traces, and logs from distributed processes and actors.
+
+33
+00:03:18,344 --> 00:03:24,286
+Ava: Does Monarch just collect the data, or can it query the running system directly?
+
+34
+00:03:24,286 --> 00:03:26,088
+Brian: It can query it directly.
+
+35
+00:03:26,088 --> 00:03:34,380
+The team ran a DataFusion distributed SQL query engine in situ, meaning inside the running distributed environment.
+
+36
+00:03:34,380 --> 00:03:42,300
+Each node writes live state into tables, and an agent can query those tables efficiently while debugging.
+
+37
+00:03:42,300 --> 00:03:47,282
+Ava: That sounds much easier than opening logs from dozens of machines.
+
+38
+00:03:47,282 --> 00:03:51,182
+Brian: Exactly. You can explore the state from a central point.
+
+39
+00:03:51,182 --> 00:04:01,144
+The article presents this as a way to reduce debugging time, because the information is accessible through one client-facing SQL endpoint.
+
+40
+00:04:01,144 --> 00:04:05,982
+Ava: Then there’s the Jobs API. What problem does that solve?
+
+41
+00:04:05,982 --> 00:04:11,771
+Brian: It lets you provision resources, such as hosts, once, and run many jobs on them.
+
+42
+00:04:11,771 --> 00:04:17,199
+You avoid paying the repeated allocation penalty every time a job restarts.
+
+43
+00:04:17,199 --> 00:04:25,292
+Monarch supports Kubernetes and SLURM, and other schedulers can be connected by implementing a Monarch Job.
+
+44
+00:04:25,292 --> 00:04:32,026
+Ava: So the three pieces work together: sync quickly, inspect quickly, and restart quickly.
+
+45
+00:04:32,026 --> 00:04:33,655
+Brian: That’s a good recap.
+
+46
+00:04:33,655 --> 00:04:41,309
+Monarch’s toolbox helps agents restart jobs fast, sync new code and data fast, and debug fast.
+
+47
+00:04:41,309 --> 00:04:46,464
+The system feels local even though the work is distributed.
+
+48
+00:04:46,464 --> 00:04:52,811
+Ava: The article says Monarch launched at the PyTorch conference in October twenty twenty-five.
+
+49
+00:04:52,811 --> 00:04:54,854
+What changed since then?
+
+50
+00:04:54,854 --> 00:04:57,717
+Brian: Kubernetes support became first-class.
+
+51
+00:04:57,717 --> 00:05:03,218
+There’s now a dedicated open-source repository called monarch-kubernetes.
+
+52
+00:05:03,218 --> 00:05:11,932
+It includes a MonarchMesh Custom Resource Definition, a reference KubeBuilder operator, and a hello-world demo.
+
+53
+00:05:11,932 --> 00:05:15,498
+Ava: What does just-in-time pod provisioning mean here?
+
+54
+00:05:15,498 --> 00:05:20,787
+Brian: Pods are allocated when they’re needed instead of being reserved upfront.
+
+55
+00:05:20,787 --> 00:05:23,467
+That can improve cluster utilization.
+
+56
+00:05:23,467 --> 00:05:31,727
+Monarch also added an external gateway, so out-of-cluster clients can connect to meshes running inside Kubernetes.
+
+57
+00:05:31,727 --> 00:05:35,192
+That feature is landing in zero point five.
+
+58
+00:05:35,192 --> 00:05:38,758
+Ava: And there are versioned and nightly Docker containers?
+
+59
+00:05:38,758 --> 00:05:39,062
+Brian: Yes.
+
+60
+00:05:39,062 --> 00:05:46,201
+They’re published to GHCR, the GitHub Container Registry, to support reproducible deployments.
+
+61
+00:05:46,201 --> 00:05:51,108
+MonarchMesh labels can also enable scheduling through Kueue.
+
+62
+00:05:51,108 --> 00:05:56,570
+Ava: Let’s move to networking. RDMA appears everywhere in this project.
+
+63
+00:05:56,570 --> 00:06:01,318
+Brian: Monarch added several RDMA backends and a higher-level API.
+
+64
+00:06:01,318 --> 00:06:07,515
+AWS EFA, or Elastic Fabric Adapter, is now supported by Monarch’s RDMABuffer.
+
+65
+00:06:07,515 --> 00:06:21,304
+The article says it was validated at sixteen gigabits per second, ten times faster than TCP, with fourteen point five gigabytes transferred in seven point six seconds.
+
+66
+00:06:21,304 --> 00:06:26,886
+Ava: That’s a concrete result. Is the API tied to AWS hardware?
+
+67
+00:06:26,886 --> 00:06:32,370
+Brian: No. The Unified RDMA API is designed to be hardware-portable.
+
+68
+00:06:32,370 --> 00:06:37,404
+It works across InfiniBand with mlx5, AWS EFA, and ROCm.
+
+69
+00:06:37,404 --> 00:06:48,092
+You can write once and run on different fabrics, or fall back to Monarch actor messaging when RDMA isn’t available.
+
+70
+00:06:48,092 --> 00:06:52,354
+Ava: ROCm brings AMD GPUs into the picture.
+
+71
+00:06:52,354 --> 00:06:52,937
+Brian: Right.
+
+72
+00:06:52,937 --> 00:07:03,520
+GPU-direct RDMA and RCCL collective communication now work on AMD GPUs through ROCm with Mellanox interfaces.
+
+73
+00:07:03,520 --> 00:07:13,968
+AMD also validated Monarch on ROCm for MI300, MI325, and MI355 clusters, with SLURM-based orchestration.
+
+74
+00:07:13,968 --> 00:07:18,014
+Ava: That’s useful for teams that don’t run NVIDIA hardware.
+
+75
+00:07:18,014 --> 00:07:27,433
+Brian: Yes, and the article points out that AMD clusters with Mellanox network interfaces can use RDMA for fast GPU-to-GPU communication.
+
+76
+00:07:27,433 --> 00:07:33,724
+That combination is available from major cloud providers such as Azure and Oracle.
+
+77
+00:07:33,724 --> 00:07:35,492
+Ava: What about observability?
+
+78
+00:07:35,492 --> 00:07:40,794
+The article seems to treat it as a major feature, not an afterthought.
+
+79
+00:07:40,794 --> 00:07:41,754
+Brian: That’s fair.
+
+80
+00:07:41,754 --> 00:07:52,789
+Monarch has a client-accessible Distributed SQL Telemetry endpoint, an Admin API, and a Terminal UI for inspecting and managing live jobs.
+
+81
+00:07:52,789 --> 00:07:59,696
+It also supports OpenTelemetry for metrics, logs, and visualization on Kubernetes.
+
+82
+00:07:59,696 --> 00:08:02,902
+Ava: Can it fit into existing DevOps tools?
+
+83
+00:08:02,902 --> 00:08:03,181
+Brian: Yes.
+
+84
+00:08:03,181 --> 00:08:10,927
+The OpenTelemetry integration can connect with Prometheus, Loki, Grafana, and other common open-source tooling.
+
+85
+00:08:10,927 --> 00:08:19,860
+There’s also a per-job open-source dashboard in beta for visualizing and debugging distributed jobs without external tools.
+
+86
+00:08:19,860 --> 00:08:23,018
+Ava: The installation story changed too, right?
+
+87
+00:08:23,018 --> 00:08:23,471
+Brian: A lot.
+
+88
+00:08:23,471 --> 00:08:29,969
+The pip wheel became one hundred times smaller, and startup became eight times faster.
+
+89
+00:08:29,969 --> 00:08:33,823
+The project removed libpython linking requirements.
+
+90
+00:08:33,823 --> 00:08:43,240
+As of version zero point two, torchmonarch no longer pulls in torch as a pip dependency, which avoids version conflicts.
+
+91
+00:08:43,240 --> 00:08:45,942
+Ava: And uv support is built in?
+
+92
+00:08:45,942 --> 00:08:51,735
+Brian: Yes. Monarch works out of the box with uv, the fast Python package manager.
+
+93
+00:08:51,735 --> 00:08:59,846
+The example flow is simple: clone the repository, change into the directory, and run the example with uv.
+
+94
+00:08:59,846 --> 00:09:08,420
+Packaging was consolidated under one torchmonarch name, with PEP four forty pre-release versions for nightlies.
+
+95
+00:09:08,420 --> 00:09:13,868
+ARM sixty-four Linux builds were added in version zero point four.
+
+96
+00:09:13,868 --> 00:09:17,818
+Ava: That sounds much friendlier for interactive work too.
+
+97
+00:09:17,818 --> 00:09:22,131
+Brian: The article mentions improved interactive SPMD support.
+
+98
+00:09:22,131 --> 00:09:25,346
+SPMD means Single Program, Multiple Data.
+
+99
+00:09:25,346 --> 00:09:31,383
+The goal is to make notebook-style development more practical for these jobs.
+
+100
+00:09:31,383 --> 00:09:37,536
+The RDMA File System also helps with convenient file syncing across hosts.
+
+101
+00:09:37,536 --> 00:09:42,686
+Ava: The collaborations section is interesting. What did SkyPilot add?
+
+102
+00:09:42,686 --> 00:09:53,451
+Brian: The SkyPilot integration lets users run Monarch workloads on any Kubernetes cluster or cloud with one command, without changing their Monarch code.
+
+103
+00:09:53,451 --> 00:10:01,564
+SkyPilot handles node provisioning, networking, and gang scheduling, so teams can focus on training logic.
+
+104
+00:10:01,564 --> 00:10:05,634
+Ava: And it connects through Monarch’s JobTraits API?
+
+105
+00:10:05,634 --> 00:10:05,956
+Brian: Yes.
+
+106
+00:10:05,956 --> 00:10:15,248
+That API lets SkyPilot plug in as the job backend, without requiring separate operators on Kubernetes clusters.
+
+107
+00:10:15,248 --> 00:10:19,870
+Ava: What about VeRL? That seems closer to distributed RL.
+
+108
+00:10:19,870 --> 00:10:24,874
+Brian: VeRL is an open-source framework for distributed RLHF post-training.
+
+109
+00:10:24,874 --> 00:10:30,468
+The teams built a Monarch backend for VeRL’s single-controller architecture.
+
+110
+00:10:30,468 --> 00:10:44,580
+It includes resource pool abstractions based on the Monarch Jobs API, colocated multi-role workers, an RDMA transport for VeRL’s DataProto exchange pattern, and a vLLM server integration.
+
+111
+00:10:44,580 --> 00:10:47,138
+Ava: Did the training results match?
+
+112
+00:10:47,138 --> 00:10:55,538
+Brian: The article says VeRL’s PPO and GRPO training loops ran on Monarch through this backend, using hybrid-engine training mode.
+
+113
+00:10:55,538 --> 00:11:00,736
+The results were numerically identical, with no performance regression.
+
+114
+00:11:00,736 --> 00:11:04,662
+Ava: That sounds almost effortless. Was it?
+
+115
+00:11:04,662 --> 00:11:05,339
+Brian: Not quite.
+
+116
+00:11:05,339 --> 00:11:15,287
+One important finding was that VeRL’s single-controller interface is cleanly abstracted, but Ray API usage appears throughout the broader codebase.
+
+117
+00:11:15,287 --> 00:11:20,565
+So replacing the backend was more involved than the interface alone suggested.
+
+118
+00:11:20,565 --> 00:11:28,292
+The article says this is common in frameworks built on Ray, and the communities can keep collaborating on it.
+
+119
+00:11:28,292 --> 00:11:36,682
+Ava: So Monarch improves the infrastructure layer, but existing framework assumptions can still make migration complicated.
+
+120
+00:11:36,682 --> 00:11:41,030
+Brian: Exactly. That’s one of the limitations the article reveals.
+
+121
+00:11:41,030 --> 00:11:51,624
+Monarch provides a coherent system and strong tools, but integrating it into a mature stack may require work beyond swapping one interface.
+
+122
+00:11:51,624 --> 00:11:56,438
+Ava: Let’s close with the main takeaways. Give me the three-point version.
+
+123
+00:11:56,438 --> 00:12:07,162
+Brian: First, Monarch turns a supercomputer into a programmable Python system, so distributed development feels more like local development.
+
+124
+00:12:07,162 --> 00:12:16,031
+Second, RDMA file syncing, Distributed SQL Telemetry, the Jobs API, and the admin tools reduce iteration time.
+
+125
+00:12:16,031 --> 00:12:28,636
+Third, since its launch, Monarch has expanded Kubernetes, networking, observability, installation, AMD support, and integrations with SkyPilot and VeRL.
+
+126
+00:12:28,636 --> 00:12:34,362
+Ava: And the bigger direction is speed and simplicity for both people and agents.
+
+127
+00:12:34,362 --> 00:12:38,897
+Brian: Right. Monarch is presented as an API for your supercomputer.
+
+128
+00:12:38,897 --> 00:12:46,160
+If you work on large-scale PyTorch training, it’s worth watching how this ecosystem develops.
+
+129
+00:12:46,160 --> 00:12:51,118
+Ava: That’s our episode. Thanks for listening, and we’ll talk to you next time.

@@ -1,0 +1,467 @@
+1
+00:00:00,000 --> 00:00:05,691
+Ava: If you use PyTorch’s compiler, your model can run up to ten times faster.
+
+2
+00:00:05,691 --> 00:00:10,406
+That sounds huge. But what is actually making it faster?
+
+3
+00:00:10,406 --> 00:00:12,829
+Brian: The short answer is kernel fusion.
+
+4
+00:00:12,829 --> 00:00:22,228
+PyTorch’s compiler takes several operations that would normally run separately and combines them into one efficient GPU kernel.
+
+5
+00:00:22,228 --> 00:00:25,068
+Ava: Okay, so let’s start before fusion.
+
+6
+00:00:25,068 --> 00:00:30,450
+What happens when we run ordinary PyTorch operations on a GPU?
+
+7
+00:00:30,450 --> 00:00:38,671
+Brian: Without compilation, the GPU runs a kernel, which is a function on the GPU, for each torch operation in your code.
+
+8
+00:00:38,671 --> 00:00:41,051
+Every kernel launch has overhead.
+
+9
+00:00:41,051 --> 00:00:46,088
+And every intermediate result usually has to move through memory.
+
+10
+00:00:46,088 --> 00:00:50,614
+Ava: So there are two costs: starting kernels and moving data?
+
+11
+00:00:50,614 --> 00:00:51,229
+Brian: Exactly.
+
+12
+00:00:51,229 --> 00:01:00,294
+The GPU launches one kernel, writes an intermediate tensor to memory, then launches another kernel that reads it back.
+
+13
+00:01:00,294 --> 00:01:05,868
+Repeat that several times, and the memory traffic becomes expensive.
+
+14
+00:01:05,868 --> 00:01:08,498
+Ava: Where does Inductor fit into this?
+
+15
+00:01:08,498 --> 00:01:15,773
+Brian: PyTorch’s Inductor compiler automatically groups dependent operations into single Triton kernels.
+
+16
+00:01:15,773 --> 00:01:20,273
+Triton is the language used for these generated GPU kernels.
+
+17
+00:01:20,273 --> 00:01:28,048
+The goal is to keep data in fast memory, close to the registers, and reduce kernel-launch overhead.
+
+18
+00:01:28,048 --> 00:01:33,342
+Ava: You said dependent operations. Is that what vertical fusion means?
+
+19
+00:01:33,342 --> 00:01:36,786
+Brian: Yes. Think of vertical fusion as linking steps.
+
+20
+00:01:36,786 --> 00:01:40,889
+The output of one operation goes straight into the next.
+
+21
+00:01:40,889 --> 00:01:48,860
+On a computation graph, the operations stack vertically because each one depends on the result above it.
+
+22
+00:01:48,860 --> 00:01:52,498
+Ava: Why is that pattern so common in deep learning?
+
+23
+00:01:52,498 --> 00:01:55,472
+Brian: Because neural networks are often chains.
+
+24
+00:01:55,472 --> 00:02:02,435
+You might normalize data, pass it through a linear layer, and then apply an activation function.
+
+25
+00:02:02,435 --> 00:02:05,976
+Vertical fusion joins those dependent steps.
+
+26
+00:02:05,976 --> 00:02:10,238
+Ava: And the main benefit is avoiding intermediate tensors?
+
+27
+00:02:10,238 --> 00:02:10,644
+Brian: Right.
+
+28
+00:02:10,644 --> 00:02:16,459
+Those temporary tensors don't need to be written to global memory and read back later.
+
+29
+00:02:16,459 --> 00:02:22,084
+They can stay in registers, which are the fastest memory available to the GPU.
+
+30
+00:02:22,084 --> 00:02:26,994
+Ava: Let's make that concrete. What example does the article use?
+
+31
+00:02:26,994 --> 00:02:29,189
+Brian: A pointwise fusion example.
+
+32
+00:02:29,189 --> 00:02:34,797
+Pointwise operations apply simple math independently to each element.
+
+33
+00:02:34,797 --> 00:02:41,000
+Addition, multiplication, and activation functions are typical examples.
+
+34
+00:02:41,000 --> 00:02:43,582
+Ava: What's the unfused version?
+
+35
+00:02:43,582 --> 00:02:51,043
+Brian: Imagine three operations in sequence. First, multiply an input by another tensor.
+
+36
+00:02:51,043 --> 00:02:54,819
+Second, add a bias. Third, apply sigmoid.
+
+37
+00:02:54,819 --> 00:03:00,972
+Without fusion, Inductor creates three separate Triton kernels.
+
+38
+00:03:00,972 --> 00:03:06,986
+Ava: So kernel one multiplies, kernel two adds, and kernel three applies sigmoid?
+
+39
+00:03:06,986 --> 00:03:14,414
+Brian: Exactly. Each kernel loads its inputs, performs one operation, and writes its result.
+
+40
+00:03:14,414 --> 00:03:20,008
+The syntax may look intimidating, but the pattern is simple.
+
+41
+00:03:20,008 --> 00:03:23,358
+Ava: How much memory traffic does that create?
+
+42
+00:03:23,358 --> 00:03:27,273
+Brian: Across the three kernels, there are eight memory operations.
+
+43
+00:03:27,273 --> 00:03:38,324
+You read the inputs for multiplication, read the multiplication result and the bias for addition, read the addition result for sigmoid, and write all three results.
+
+44
+00:03:38,324 --> 00:03:44,770
+Ava: Wait, all three results get written, even though only the final result matters?
+
+45
+00:03:44,770 --> 00:03:46,770
+Brian: In the unfused sequence, yes.
+
+46
+00:03:46,770 --> 00:03:53,880
+The intermediate multiply result and add result have to be stored so the next kernel can use them.
+
+47
+00:03:53,880 --> 00:03:56,294
+Ava: That sounds wasteful.
+
+48
+00:03:56,294 --> 00:03:58,389
+Brian: It is a lot of memory traffic.
+
+49
+00:03:58,389 --> 00:04:03,556
+And there are also three kernel launches, each with its own overhead.
+
+50
+00:04:03,556 --> 00:04:06,498
+Ava: Now show me the fused version.
+
+51
+00:04:06,498 --> 00:04:10,648
+Brian: With fusion, torch. compile creates one kernel.
+
+52
+00:04:10,648 --> 00:04:20,624
+It loads all the inputs once, performs multiply, add, and sigmoid in a row, and stores only the final result.
+
+53
+00:04:20,624 --> 00:04:24,118
+Ava: What happens to the two intermediate values?
+
+54
+00:04:24,118 --> 00:04:26,000
+Brian: They stay in registers.
+
+55
+00:04:26,000 --> 00:04:33,876
+The temporary values, called tmp2 and tmp4 in the example, never touch slower global memory.
+
+56
+00:04:33,876 --> 00:04:38,570
+Ava: So the GPU keeps the values close while it finishes the chain.
+
+57
+00:04:38,570 --> 00:04:39,153
+Brian: Exactly.
+
+58
+00:04:39,153 --> 00:04:46,294
+It is like doing three calculations on a whiteboard before putting anything into a filing cabinet.
+
+59
+00:04:46,294 --> 00:04:51,016
+You avoid repeatedly storing and retrieving temporary notes.
+
+60
+00:04:51,016 --> 00:04:54,486
+Ava: What are the exact improvements in this example?
+
+61
+00:04:54,486 --> 00:04:57,449
+Brian: Kernel launches drop from three to one.
+
+62
+00:04:57,449 --> 00:05:03,147
+Two intermediate buffers disappear: the multiply result and the add result.
+
+63
+00:05:03,147 --> 00:05:07,676
+And memory traffic drops from eight operations to four.
+
+64
+00:05:07,676 --> 00:05:10,834
+Ava: Four? Walk me through that number.
+
+65
+00:05:10,834 --> 00:05:15,549
+Brian: The fused kernel reads three full tensors and writes one full tensor.
+
+66
+00:05:15,549 --> 00:05:24,090
+That's four memory operations in total, compared with reading five full tensors and writing three full tensors before fusion.
+
+67
+00:05:24,090 --> 00:05:29,496
+The article describes that as a fifty percent reduction in memory traffic.
+
+68
+00:05:29,496 --> 00:05:35,558
+Ava: That explains the speedup much better than simply saying the compiler optimizes things.
+
+69
+00:05:35,558 --> 00:05:39,401
+Brian: Yes. The compiler is reducing work around the math.
+
+70
+00:05:39,401 --> 00:05:46,156
+The arithmetic is still there, but the data movement and launch overhead are smaller.
+
+71
+00:05:46,156 --> 00:05:50,658
+Ava: Is pointwise fusion the only kind of vertical fusion?
+
+72
+00:05:50,658 --> 00:05:55,682
+Brian: No. It is one example. Inductor also has reduction fusion.
+
+73
+00:05:55,682 --> 00:06:04,520
+That combines reducing operations such as max, mean, or sum with operations before and after them.
+
+74
+00:06:04,520 --> 00:06:07,702
+Ava: Why is reduction fusion important?
+
+75
+00:06:07,702 --> 00:06:11,351
+Brian: It matters for patterns such as batch normalization.
+
+76
+00:06:11,351 --> 00:06:19,068
+The reduction and nearby operations can be kept together instead of repeatedly writing intermediate data.
+
+77
+00:06:19,068 --> 00:06:25,250
+Ava: The article also mentions GEMM plus epilogue fusion. What does that mean?
+
+78
+00:06:25,250 --> 00:06:27,635
+Brian: GEMM is a heavy matrix calculation.
+
+79
+00:06:27,635 --> 00:06:33,428
+In GEMM plus epilogue fusion, simple math is attached to the end of that calculation.
+
+80
+00:06:33,428 --> 00:06:45,976
+Instead of doing a matrix multiply, writing the result, reading it again to add bias, and then applying ReLU, those final steps happen right after the multiply in the same kernel.
+
+81
+00:06:45,976 --> 00:06:49,254
+Ava: So epilogue means the work at the end.
+
+82
+00:06:49,254 --> 00:06:55,431
+Brian: Right. Prologue fusion is the opposite idea. Preprocessing happens as data loads.
+
+83
+00:06:55,431 --> 00:07:03,788
+For example, input normalization can happen on the fly as the data comes in before matrix multiplication.
+
+84
+00:07:03,788 --> 00:07:09,082
+Ava: And horizontal fusion is different because the operations are independent?
+
+85
+00:07:09,082 --> 00:07:09,727
+Brian: Exactly.
+
+86
+00:07:09,727 --> 00:07:16,261
+Horizontal fusion runs multiple independent operations on the same input at once.
+
+87
+00:07:16,261 --> 00:07:25,080
+The article's example computes sin of x and cos of x in one kernel, so x is loaded once instead of twice.
+
+88
+00:07:25,080 --> 00:07:30,422
+Ava: Vertical fusion follows a chain. Horizontal fusion shares an input.
+
+89
+00:07:30,422 --> 00:07:36,072
+Brian: That's a good way to remember it. Vertical means dependent steps are linked.
+
+90
+00:07:36,072 --> 00:07:40,660
+Horizontal means independent work is placed side by side.
+
+91
+00:07:40,660 --> 00:07:43,962
+Ava: Can engineers see fusion in their own code?
+
+92
+00:07:43,962 --> 00:07:49,076
+Brian: Yes. The article suggests starting with a complete reduction example.
+
+93
+00:07:49,076 --> 00:07:57,728
+You create a small Python file, run it with the TORCH_LOGS environment variable, and inspect the generated code.
+
+94
+00:07:57,728 --> 00:08:00,358
+Ava: What should we look for in that output?
+
+95
+00:08:00,358 --> 00:08:08,285
+Brian: You may see a generated Triton kernel with a name like triton_per_fused_add_mul_sum_0.
+
+96
+00:08:08,285 --> 00:08:18,036
+The per prefix means per-reduction, and the name tells you that add, mul, and sum were fused together.
+
+97
+00:08:18,036 --> 00:08:22,082
+Ava: That sounds useful for checking what the compiler really did.
+
+98
+00:08:22,082 --> 00:08:24,660
+Brian: Exactly. You don't have to guess.
+
+99
+00:08:24,660 --> 00:08:29,776
+The generated kernels show which operations Inductor grouped.
+
+100
+00:08:29,776 --> 00:08:33,126
+Ava: Are there limitations discussed in the article?
+
+101
+00:08:33,126 --> 00:08:35,938
+Brian: The article keeps the discussion focused.
+
+102
+00:08:35,938 --> 00:08:41,152
+It explains that fusion is one of the most important optimizations in torch.
+
+103
+00:08:41,152 --> 00:08:48,080
+compile, especially because memory traffic and kernel overhead are often major slowdowns in GPU work.
+
+104
+00:08:48,080 --> 00:08:52,340
+It doesn't claim every pattern will fuse in the same way.
+
+105
+00:08:52,340 --> 00:09:01,690
+Ava: So we should view fusion as a compiler optimization to inspect, rather than a promise that every operation becomes one kernel.
+
+106
+00:09:01,690 --> 00:09:04,434
+Brian: Yes. The practical advice is to try torch.
+
+107
+00:09:04,434 --> 00:09:09,726
+compile on your own code and inspect what it generates when you need more detail.
+
+108
+00:09:09,726 --> 00:09:17,328
+You don't have to rewrite your implementation; you add the compiler decorator and let the compiler do the work.
+
+109
+00:09:17,328 --> 00:09:20,990
+Ava: Before we finish, give us the three-point recap.
+
+110
+00:09:20,990 --> 00:09:28,539
+Brian: First, without fusion, every torch operation can mean another kernel launch and more global-memory traffic.
+
+111
+00:09:28,539 --> 00:09:38,981
+Second, vertical fusion keeps dependent intermediate values in registers, while horizontal fusion combines independent operations that share inputs.
+
+112
+00:09:38,981 --> 00:09:50,620
+Third, in the pointwise example, fusion changes three kernels into one, removes two intermediate buffers, and cuts memory traffic from eight operations to four.
+
+113
+00:09:50,620 --> 00:09:53,994
+Ava: And the takeaway for a PyTorch engineer?
+
+114
+00:09:53,994 --> 00:10:00,304
+Brian: When your model runs faster under torch. compile, kernel fusion is a major reason.
+
+115
+00:10:00,304 --> 00:10:08,504
+Try it, use TORCH_LOGS to inspect the generated Triton kernels, and learn which operations were fused.
+
+116
+00:10:08,504 --> 00:10:11,854
+Ava: That's all for today. Thanks for listening.
+
+117
+00:10:11,854 --> 00:10:15,900
+Brian: See you next time, and keep your tensors moving less.

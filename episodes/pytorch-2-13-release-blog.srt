@@ -1,0 +1,491 @@
+1
+00:00:00,000 --> 00:00:08,518
+Ava: If you're training large language models or running PyTorch on Apple Silicon, this release could change your daily work.
+
+2
+00:00:08,518 --> 00:00:09,228
+PyTorch 2.
+
+3
+00:00:09,228 --> 00:00:15,398
+13 is out, and it targets speed, memory, and cluster reliability at the same time.
+
+4
+00:00:15,398 --> 00:00:15,785
+Brian: Right.
+
+5
+00:00:15,785 --> 00:00:26,836
+The headline is that PyTorch keeps moving from a research-first framework toward a unified, hardware-agnostic platform for production training and inference at scale.
+
+6
+00:00:26,836 --> 00:00:33,354
+Ava: So let's start with the biggest practical wins. What would an engineer notice first?
+
+7
+00:00:33,354 --> 00:00:35,324
+Brian: There are four big areas.
+
+8
+00:00:35,324 --> 00:00:41,549
+FlexAttention expands to Apple Silicon and gets deterministic backward on CUDA.
+
+9
+00:00:41,549 --> 00:00:46,041
+CuTeDSL gives Inductor another high-performance GPU path.
+
+10
+00:00:46,041 --> 00:00:51,479
+A fused linear-plus-loss operation cuts memory for huge vocabularies.
+
+11
+00:00:51,479 --> 00:00:58,448
+And distributed training gets torchcomms plus better communication overlap in FSDP2.
+
+12
+00:00:58,448 --> 00:01:00,894
+Ava: Let's unpack FlexAttention first.
+
+13
+00:01:00,894 --> 00:01:07,174
+People often hear “custom attention” and think they need to write a CUDA kernel.
+
+14
+00:01:07,174 --> 00:01:10,940
+Brian: That is exactly what PyTorch is trying to avoid.
+
+15
+00:01:10,940 --> 00:01:18,628
+FlexAttention is a unified API where you describe an attention pattern as a plain Python function.
+
+16
+00:01:18,628 --> 00:01:23,493
+The compiler turns that description into a fused kernel. In 2.
+
+17
+00:01:23,493 --> 00:01:28,236
+13, it works on Metal, also called MPS, Apple's backend.
+
+18
+00:01:28,236 --> 00:01:33,674
+Ava: So a Mac user can express sparse attention without hand-writing Metal code?
+
+19
+00:01:33,674 --> 00:01:33,943
+Brian: Yes.
+
+20
+00:01:33,943 --> 00:01:44,711
+The MPS implementation includes hand-written Metal kernels for sparse prefill and decode paths, including grouped-query attention, or GQA, and captured buffers.
+
+21
+00:01:44,711 --> 00:01:53,272
+The article describes the user experience as writing a two-line Python function while the compiler builds the fast kernel.
+
+22
+00:01:53,272 --> 00:01:56,046
+Ava: What kind of speed are we talking about?
+
+23
+00:01:56,046 --> 00:01:59,234
+Brian: For sparse masks, the numbers are substantial.
+
+24
+00:01:59,234 --> 00:02:15,242
+On a one-by-eight-by-thirty-two-thousand-seven-hundred-sixty-eight-by-sixty-four shape, with a two-hundred-fifty-six-element sliding window and zero point eight percent density, FlexAttention runs in about thirty-five milliseconds.
+
+25
+00:02:15,242 --> 00:02:21,133
+SDPA, scaled dot-product attention, takes about four hundred thirty-one milliseconds.
+
+26
+00:02:21,133 --> 00:02:24,740
+That's roughly twelve point three times faster.
+
+27
+00:02:24,740 --> 00:02:27,130
+Ava: And a shorter sequence?
+
+28
+00:02:27,130 --> 00:02:35,699
+Brian: An eight-thousand-one-hundred-ninety-two length with a sixty-four-window case reaches about four point one five times faster.
+
+29
+00:02:35,699 --> 00:02:41,328
+But dense patterns still favor SDPA, so the gain depends heavily on sparsity.
+
+30
+00:02:41,328 --> 00:02:45,998
+Ava: That's a useful limitation. What changed on CUDA?
+
+31
+00:02:45,998 --> 00:02:51,518
+Brian: The existing FlexAttention flash backend now has a deterministic backward path.
+
+32
+00:02:51,518 --> 00:03:00,532
+By default, it used atomic operations to accumulate dQ, which could make repeated runs produce slightly different gradients.
+
+33
+00:03:00,532 --> 00:03:04,890
+Ava: That sounds painful for debugging and regression tests.
+
+34
+00:03:04,890 --> 00:03:05,445
+Brian: Exactly.
+
+35
+00:03:05,445 --> 00:03:11,482
+The new compute_dq_write_order path precomputes a write order instead of using atomics.
+
+36
+00:03:11,482 --> 00:03:17,380
+It gives bit-for-bit reproducible gradients without a meaningful performance penalty.
+
+37
+00:03:17,380 --> 00:03:32,024
+The measured end-to-end overhead on create_block_mask is well under one percent at longer sequence lengths, with zero point two percent at a sequence length of thirty-two-thousand-seven-hundred-sixty-eight.
+
+38
+00:03:32,024 --> 00:03:34,294
+Ava: How do users enable it?
+
+39
+00:03:34,294 --> 00:03:40,553
+Brian: They opt in with the existing torch. use_deterministic_algorithms setting.
+
+40
+00:03:40,553 --> 00:03:46,908
+No extra code changes are required. The API is marked unstable, though.
+
+41
+00:03:46,908 --> 00:03:52,946
+Ava: Before we leave Apple Silicon, there is also a larger native Metal migration.
+
+42
+00:03:52,946 --> 00:03:53,244
+Brian: Yes.
+
+43
+00:03:53,244 --> 00:04:01,747
+Many operations previously went through MPSGraph, which adds compilation and scheduling overhead on each dispatch.
+
+44
+00:04:01,747 --> 00:04:07,168
+PyTorch now moves a broad set to hand-written Metal compute kernels.
+
+45
+00:04:07,168 --> 00:04:09,198
+Ava: Which operations?
+
+46
+00:04:09,198 --> 00:04:20,659
+Brian: Copy and cast, random-number generation, comparisons, reductions like sum and mean, cumulative operations, sorting, embedding backward, and scatter or gather with bounds checking.
+
+47
+00:04:20,659 --> 00:04:29,588
+Direct control over thread dispatch and memory access should reduce kernel launch latency for common training and inference workloads.
+
+48
+00:04:29,588 --> 00:04:37,354
+Ava: Now let's talk about memory, because large-vocabulary models can burn through it before the real computation begins.
+
+49
+00:04:37,354 --> 00:04:40,968
+Brian: The new nn. LinearCrossEntropyLoss addresses that.
+
+50
+00:04:40,968 --> 00:04:48,268
+In the standard path, the final linear projection creates the full logits matrix over the vocabulary.
+
+51
+00:04:48,268 --> 00:04:56,496
+With vocabularies above one hundred thousand tokens, that matrix can consume tens of gigabytes of GPU memory.
+
+52
+00:04:56,496 --> 00:05:01,430
+Ava: And the fused operation avoids materializing that matrix?
+
+53
+00:05:01,430 --> 00:05:01,842
+Brian: Right.
+
+54
+00:05:01,842 --> 00:05:09,872
+It combines the final linear projection and cross-entropy computation, processing the vocabulary dimension in chunks.
+
+55
+00:05:09,872 --> 00:05:19,420
+Peak memory drops by up to about four times for large-vocabulary workloads, while keeping numerical equivalence with the unfused path.
+
+56
+00:05:19,420 --> 00:05:23,034
+Ava: Does it support the features people already use?
+
+57
+00:05:23,034 --> 00:05:29,810
+Brian: It supports label smoothing, weight tying, and z-loss regularization out of the box.
+
+58
+00:05:29,810 --> 00:05:36,262
+It also works with torch. compile. Since it replaces separate nn. Linear and nn.
+
+59
+00:05:36,262 --> 00:05:41,936
+CrossEntropyLoss modules, adoption requires no other code changes.
+
+60
+00:05:41,936 --> 00:05:46,918
+Ava: That sounds unusually convenient for a low-level optimization.
+
+61
+00:05:46,918 --> 00:05:52,274
+Brian: Yes, although the API is still unstable. PyTorch 2. 13 also makes torch.
+
+62
+00:05:52,274 --> 00:05:55,175
+load detect safetensors files natively.
+
+63
+00:05:55,175 --> 00:06:03,059
+Safetensors is popular because it supports memory-mapped loading and avoids arbitrary code execution risk.
+
+64
+00:06:03,059 --> 00:06:08,244
+You no longer need a separate library just to load those weights.
+
+65
+00:06:08,244 --> 00:06:13,754
+Ava: Let's move to distributed training. What problem is torchcomms solving?
+
+66
+00:06:13,754 --> 00:06:22,848
+Brian: PyTorch Distributed historically relied on c10d's ProcessGroup abstraction for collectives such as all-reduce and all-gather.
+
+67
+00:06:22,848 --> 00:06:25,394
+It was designed mainly around NCCL.
+
+68
+00:06:25,394 --> 00:06:35,056
+As training uses more dimensions, elastic scaling, and mixed interconnects, error handling and observability become bottlenecks.
+
+69
+00:06:35,056 --> 00:06:37,998
+Ava: So torchcomms is a new backend?
+
+70
+00:06:37,998 --> 00:06:43,309
+Brian: Yes. It is integrated into PyTorch Distributed's CI and device-mesh paths.
+
+71
+00:06:43,309 --> 00:06:56,803
+It aims to improve fault tolerance through graceful timeouts and partial-group recovery, scalability across large clusters, and debugging through structured logging and collective tracing.
+
+72
+00:06:56,803 --> 00:07:01,388
+It keeps API compatibility with the existing c10d backends.
+
+73
+00:07:01,388 --> 00:07:05,890
+Ava: And FSDP2 gets communication overlap?
+
+74
+00:07:05,890 --> 00:07:09,232
+Brian: FSDP means Fully Sharded Data Parallel.
+
+75
+00:07:09,232 --> 00:07:15,229
+By default, all-gather and reduce-scatter share one NCCL communicator.
+
+76
+00:07:15,229 --> 00:07:23,376
+NCCL serializes operations on the same communicator, so the two collectives cannot overlap.
+
+77
+00:07:23,376 --> 00:07:26,126
+Ava: Which leaves bandwidth unused.
+
+78
+00:07:26,126 --> 00:07:27,742
+Brian: Exactly. FSDPModule.
+
+79
+00:07:27,742 --> 00:07:34,691
+set_separate_reduce_scatter_group enables a dedicated communicator for reduce-scatter.
+
+80
+00:07:34,691 --> 00:07:39,619
+Then all-gather and reduce-scatter can progress concurrently.
+
+81
+00:07:39,619 --> 00:07:48,184
+That creates AG/RS overlap and improves throughput for fully sharded workloads without model-code changes.
+
+82
+00:07:48,184 --> 00:07:51,604
+It is opt-in, and the API is unstable.
+
+83
+00:07:51,604 --> 00:07:56,370
+Ava: What does PyTorch 2. 13 add on the compiler side?
+
+84
+00:07:56,370 --> 00:07:59,896
+Brian: There is torch. compiler. set_default_backend.
+
+85
+00:07:59,896 --> 00:08:06,641
+Before this, a custom or out-of-tree backend had to be passed explicitly to every torch.
+
+86
+00:08:06,641 --> 00:08:07,638
+compile call.
+
+87
+00:08:07,638 --> 00:08:16,496
+Now infrastructure teams can set a process-wide default, while an explicit backend argument still overrides it.
+
+88
+00:08:16,496 --> 00:08:23,038
+Ava: And on NVIDIA GPUs, CuTeDSL is the other major compiler story.
+
+89
+00:08:23,038 --> 00:08:31,764
+Brian: CuTeDSL is a Python-native domain-specific language built on NVIDIA's CuTe, or CUDA Templates, library.
+
+90
+00:08:31,764 --> 00:08:37,779
+It gives direct control over tensor layouts, tiling, and memory access.
+
+91
+00:08:37,779 --> 00:08:46,092
+Inductor can use it alongside Triton for matrix multiplication, also called GEMM, and RMSNorm.
+
+92
+00:08:46,092 --> 00:08:52,298
+Ava: So Inductor now has a second code-generation route for key transformer kernels.
+
+93
+00:08:52,298 --> 00:08:57,801
+Brian: Right. The Quack-derived overrides aim for higher-quality matrix-multiply code.
+
+94
+00:08:57,801 --> 00:09:09,784
+Compilation also moved from a thread pool to a subprocess pool, reducing the Python GIL, or Global Interpreter Lock, bottleneck and improving compile-time parallelism.
+
+95
+00:09:09,784 --> 00:09:11,934
+Ava: What about other hardware?
+
+96
+00:09:11,934 --> 00:09:21,459
+Brian: ROCm gets AOTriton zero point twelve beta, analytical Origami GEMM selection, and native HIP support in CMake.
+
+97
+00:09:21,459 --> 00:09:24,663
+Arm adds Armv9-A targeting for torch.
+
+98
+00:09:24,663 --> 00:09:34,188
+compile, including the correct feature set for one-hundred-twenty-eight-bit and two-hundred-fifty-six-bit SVE.
+
+99
+00:09:34,188 --> 00:09:46,748
+Intel XPU adds telemetry APIs for memory, utilization, power, clocks, temperature, cache size, synchronization, and integrated-GPU detection.
+
+100
+00:09:46,748 --> 00:09:52,354
+Ava: There is also Python 3. 15 support, but the details matter.
+
+101
+00:09:52,354 --> 00:10:01,800
+Brian: Very much. Linux torch wheels support Python 3. 15 and the free-threaded 3. 15t build.
+
+102
+00:10:01,800 --> 00:10:10,257
+Python 3. 15 is still beta, and stable release is scheduled for October 2026.
+
+103
+00:10:10,257 --> 00:10:17,856
+Support covers x86_64 and aarch64 CPU, CUDA, ROCm, and XPU builds.
+
+104
+00:10:17,856 --> 00:10:19,670
+Ava: What is missing?
+
+105
+00:10:19,670 --> 00:10:27,283
+Brian: Torchvision has no 3. 15 build yet. torch. compile is not supported on Python 3. 15.
+
+106
+00:10:27,283 --> 00:10:30,636
+There are no Windows or macOS wheels.
+
+107
+00:10:30,636 --> 00:10:38,236
+The wheels are also available only through the PyTorch download index, not PyPI.
+
+108
+00:10:38,236 --> 00:10:41,538
+Ava: Any changes that could break older projects?
+
+109
+00:10:41,538 --> 00:10:45,117
+Brian: Named tensors have been removed completely.
+
+110
+00:10:45,117 --> 00:10:53,941
+Distributed collectives are moving to a single naming scheme: all_gather_single and reduce_scatter_single.
+
+111
+00:10:53,941 --> 00:11:00,850
+The old names remain as deprecated wrappers. The Bazel build is gone too. Python 3.
+
+112
+00:11:00,850 --> 00:11:08,192
+13t was dropped from the Linux binary matrix, and CUDA 13 remains the default build.
+
+113
+00:11:08,192 --> 00:11:10,438
+Ava: And ExecuTorch?
+
+114
+00:11:10,438 --> 00:11:20,556
+Brian: This release marks ExecuTorch's integration into PyTorch Core, making on-device inference a first-class capability of the framework.
+
+115
+00:11:20,556 --> 00:11:24,362
+Ava: Let's finish with the three things listeners should remember.
+
+116
+00:11:24,362 --> 00:11:39,808
+Brian: First, performance follows the hardware and workload: FlexAttention is especially strong for sparse attention, native Metal reduces dispatch overhead, and CuTeDSL adds another optimized GPU path.
+
+117
+00:11:39,808 --> 00:11:55,806
+Ava: Second, memory and scale improve together: fused linear cross-entropy cuts peak memory, torchcomms improves cluster fault handling and visibility, and FSDP2 can overlap all-gather with reduce-scatter.
+
+118
+00:11:55,806 --> 00:12:02,183
+Brian: Third, check the boundaries before upgrading. Many APIs are unstable, Python 3.
+
+119
+00:12:02,183 --> 00:12:11,492
+15 support is limited and still beta, dense attention may favor SDPA, and named tensors plus Bazel are removed.
+
+120
+00:12:11,492 --> 00:12:13,028
+Ava: That is PyTorch 2.
+
+121
+00:12:13,028 --> 00:12:20,290
+13: faster kernels, less memory pressure, and more tools for large-scale systems.
+
+122
+00:12:20,290 --> 00:12:27,936
+Brian: Try the features, read the release notes, and report issues as the two-series keeps evolving.
+
+123
+00:12:27,936 --> 00:12:31,334
+Ava: Thanks for listening. See you next time.

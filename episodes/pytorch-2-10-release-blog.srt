@@ -1,0 +1,543 @@
+1
+00:00:00,000 --> 00:00:08,376
+Ava: If you're training large models, a tiny numerical difference can turn into a very long debugging session.
+
+2
+00:00:08,376 --> 00:00:14,199
+And a little kernel overhead can quietly slow down every step. PyTorch 2.
+
+3
+00:00:14,199 --> 00:00:16,862
+10 is aimed at both problems.
+
+4
+00:00:16,862 --> 00:00:17,484
+Brian: Exactly.
+
+5
+00:00:17,484 --> 00:00:24,321
+This release pushes performance, but it also makes numerical behavior easier to inspect.
+
+6
+00:00:24,321 --> 00:00:27,351
+It adds Python 3. 14 support for torch.
+
+7
+00:00:27,351 --> 00:00:35,548
+compile(), new attention and fusion features, and tools for finding where two runs start to disagree.
+
+8
+00:00:35,548 --> 00:00:40,170
+Ava: Let's start with the big picture. What changed in this release?
+
+9
+00:00:40,170 --> 00:00:40,922
+Brian: PyTorch 2.
+
+10
+00:00:40,922 --> 00:00:48,587
+10 contains four thousand one hundred sixty commits from five hundred thirty-six contributors since 2.
+
+11
+00:00:48,587 --> 00:00:48,738
+9.
+
+12
+00:00:48,738 --> 00:00:56,528
+The article groups the changes into performance, numerical debugging, and some non-feature updates.
+
+13
+00:00:56,528 --> 00:01:02,158
+Ava: And the release is part of the larger two-series compiler story, right?
+
+14
+00:01:02,158 --> 00:01:02,450
+Brian: Yes.
+
+15
+00:01:02,450 --> 00:01:10,835
+Performance has been a focus throughout the two-x releases, building on the PyTorch compiler stack introduced in 2.
+
+16
+00:01:10,835 --> 00:01:11,418
+0. In 2.
+
+17
+00:01:11,418 --> 00:01:19,716
+10, that means more work in torchinductor, more compiler support, and better ways to test numerical behavior.
+
+18
+00:01:19,716 --> 00:01:24,777
+Ava: Let's talk about the kernel work first. I saw the phrase Combo Kernels.
+
+19
+00:01:24,777 --> 00:01:27,194
+What does that actually mean?
+
+20
+00:01:27,194 --> 00:01:32,660
+Brian: Combo Kernels are a horizontal fusion optimization in torchinductor.
+
+21
+00:01:32,660 --> 00:01:41,128
+They combine multiple independent operations, with no data dependencies, into one unified GPU kernel.
+
+22
+00:01:41,128 --> 00:01:45,198
+Ava: So this is different from the usual producer-consumer fusion?
+
+23
+00:01:45,198 --> 00:01:45,641
+Brian: Right.
+
+24
+00:01:45,641 --> 00:01:52,658
+Vertical fusion combines sequential operations, where one operation produces data for the next.
+
+25
+00:01:52,658 --> 00:01:56,129
+Combo Kernels fuse parallel operations instead.
+
+26
+00:01:56,129 --> 00:02:05,564
+Imagine several small checkout lines merging into one larger line, even though none of the customers depend on one another.
+
+27
+00:02:05,564 --> 00:02:08,650
+Ava: The benefit is fewer kernel launches?
+
+28
+00:02:08,650 --> 00:02:12,086
+Brian: That's the goal: reduced kernel launch overhead.
+
+29
+00:02:12,086 --> 00:02:20,248
+The article doesn't give a benchmark number, but it explains that independent operations can now share one launch.
+
+30
+00:02:20,248 --> 00:02:25,752
+The feature is marked API-UNSTABLE, so users should expect it to evolve.
+
+31
+00:02:25,752 --> 00:02:32,678
+Ava: The next item is varlen_attn(). The name sounds like variable-length attention.
+
+32
+00:02:32,678 --> 00:02:37,184
+Brian: That's exactly what it is. varlen_attn() is a new torch. nn.
+
+33
+00:02:37,184 --> 00:02:41,088
+attention operation for ragged and packed sequences.
+
+34
+00:02:41,088 --> 00:02:52,252
+Ragged means the sequences can have different lengths, and packed means they can be stored together without padding every item to the same size.
+
+35
+00:02:52,252 --> 00:02:56,034
+Ava: Does it support training, or only inference?
+
+36
+00:02:56,034 --> 00:03:01,372
+Brian: It supports both forward and backward, and it's torch. compile-able.
+
+37
+00:03:01,372 --> 00:03:05,218
+Right now, FlashAttention 2, or FA2, supports it.
+
+38
+00:03:05,218 --> 00:03:11,456
+The article says there are plans to add cuDNN and FlashAttention 4 support.
+
+39
+00:03:11,456 --> 00:03:14,878
+Ava: What hardware and data types are supported?
+
+40
+00:03:14,878 --> 00:03:20,074
+Brian: For now, it runs on NVIDIA CUDA with an A100 GPU or newer.
+
+41
+00:03:20,074 --> 00:03:23,389
+It supports BF16 and FP16 data types.
+
+42
+00:03:23,389 --> 00:03:29,652
+Again, this is API-UNSTABLE, so those boundaries may change later.
+
+43
+00:03:29,652 --> 00:03:36,386
+Ava: Variable-length attention can save work because you don't calculate attention on padding, right?
+
+44
+00:03:36,386 --> 00:03:44,781
+Brian: That is the practical intuition, although the article focuses on the API and its current support rather than giving a measured speedup.
+
+45
+00:03:44,781 --> 00:03:53,152
+The important point is that ragged and packed sequences now have a dedicated operation that works with compilation and gradients.
+
+46
+00:03:53,152 --> 00:03:59,238
+Ava: There is also an eigenvalue update. That sounds more specialized.
+
+47
+00:03:59,238 --> 00:04:03,783
+Brian: It is more specialized, but useful for numerical workloads.
+
+48
+00:04:03,783 --> 00:04:13,532
+PyTorch linalg can now use cuSOLVER's DnXgeev to provide highly efficient general eigenvalue decomposition on NVIDIA GPUs.
+
+49
+00:04:13,532 --> 00:04:20,194
+Ava: So PyTorch is connecting its linear algebra path to a more efficient cuSOLVER routine?
+
+50
+00:04:20,194 --> 00:04:20,491
+Brian: Yes.
+
+51
+00:04:20,491 --> 00:04:30,576
+That's the whole claim in the release note: use DnXgeev through cuSOLVER for efficient general eigenvalue decompositions on NVIDIA GPUs.
+
+52
+00:04:30,576 --> 00:04:34,560
+The article doesn't provide a performance figure.
+
+53
+00:04:34,560 --> 00:04:40,430
+Ava: What about Intel GPUs? The release notes list several changes there.
+
+54
+00:04:40,430 --> 00:04:49,917
+Brian: The support expands to the latest Intel Core Ultra Series 3 with Intel Arc Graphics, on both Windows and Linux.
+
+55
+00:04:49,917 --> 00:04:54,028
+PyTorch also adds FP8 support on Intel GPUs.
+
+56
+00:04:54,028 --> 00:04:59,874
+Ava: FP8 support can mean a lot of different things. What does this release include?
+
+57
+00:04:59,874 --> 00:05:11,216
+Brian: It adds commonly used basic operators, such as type promotion and shape operators, plus scaled matrix multiplication using tensor-wise and channel-wise scaling factors.
+
+58
+00:05:11,216 --> 00:05:13,774
+Ava: Anything beyond FP8?
+
+59
+00:05:13,774 --> 00:05:20,091
+Brian: Yes. Aten operator MatMul gets complex data type support on Intel GPUs.
+
+60
+00:05:20,091 --> 00:05:30,057
+The PyTorch C++ Extension API also extends SYCL support, so users can implement new custom operators on Windows.
+
+61
+00:05:30,057 --> 00:05:34,500
+And Intel GPU unit-test coverage is broadened.
+
+62
+00:05:34,500 --> 00:05:40,442
+Ava: Now let's move to determinism. Why is this becoming such a big issue?
+
+63
+00:05:40,442 --> 00:05:46,814
+Brian: The article connects it to post-training with distributed reinforcement learning workflows.
+
+64
+00:05:46,814 --> 00:05:52,066
+At that scale, run-to-run determinism makes debugging training runs easier.
+
+65
+00:05:52,066 --> 00:05:56,968
+It also helps people test code that uses torch. compile reliably.
+
+66
+00:05:56,968 --> 00:06:00,294
+Ava: What changed in 2. 10?
+
+67
+00:06:00,294 --> 00:06:04,988
+Brian: torch. compile() now respects use_deterministic_mode.
+
+68
+00:06:04,988 --> 00:06:09,771
+Users can turn deterministic algorithms on with torch.
+
+69
+00:06:09,771 --> 00:06:12,871
+use_deterministic_algorithms(True).
+
+70
+00:06:12,871 --> 00:06:17,565
+The article says this makes two invocations of torch.
+
+71
+00:06:17,565 --> 00:06:21,812
+compile perform the same operations exactly.
+
+72
+00:06:21,812 --> 00:06:25,954
+Ava: That sounds stronger than just getting similar outputs.
+
+73
+00:06:25,954 --> 00:06:30,679
+Brian: Yes, the wording is about performing the same operations exactly.
+
+74
+00:06:30,679 --> 00:06:36,480
+For someone chasing a rare divergence, that gives a much steadier baseline.
+
+75
+00:06:36,480 --> 00:06:40,478
+Ava: And then there's DebugMode. Is it a profiler?
+
+76
+00:06:40,478 --> 00:06:45,930
+Brian: It's a custom TorchDispatchMode that provides profiling-style runtime dumps.
+
+77
+00:06:45,930 --> 00:06:53,596
+Its purpose here is numerical debugging: tracking dispatched calls and isolating numerical divergence.
+
+78
+00:06:53,596 --> 00:06:56,610
+Ava: How does it find the first bad operation?
+
+79
+00:06:56,610 --> 00:06:58,912
+Brian: The key feature is tensor hashing.
+
+80
+00:06:58,912 --> 00:07:07,442
+You run two versions of a model with the same input, and you expect corresponding tensors to have the same deterministic hash.
+
+81
+00:07:07,442 --> 00:07:11,436
+You then look for the point where the hashes stop matching.
+
+82
+00:07:11,436 --> 00:07:15,848
+That operation is often where the behavior starts to differ.
+
+83
+00:07:15,848 --> 00:07:22,318
+Ava: So instead of comparing only the final loss, you compare the whole trail of tensors.
+
+84
+00:07:22,318 --> 00:07:22,865
+Brian: Exactly.
+
+85
+00:07:22,865 --> 00:07:31,077
+It's like checking every station on a train route instead of discovering at the final station that something went wrong.
+
+86
+00:07:31,077 --> 00:07:37,380
+DebugMode also records dispatched operations and TorchInductor-compiled Triton kernels.
+
+87
+00:07:37,380 --> 00:07:41,522
+Ava: Can engineers add their own information to those records?
+
+88
+00:07:41,522 --> 00:07:47,012
+Brian: Yes. Dispatch hooks let users register custom hooks to annotate calls.
+
+89
+00:07:47,012 --> 00:07:55,048
+The article presents three main capabilities: runtime logging, tensor hashing, and dispatch hooks.
+
+90
+00:07:55,048 --> 00:07:57,966
+Ava: Are these production-ready APIs?
+
+91
+00:07:57,966 --> 00:08:02,234
+Brian: The numerical debugging features are also labeled API-UNSTABLE.
+
+92
+00:08:02,234 --> 00:08:11,324
+The article points readers to a tutorial for details, so teams should read that before building a long-term workflow around them.
+
+93
+00:08:11,324 --> 00:08:17,074
+Ava: Let's cover the non-feature updates. TorchScript is now deprecated.
+
+94
+00:08:17,074 --> 00:08:23,255
+Brian: Correct. In PyTorch 2. 10, TorchScript is deprecated, and the article says torch.
+
+95
+00:08:23,255 --> 00:08:25,544
+export should be used instead.
+
+96
+00:08:25,544 --> 00:08:31,464
+It points to a talk from the PyTorch Technical Committee for more detail.
+
+97
+00:08:31,464 --> 00:08:35,006
+Ava: That could affect older deployment pipelines.
+
+98
+00:08:35,006 --> 00:08:38,953
+Brian: It could, especially if they still depend on TorchScript.
+
+99
+00:08:38,953 --> 00:08:46,225
+The release blog doesn't provide a migration timeline, so the safe takeaway is to start evaluating torch.
+
+100
+00:08:46,225 --> 00:08:49,276
+export and consult the linked guidance.
+
+101
+00:08:49,276 --> 00:08:54,501
+Ava: There is also tlparse and TORCH_TRACE for compiler bug reports.
+
+102
+00:08:54,501 --> 00:08:57,090
+What problem do they solve?
+
+103
+00:08:57,090 --> 00:09:02,676
+Brian: Sometimes a compiler issue is too complex for a small standalone reproduction.
+
+104
+00:09:02,676 --> 00:09:08,476
+tlparse results provide a log format that's easier to upload and share on GitHub.
+
+105
+00:09:08,476 --> 00:09:15,056
+Even people outside the PyTorch project can extract useful information from those logs.
+
+106
+00:09:15,056 --> 00:09:21,766
+Ava: So attaching a tlparse artifact can give maintainers more context than a short description?
+
+107
+00:09:21,766 --> 00:09:22,955
+Brian: That's the idea.
+
+108
+00:09:22,955 --> 00:09:29,641
+The article encourages users to attach tlparse log artifacts when reporting compiler bugs.
+
+109
+00:09:29,641 --> 00:09:35,340
+It also mentions TORCH_TRACE as part of this clearer reporting workflow.
+
+110
+00:09:35,340 --> 00:09:40,394
+Ava: One final change is the release cadence for 2026.
+
+111
+00:09:40,394 --> 00:09:40,676
+Brian: Yes.
+
+112
+00:09:40,676 --> 00:09:46,802
+The expected cadence increases from quarterly releases to one release every two months.
+
+113
+00:09:46,802 --> 00:09:51,448
+The article refers readers to the published release schedule.
+
+114
+00:09:51,448 --> 00:09:58,398
+Ava: More frequent releases mean faster access to improvements, but also more upgrade decisions.
+
+115
+00:09:58,398 --> 00:10:00,887
+Brian: That's a reasonable implication.
+
+116
+00:10:00,887 --> 00:10:07,109
+The release itself simply states the new schedule and encourages users to try 2.
+
+117
+00:10:07,109 --> 00:10:09,092
+10 and report issues.
+
+118
+00:10:09,092 --> 00:10:11,826
+Ava: Let's make the practical advice concrete.
+
+119
+00:10:11,826 --> 00:10:15,778
+If I'm a framework engineer, what should I test first?
+
+120
+00:10:15,778 --> 00:10:21,584
+Brian: First, check your torch. compile workflow on Python 3. 14. Python 3.
+
+121
+00:10:21,584 --> 00:10:27,134
+14t, the freethreaded build, is experimentally supported as well.
+
+122
+00:10:27,134 --> 00:10:39,864
+Second, try Combo Kernels and varlen_attn() in isolated experiments because those APIs are unstable and have specific hardware or backend limits.
+
+123
+00:10:39,864 --> 00:10:42,278
+Ava: And for numerical issues?
+
+124
+00:10:42,278 --> 00:10:49,517
+Brian: Enable deterministic algorithms, then use DebugMode with tensor hashing to compare two model versions.
+
+125
+00:10:49,517 --> 00:10:57,532
+Log the dispatched calls and compiled Triton kernels, and add dispatch hooks if you need custom annotations.
+
+126
+00:10:57,532 --> 00:11:01,482
+Ava: Before we close, give us the three-point recap.
+
+127
+00:11:01,482 --> 00:11:18,143
+Brian: First, performance: Combo Kernels reduce kernel launch overhead, varlen_attn() handles ragged and packed sequences, DnXgeev improves the eigenvalue decomposition path, and Intel GPU support expands.
+
+128
+00:11:18,143 --> 00:11:21,172
+Second, numerical confidence: torch.
+
+129
+00:11:21,172 --> 00:11:30,512
+compile respects deterministic mode, and DebugMode helps locate divergence with runtime logs and tensor hashes.
+
+130
+00:11:30,512 --> 00:11:43,904
+Third, ecosystem direction: TorchScript is deprecated, tlparse and TORCH_TRACE improve compiler bug reports, and 2026 moves to a two-month release cadence.
+
+131
+00:11:43,904 --> 00:11:51,718
+Ava: So the message is faster execution, clearer numerical debugging, and a faster-moving project.
+
+132
+00:11:51,718 --> 00:11:52,484
+Brian: Exactly.
+
+133
+00:11:52,484 --> 00:12:00,721
+Try the new features, check their current limitations, and report issues as PyTorch 2.
+
+134
+00:12:00,721 --> 00:12:02,124
+10 evolves.
+
+135
+00:12:02,124 --> 00:12:03,459
+Ava: Thanks for listening.
+
+136
+00:12:03,459 --> 00:12:08,258
+We'll be back with another PyTorch release explained in plain English.

@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>PyTorch Blog Podcast</title>
+    <description>Conversational English episodes based on the PyTorch blog.</description>
+    <link>https://peaceorwell.github.io/pytorch-podcast-feed/</link>
+    <language>en</language>
+    <lastBuildDate>Thu, 24 Sep 2026 10:36:44 +0000</lastBuildDate>
+    <itunes:explicit>false</itunes:explicit>
+    <itunes:author>PyTorch Blog Podcast</itunes:author>
+    <itunes:summary>Conversational English episodes based on the PyTorch blog.</itunes:summary>
+    <itunes:category text="Technology"/>
+    <itunes:type>episodic</itunes:type>
+    <itunes:image href="https://peaceorwell.github.io/pytorch-podcast-feed/cover.png"/>
+    <image><url>https://peaceorwell.github.io/pytorch-podcast-feed/cover.png</url><title>PyTorch Blog Podcast</title><link>https://peaceorwell.github.io/pytorch-podcast-feed/</link></image>
+    <item>
+      <title>How Shopify Built a Continual Learning Loop with PyTorch and vLLM</title>
+      <description>本期讨论 Shopify 如何把生产环境中的失败对话，持续转化为模型权重更新。流程从定义质量标准、校准评估器开始，再通过自动研究改进提示词和工具编排，最后用监督微调与 GRPO 优化模型参数。Shopify 还用 gist tokens 压缩系统提示词，并通过 vLLM 降低延迟、硬件需求和服务成本。GraphQL agent 的案例显示，服务成本降低百分之九十六，同时质量超过 frontier model。
+
+Source: https://pytorch.org/blog/how-shopify-built-a-continual-learning-loop-with-pytorch-and-vllm/
+Transcript: https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/how-shopify-built-a-continual-learning-loop-with-pytorch-and-vllm.html</description>
+      <link>https://pytorch.org/blog/how-shopify-built-a-continual-learning-loop-with-pytorch-and-vllm/</link>
+      <guid isPermaLink="false">https://pytorch.org/blog/how-shopify-built-a-continual-learning-loop-with-pytorch-and-vllm/</guid>
+      <pubDate>Thu, 24 Sep 2026 06:07:21 +0000</pubDate>
+      <itunes:explicit>false</itunes:explicit>
+      <enclosure url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/how-shopify-built-a-continual-learning-loop-with-pytorch-and-vllm.mp3" length="6198597" type="audio/mpeg"/>
+      <itunes:duration>00:12:42</itunes:duration>
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/how-shopify-built-a-continual-learning-loop-with-pytorch-and-vllm.html" type="text/html" language="zh" />
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/how-shopify-built-a-continual-learning-loop-with-pytorch-and-vllm.srt" type="application/srt" language="en" />
+
+    </item>
+    <item>
+      <title>From Research Project to Open Source Ecosystem</title>
+      <description>本期讨论 PyTorch 基金会面向学术项目的“从学术走向采用”工作坊，帮助优秀研究代码成长为可持续的开源社区项目。节目介绍征集对象、评选标准、闪电演讲和导师办公时间，以及文档、治理、可复现性、安全和维护等常见缺口。符合条件的项目需要使用 PyTorch 或其他 PyTorch 基金会托管项目，并在 2026 年 9 月 30 日太平洋时间午夜前提交。核心信息是：项目不必完美成熟，只要有价值、有潜力，就值得申请帮助。
+
+Source: https://pytorch.org/blog/from-research-project-to-open-source-ecosystem-bring-your-academic-pytorch-project-to-pytorchcon-na/
+Transcript: https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/from-research-project-to-open-source-ecosystem-bring-your-academic-pytorch-project-to-pytorchcon-na.html</description>
+      <link>https://pytorch.org/blog/from-research-project-to-open-source-ecosystem-bring-your-academic-pytorch-project-to-pytorchcon-na/</link>
+      <guid isPermaLink="false">https://pytorch.org/blog/from-research-project-to-open-source-ecosystem-bring-your-academic-pytorch-project-to-pytorchcon-na/</guid>
+      <pubDate>Thu, 24 Sep 2026 06:03:18 +0000</pubDate>
+      <itunes:explicit>false</itunes:explicit>
+      <enclosure url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/from-research-project-to-open-source-ecosystem-bring-your-academic-pytorch-project-to-pytorchcon-na.mp3" length="5654655" type="audio/mpeg"/>
+      <itunes:duration>00:11:34</itunes:duration>
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/from-research-project-to-open-source-ecosystem-bring-your-academic-pytorch-project-to-pytorchcon-na.html" type="text/html" language="zh" />
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/from-research-project-to-open-source-ecosystem-bring-your-academic-pytorch-project-to-pytorchcon-na.srt" type="application/srt" language="en" />
+
+    </item>
+    <item>
+      <title>Why Is PyTorch Compile So Fast: Kernel Fusion</title>
+      <description>本期讨论 PyTorch 编译器为什么能让模型运行得更快，核心原因是 kernel fusion，也就是把多个 GPU 操作合并到更少的 kernel 中。Ava 和 Brian 通过逐元素计算示例，解释 vertical fusion 如何减少 kernel 启动次数、中间缓冲区和全局内存访问。节目还介绍 reduction fusion、GEMM plus epilogue fusion、prologue fusion 和 horizontal fusion。最后，两位主持人说明如何用 TORCH_LOGS 查看 Inductor 生成的 Triton kernel，并总结 fusion 的价值与适用边界。
+
+Source: https://pytorch.org/blog/why-is-pytorch-compile-so-fast-kernel-fusion/
+Transcript: https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/why-is-pytorch-compile-so-fast-kernel-fusion.html</description>
+      <link>https://pytorch.org/blog/why-is-pytorch-compile-so-fast-kernel-fusion/</link>
+      <guid isPermaLink="false">https://pytorch.org/blog/why-is-pytorch-compile-so-fast-kernel-fusion/</guid>
+      <pubDate>Wed, 23 Sep 2026 13:45:53 +0000</pubDate>
+      <itunes:explicit>false</itunes:explicit>
+      <enclosure url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/why-is-pytorch-compile-so-fast-kernel-fusion.mp3" length="5018188" type="audio/mpeg"/>
+      <itunes:duration>00:10:15</itunes:duration>
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/why-is-pytorch-compile-so-fast-kernel-fusion.html" type="text/html" language="zh" />
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/why-is-pytorch-compile-so-fast-kernel-fusion.srt" type="application/srt" language="en" />
+
+    </item>
+    <item>
+      <title>FP8 Training on AMD GPUs with TorchTitan and TorchAO: Upstreaming Performance Improvements</title>
+      <description>本期讨论 TorchTitan 和 TorchAO 如何让 AMD Instinct GPU 原生支持 FP8 训练，并把 Primus-Turbo 中的优化合入 PyTorch 主线。节目解释了 AMD 的 e4m3fnuz 格式、MoE grouped GEMM，以及通过 Triton 融合减少量化开销的方法。在 Llama3-8B 上，FP8 相比 BF16 吞吐提升 13.4%；在 DeepSeek-V3 671B 上，前向融合恢复了 89% 的 FP8 量化开销。最后介绍了 MXFP8 grouped GEMM 和 MI355X 的后续工作。
+
+Source: https://pytorch.org/blog/fp8-training-on-amd-gpus-with-torchtitan-and-torchao-upstreaming-performance-improvements/
+Transcript: https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/fp8-training-on-amd-gpus-with-torchtitan-and-torchao-upstreaming-performance-improvements.html</description>
+      <link>https://pytorch.org/blog/fp8-training-on-amd-gpus-with-torchtitan-and-torchao-upstreaming-performance-improvements/</link>
+      <guid isPermaLink="false">https://pytorch.org/blog/fp8-training-on-amd-gpus-with-torchtitan-and-torchao-upstreaming-performance-improvements/</guid>
+      <pubDate>Wed, 23 Sep 2026 13:41:55 +0000</pubDate>
+      <itunes:explicit>false</itunes:explicit>
+      <enclosure url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/fp8-training-on-amd-gpus-with-torchtitan-and-torchao-upstreaming-performance-improvements.mp3" length="6411992" type="audio/mpeg"/>
+      <itunes:duration>00:13:09</itunes:duration>
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/fp8-training-on-amd-gpus-with-torchtitan-and-torchao-upstreaming-performance-improvements.html" type="text/html" language="zh" />
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/fp8-training-on-amd-gpus-with-torchtitan-and-torchao-upstreaming-performance-improvements.srt" type="application/srt" language="en" />
+
+    </item>
+    <item>
+      <title>PyTorch 2.13: Faster Kernels, Leaner Training, and Better Distributed Systems</title>
+      <description>PyTorch 2.13 继续把框架推向面向生产、跨硬件、可大规模训练和推理的平台。它为 Apple Silicon 带来 FlexAttention，为 CUDA 提供确定性反向路径，并通过 CuTeDSL 和原生 Metal kernel 改善性能。大词表训练可使用融合的 nn.LinearCrossEntropyLoss，将峰值显存最多降低约四倍；分布式方面新增 torchcomms，并让 FSDP2 的 all-gather 与 reduce-scatter 重叠。该版本也支持 Linux 上的 Python 3.15 wheel，但仍有 beta、平台覆盖和 API unstable 等限制。
+
+Source: https://pytorch.org/blog/pytorch-2-13-release-blog/
+Transcript: https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/pytorch-2-13-release-blog.html</description>
+      <link>https://pytorch.org/blog/pytorch-2-13-release-blog/</link>
+      <guid isPermaLink="false">https://pytorch.org/blog/pytorch-2-13-release-blog/</guid>
+      <pubDate>Wed, 23 Sep 2026 13:37:59 +0000</pubDate>
+      <itunes:explicit>false</itunes:explicit>
+      <enclosure url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/pytorch-2-13-release-blog.mp3" length="6108941" type="audio/mpeg"/>
+      <itunes:duration>00:12:31</itunes:duration>
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/pytorch-2-13-release-blog.html" type="text/html" language="zh" />
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/pytorch-2-13-release-blog.srt" type="application/srt" language="en" />
+
+    </item>
+    <item>
+      <title>Bringing PyTorch Monarch to AMD GPUs: Single-Controller Distributed Training on ROCm</title>
+      <description>本期介绍 PyTorch Monarch 如何把单控制器、基于 actor 的分布式训练带到 AMD Instinct GPU 和 ROCm 平台。Monarch 通过 process mesh、supervision tree 和异步执行，把故障隔离在局部，并让健康副本继续训练。结合 TorchFT 的 quorum 同步与 TorchTitan 训练引擎，系统可以通过节点间 checkpoint 传输恢复，而不必全局重启。实验显示，该方案在 SLURM 和 Kubernetes 的 MI300/MI355 集群上都能保持稳定收敛；未来还将优化 NIC 支持、重连延迟和更多训练框架。
+
+Source: https://pytorch.org/blog/bringing-pytorch-monarch-to-amd-gpus-single-controller-distributed-training-on-rocm/
+Transcript: https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/bringing-pytorch-monarch-to-amd-gpus-single-controller-distributed-training-on-rocm.html</description>
+      <link>https://pytorch.org/blog/bringing-pytorch-monarch-to-amd-gpus-single-controller-distributed-training-on-rocm/</link>
+      <guid isPermaLink="false">https://pytorch.org/blog/bringing-pytorch-monarch-to-amd-gpus-single-controller-distributed-training-on-rocm/</guid>
+      <pubDate>Wed, 23 Sep 2026 13:35:28 +0000</pubDate>
+      <itunes:explicit>false</itunes:explicit>
+      <enclosure url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/bringing-pytorch-monarch-to-amd-gpus-single-controller-distributed-training-on-rocm.mp3" length="5186815" type="audio/mpeg"/>
+      <itunes:duration>00:10:36</itunes:duration>
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/bringing-pytorch-monarch-to-amd-gpus-single-controller-distributed-training-on-rocm.html" type="text/html" language="zh" />
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/bringing-pytorch-monarch-to-amd-gpus-single-controller-distributed-training-on-rocm.srt" type="application/srt" language="en" />
+
+    </item>
+    <item>
+      <title>Monarch: An API to Your Supercomputer</title>
+      <description>本期介绍 PyTorch Monarch，一个用简单 Python API 把超算集群变成可编程整体的分布式框架。它通过 RDMA 文件系统、分布式 SQL Telemetry 和 Jobs API，加速代码同步、资源管理与调试，让大规模训练更像本地开发。文章还总结了 Monarch 自 2025 年发布以来在 Kubernetes、RDMA、可观测性、安装体验和 AMD ROCm 支持上的改进。Monarch 已与 SkyPilot、VeRL 和 AMD 等项目合作，但在 Ray 依赖较深的框架中替换后端仍然比较复杂。
+
+Source: https://pytorch.org/blog/monarch-an-api-to-your-supercomputer/
+Transcript: https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/monarch-an-api-to-your-supercomputer.html</description>
+      <link>https://pytorch.org/blog/monarch-an-api-to-your-supercomputer/</link>
+      <guid isPermaLink="false">https://pytorch.org/blog/monarch-an-api-to-your-supercomputer/</guid>
+      <pubDate>Wed, 23 Sep 2026 13:28:19 +0000</pubDate>
+      <itunes:explicit>false</itunes:explicit>
+      <enclosure url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/monarch-an-api-to-your-supercomputer.mp3" length="6269186" type="audio/mpeg"/>
+      <itunes:duration>00:12:51</itunes:duration>
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/monarch-an-api-to-your-supercomputer.html" type="text/html" language="zh" />
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/monarch-an-api-to-your-supercomputer.srt" type="application/srt" language="en" />
+
+    </item>
+    <item>
+      <title>PyTorch 2.12: Faster Math, Unified Graphs, and Wider Hardware Support</title>
+      <description>本期介绍 PyTorch 2.12 的主要更新：CUDA 上批量特征值分解最高提速一百倍，新增跨硬件的 torch.accelerator.Graph，并让 torch.export 支持 Microscaling 量化。我们还讨论了融合版 Adagrad、torch.cond 在 CUDA Graph 中的捕获、分布式训练分析工具，以及 ROCm、Apple MPS 等平台更新。最后，两位主持人解释了 torchcomms 和 TorchScript 的后续变化，以及 CUDA wheel 的弃用安排。
+
+Source: https://pytorch.org/blog/pytorch-2-12-release-blog/
+Transcript: https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/pytorch-2-12-release-blog.html</description>
+      <link>https://pytorch.org/blog/pytorch-2-12-release-blog/</link>
+      <guid isPermaLink="false">https://pytorch.org/blog/pytorch-2-12-release-blog/</guid>
+      <pubDate>Wed, 23 Sep 2026 13:23:48 +0000</pubDate>
+      <itunes:explicit>false</itunes:explicit>
+      <enclosure url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/pytorch-2-12-release-blog.mp3" length="6729140" type="audio/mpeg"/>
+      <itunes:duration>00:13:48</itunes:duration>
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/pytorch-2-12-release-blog.html" type="text/html" language="zh" />
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/pytorch-2-12-release-blog.srt" type="application/srt" language="en" />
+
+    </item>
+    <item>
+      <title>Why DeepEP and MXFP8 Make DeepSeek-V3 Training 41% Faster</title>
+      <description>本期讨论 PyTorch 与 Nebius 如何在 256 张 NVIDIA B200 GPU 上，用 TorchTitan 训练 DeepSeek-V3 的 671B 和 16B MoE 模型。实验比较了 BF16 基线、DeepEP 通信优化和 MXFP8 grouped GEMM 计算优化：671B 模型从每秒 651 个 token 提升到 918 个，整体快了 41%。其中 DeepEP 单独带来 32% 提升，说明跨节点 all-to-all 通信是主要瓶颈。对 16B 模型进行 1500 步训练后，MXFP8 与 BF16 的 loss 曲线几乎一致，显示没有明显收敛损失。
+
+Source: https://pytorch.org/blog/enabling-up-to-41-faster-pre-training-mxfp8-and-deepep-for-deepseek-v3-on-b200-with-torchtitan/
+Transcript: https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/enabling-up-to-41-faster-pre-training-mxfp8-and-deepep-for-deepseek-v3-on-b200-with-torchtitan.html</description>
+      <link>https://pytorch.org/blog/enabling-up-to-41-faster-pre-training-mxfp8-and-deepep-for-deepseek-v3-on-b200-with-torchtitan/</link>
+      <guid isPermaLink="false">https://pytorch.org/blog/enabling-up-to-41-faster-pre-training-mxfp8-and-deepep-for-deepseek-v3-on-b200-with-torchtitan/</guid>
+      <pubDate>Wed, 23 Sep 2026 13:17:21 +0000</pubDate>
+      <itunes:explicit>false</itunes:explicit>
+      <enclosure url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/enabling-up-to-41-faster-pre-training-mxfp8-and-deepep-for-deepseek-v3-on-b200-with-torchtitan.mp3" length="6333631" type="audio/mpeg"/>
+      <itunes:duration>00:12:59</itunes:duration>
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/enabling-up-to-41-faster-pre-training-mxfp8-and-deepep-for-deepseek-v3-on-b200-with-torchtitan.html" type="text/html" language="zh" />
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/enabling-up-to-41-faster-pre-training-mxfp8-and-deepep-for-deepseek-v3-on-b200-with-torchtitan.srt" type="application/srt" language="en" />
+
+    </item>
+    <item>
+      <title>Flight Recorder: A New Lens for Understanding NCCL Watchdog Timeouts</title>
+      <description>本期解释 PyTorch 中 NCCL watchdog timeout 的成因，以及为什么这个错误特别难排查。节目梳理了 CPU 侧卡顿或跨 rank 分歧、GPU kernel hang、collective 参数错误、网络或硬件问题四大类根因。重点介绍 Flight Recorder：它在每个 rank 上记录 collective 的类型、状态、数据类型、大小和调用栈，并在超时后汇总分析。最后讨论 Meta 的案例、可视化方法，以及 Flight Recorder 未来对 TorchComm、CUDA graphs 和其他后端的支持计划。
+
+Source: https://pytorch.org/blog/flight-recorder-a-new-lens-for-understanding-nccl-watchdog-timeouts/
+Transcript: https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/flight-recorder-a-new-lens-for-understanding-nccl-watchdog-timeouts.html</description>
+      <link>https://pytorch.org/blog/flight-recorder-a-new-lens-for-understanding-nccl-watchdog-timeouts/</link>
+      <guid isPermaLink="false">https://pytorch.org/blog/flight-recorder-a-new-lens-for-understanding-nccl-watchdog-timeouts/</guid>
+      <pubDate>Wed, 23 Sep 2026 13:14:54 +0000</pubDate>
+      <itunes:explicit>false</itunes:explicit>
+      <enclosure url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/flight-recorder-a-new-lens-for-understanding-nccl-watchdog-timeouts.mp3" length="8117228" type="audio/mpeg"/>
+      <itunes:duration>00:16:40</itunes:duration>
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/flight-recorder-a-new-lens-for-understanding-nccl-watchdog-timeouts.html" type="text/html" language="zh" />
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/flight-recorder-a-new-lens-for-understanding-nccl-watchdog-timeouts.srt" type="application/srt" language="en" />
+
+    </item>
+    <item>
+      <title>PyTorch 2.11: Differentiable Collectives, FlashAttention-4, and More</title>
+      <description>本期介绍 PyTorch 2.11 的主要更新，包括可微分集合通信、FlexAttention 的 FlashAttention-4 后端、Apple Silicon MPS 算子扩展，以及 RNN/LSTM GPU 导出支持。对 Hopper 和 Blackwell GPU，FlashAttention-4 在计算受限工作负载上相比现有 Triton 实现可获得一点二到三点二倍加速，但功能仍在积极开发中。节目还讨论了 ROCm 调试与 TopK 优化、Intel XPU Graph、CPU 上通过 OpenBLAS 的 FP16 GEMM，以及 CUDA 13 默认版本。最后总结 TorchScript 弃用、2026 年改为每两个月发布一次，以及使用这些 API-UNSTABLE 功能时需要注意的限制。
+
+Source: https://pytorch.org/blog/pytorch-2-11-release-blog/
+Transcript: https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/pytorch-2-11-release-blog.html</description>
+      <link>https://pytorch.org/blog/pytorch-2-11-release-blog/</link>
+      <guid isPermaLink="false">https://pytorch.org/blog/pytorch-2-11-release-blog/</guid>
+      <pubDate>Wed, 23 Sep 2026 13:10:01 +0000</pubDate>
+      <itunes:explicit>false</itunes:explicit>
+      <enclosure url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/pytorch-2-11-release-blog.mp3" length="4965388" type="audio/mpeg"/>
+      <itunes:duration>00:10:09</itunes:duration>
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/pytorch-2-11-release-blog.html" type="text/html" language="zh" />
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/pytorch-2-11-release-blog.srt" type="application/srt" language="en" />
+
+    </item>
+    <item>
+      <title>PyTorch 2.10: Faster Kernels, Safer Numbers, and a New Release Rhythm</title>
+      <description>本期对话介绍 PyTorch 2.10 的主要更新，重点包括性能优化、变长注意力和数值调试。Ava 与 Brian 解释了 Combo Kernels 如何减少 GPU kernel launch overhead，以及 varlen_attn() 对 ragged 和 packed sequences 的支持。节目还讨论了确定性执行、DebugMode、Tensor hashing、Intel GPU 增强，以及 TorchScript 弃用和新的发布节奏。最后，两位主持人总结了升级时需要关注的功能限制与后续方向。
+
+Source: https://pytorch.org/blog/pytorch-2-10-release-blog/
+Transcript: https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/pytorch-2-10-release-blog.html</description>
+      <link>https://pytorch.org/blog/pytorch-2-10-release-blog/</link>
+      <guid isPermaLink="false">https://pytorch.org/blog/pytorch-2-10-release-blog/</guid>
+      <pubDate>Wed, 23 Sep 2026 13:07:56 +0000</pubDate>
+      <itunes:explicit>false</itunes:explicit>
+      <enclosure url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/pytorch-2-10-release-blog.mp3" length="5923566" type="audio/mpeg"/>
+      <itunes:duration>00:12:08</itunes:duration>
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/pytorch-2-10-release-blog.html" type="text/html" language="zh" />
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/pytorch-2-10-release-blog.srt" type="application/srt" language="en" />
+
+    </item>
+    <item>
+      <title>PyTorch 2.9: More Portable Kernels, Smarter Compilation, and Wider Hardware Support</title>
+      <description>本期介绍 PyTorch 2.9 的主要更新，包括稳定的 libtorch ABI、Symmetric Memory、多 GPU 内核编程，以及 torch.compile 图断点控制。我们还讨论了 ROCm、XPU、CUDA 13 的 wheel variant 支持、Intel GPU 上的 FlexAttention，以及基于 FlexAttention 的 X86 CPU flash decoding。最后回顾 Arm 平台优化、当前 API 仍处于不稳定或预览阶段的限制，以及后续工作方向。
+
+Source: https://pytorch.org/blog/pytorch-2-9/
+Transcript: https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/pytorch-2-9.html</description>
+      <link>https://pytorch.org/blog/pytorch-2-9/</link>
+      <guid isPermaLink="false">https://pytorch.org/blog/pytorch-2-9/</guid>
+      <pubDate>Wed, 23 Sep 2026 13:05:38 +0000</pubDate>
+      <itunes:explicit>false</itunes:explicit>
+      <enclosure url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/pytorch-2-9.mp3" length="5742174" type="audio/mpeg"/>
+      <itunes:duration>00:11:45</itunes:duration>
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/pytorch-2-9.html" type="text/html" language="zh" />
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/pytorch-2-9.srt" type="application/srt" language="en" />
+
+    </item>
+    <item>
+      <title>PyTorch 2.14: A Faster GEMM Backend, a Rewritten NCCL, and Declarative Dynamic Shapes</title>
+      <description>PyTorch 2.14 发布，本期主要聊三块内容。第一是 NVGEMM，一个基于 CuTeDSL 生成 CUTLASS 内核的新矩阵乘法后端，这次补上了 epilogue 融合，还支持低精度格式，能跟 Triton、ATen 一起参与自动调优。第二是分布式那块的大动作：重写版 NCCL 后端以预览形式进屋，容错重配置和单边 RMA 窗口成了 c10d 的一等概念，Flight Recorder 也不再只服务 NCCL 一家。第三是 Apple Silicon，SVD、QR、Cholesky 这些线性代数运算终于有了原生 Metal 内核，解码路径上一个 8.5 倍的性能坑也被填上了。另外还顺带提了 torch.switch 多路分支、@dynamic_spec 声明式动态形状，以及 ROCm、XPU、Rubin 架构的平台支持进展。这些功能大多还标着 API Unstable，说明接口本身可能还会变。
+
+Source: https://pytorch.org/blog/pytorch-2-14-release-blog/
+Transcript: https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/pytorch-2-14-release-blog.html</description>
+      <link>https://pytorch.org/blog/pytorch-2-14-release-blog/</link>
+      <guid isPermaLink="false">https://pytorch.org/blog/pytorch-2-14-release-blog/</guid>
+      <pubDate>Wed, 23 Sep 2026 06:42:53 +0000</pubDate>
+      <itunes:explicit>false</itunes:explicit>
+      <enclosure url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/pytorch-2-14-release-blog.mp3" length="4924348" type="audio/mpeg"/>
+      <itunes:duration>00:10:04</itunes:duration>
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/pytorch-2-14-release-blog.html" type="text/html" language="zh" />
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/pytorch-2-14-release-blog.srt" type="application/srt" language="en" />
+
+    </item>
+    <item>
+      <title>Hardware-Agnostic Models in vLLM: Keeping the Fast Lane Open Without Locking Everyone Else Out</title>
+      <description>vLLM 一直靠一套通用的模型抽象和 torch.compile，同时把模型跑在英伟达、AMD、TPU 甚至 Spyre 这类冷门加速器上。但前沿模型的架构分化得太快，DeepSeek V4、Kimi K3 这些模型为了做到百万级上下文，各自用了完全不同的注意力实现，硬塞进现有抽象的成本越来越高。于是 vLLM 开始搞"扁平"模型：针对具体硬件手写优化，不再依赖 torch.compile，这会让老 GPU、非英伟达加速器和依赖可扩展机制的第三方插件失去支持。作为折中方案，vLLM 正在建一套硬件无关层，要求可编译、可扩展、和硬件专用代码彻底隔离、并尽量用 Triton、Helion 这类可移植方案实现。在 H100 上的实测显示，这套硬件无关层的吞吐量只比原生实现低百分之三点四左右，说明可移植性不用靠牺牲太多性能来换。
+
+Source: https://pytorch.org/blog/hardware-agnostic-models-in-vllm/
+Transcript: https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/hardware-agnostic-models-in-vllm.html</description>
+      <link>https://pytorch.org/blog/hardware-agnostic-models-in-vllm/</link>
+      <guid isPermaLink="false">https://pytorch.org/blog/hardware-agnostic-models-in-vllm/</guid>
+      <pubDate>Wed, 23 Sep 2026 06:21:09 +0000</pubDate>
+      <itunes:explicit>false</itunes:explicit>
+      <enclosure url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/hardware-agnostic-models-in-vllm.mp3" length="5091473" type="audio/mpeg"/>
+      <itunes:duration>00:10:24</itunes:duration>
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/hardware-agnostic-models-in-vllm.html" type="text/html" language="zh" />
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/hardware-agnostic-models-in-vllm.srt" type="application/srt" language="en" />
+
+    </item>
+    <item>
+      <title>PyTorch 2.14 Release Live Q&amp;A</title>
+      <description>YouTube 视频音频：PyTorch 2.14 Release Live Q&amp;A
+
+Source: https://www.youtube.com/watch?v=pRjbQa2wHB4
+Transcript: https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/youtube-pRjbQa2wHB4.html</description>
+      <link>https://www.youtube.com/watch?v=pRjbQa2wHB4</link>
+      <guid isPermaLink="false">https://www.youtube.com/watch?v=pRjbQa2wHB4</guid>
+      <pubDate>Thu, 17 Sep 2026 00:00:00 +0000</pubDate>
+      <itunes:explicit>false</itunes:explicit>
+      <enclosure url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/youtube-pRjbQa2wHB4.mp3" length="60346789" type="audio/mpeg"/>
+      <itunes:duration>01:02:02</itunes:duration>
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/youtube-pRjbQa2wHB4.html" type="text/html" language="zh" />
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/youtube-pRjbQa2wHB4.srt" type="application/srt" language="en" />
+
+    </item>
+    <item>
+      <title>Keynote: PyTorch Updates - Edward Yang, Research Engineer, Meta</title>
+      <description>YouTube 视频音频：Keynote: PyTorch Updates - Edward Yang, Research Engineer, Meta
+
+Source: https://www.youtube.com/watch?v=xvNh5F9t-d4
+Transcript: https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/youtube-xvNh5F9t-d4.html</description>
+      <link>https://www.youtube.com/watch?v=xvNh5F9t-d4</link>
+      <guid isPermaLink="false">https://www.youtube.com/watch?v=xvNh5F9t-d4</guid>
+      <pubDate>Mon, 20 Apr 2026 00:00:00 +0000</pubDate>
+      <itunes:explicit>false</itunes:explicit>
+      <enclosure url="https://peaceorwell.github.io/pytorch-podcast-feed/episodes/youtube-xvNh5F9t-d4.mp3" length="19759639" type="audio/mpeg"/>
+      <itunes:duration>00:20:31</itunes:duration>
+      <podcast:transcript url="https://peaceorwell.github.io/pytorch-podcast-feed/transcripts/youtube-xvNh5F9t-d4.html" type="text/html" language="zh" />
+
+    </item>
+  </channel>
+</rss>

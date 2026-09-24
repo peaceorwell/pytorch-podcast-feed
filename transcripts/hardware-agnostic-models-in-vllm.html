@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hardware-Agnostic Models in vLLM: Keeping the Fast Lane Open Without Locking Everyone Else Out</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/hardware-agnostic-models-in-vllm/">原视频 / 原文</a></p><h1>Hardware-Agnostic Models in vLLM: Keeping the Fast Lane Open Without Locking Everyone Else Out</h1>
+<p>原文：[Hardware-Agnostic Models in vLLM](https://pytorch.org/blog/hardware-agnostic-models-in-vllm/)</p>
+<h2>摘要</h2>
+<p>vLLM 一直靠一套通用的模型抽象和 torch.compile，同时把模型跑在英伟达、AMD、TPU 甚至 Spyre 这类冷门加速器上。但前沿模型的架构分化得太快，DeepSeek V4、Kimi K3 这些模型为了做到百万级上下文，各自用了完全不同的注意力实现，硬塞进现有抽象的成本越来越高。于是 vLLM 开始搞"扁平"模型：针对具体硬件手写优化，不再依赖 torch.compile，这会让老 GPU、非英伟达加速器和依赖可扩展机制的第三方插件失去支持。作为折中方案，vLLM 正在建一套硬件无关层，要求可编译、可扩展、和硬件专用代码彻底隔离、并尽量用 Triton、Helion 这类可移植方案实现。在 H100 上的实测显示，这套硬件无关层的吞吐量只比原生实现低百分之三点四左右，说明可移植性不用靠牺牲太多性能来换。</p>
+<h2>对话</h2>
+<p><strong>Ava:</strong> Okay so, vLLM. Every time I check the GitHub repo it feels like it's rewriting itself.</p>
+<p><strong>Brian:</strong> Yeah, and this week there's actually a really interesting reason why. There's a new blog post about what they're calling hardware-agnostic layers, and it's basically them admitting they've hit a real tension in the project.</p>
+<p><strong>Ava:</strong> A tension between what?</p>
+<p><strong>Brian:</strong> Between going as fast as possible on the newest GPUs, and still supporting, like, everything else. Older GPUs, AMD, Google's TPUs, IBM's Spyre chips, Huawei Ascend. vLLM's whole pitch has been: one engine, tons of hardware.</p>
+<p><strong>Ava:</strong> Right, that's why people like it. You don't have to rewrite your serving stack for every accelerator.</p>
+<p><strong>Brian:</strong> Exactly. And the way they've pulled that off is with shared abstractions plus torch.compile. So the model code itself stays pretty simple, and torch.compile handles fusing operations and optimizing for whatever hardware you're on underneath.</p>
+<p><strong>Ava:</strong> So why is that suddenly a problem?</p>
+<p><strong>Brian:</strong> Because frontier models are getting really weird, really fast. The article points to DeepSeek V4 and Kimi K3 — both hit million-token context windows, but with completely different attention mechanisms. Totally custom stuff.</p>
+<p><strong>Ava:</strong> And custom stuff doesn't fit nicely into a shared abstraction.</p>
+<p><strong>Brian:</strong> Not easily. To add one of these models today, you have to compose it from vLLM's shared layers, and keep the whole thing what they call fullgraph compilable. That means Dynamo — that's the PyTorch component that traces your Python code into a graph — has to be able to trace the entire model without falling back to plain Python.</p>
+<p><strong>Ava:</strong> That sounds like a lot of hoops for someone just trying to ship a new model.</p>
+<p><strong>Brian:</strong> It is. Every new kernel has to get registered as a torch library op, with a fake implementation for tracing and correct annotations for anything it mutates. The article literally calls this a tax on model development.</p>
+<p><strong>Ava:</strong> Who's paying that tax?</p>
+<p><strong>Brian:</strong> Whoever adds the model. Including outside contributors who bring their own architecture. And on top of that, new NVIDIA Blackwell GPUs and these rack-scale systems, GB300 NVL72, need really careful, hands-on kernel work to overlap computation and communication properly. That's hard to express through a generic compiled path.</p>
+<p><strong>Ava:</strong> So what's vLLM's answer? Just... stop using torch.compile?</p>
+<p><strong>Brian:</strong> For some models, basically yes. They're introducing what they call flat models. Instead of going through the shared layers and torch.compile, these are hardware-specific model definitions with hand-written, custom fusions. All the newest frontier models added recently already use this flat style.</p>
+<p><strong>Ava:</strong> Okay, that makes sense for squeezing out performance. But you said this creates a problem for other hardware.</p>
+<p><strong>Brian:</strong> Right, here's the catch. The layers that flat models used to share with everyone else are going to get refactored in ways that just aren't compatible with torch.compile anymore.</p>
+<p><strong>Ava:</strong> And torch.compile matters for who, exactly?</p>
+<p><strong>Brian:</strong> For out-of-tree accelerators, mainly. IBM's Spyre plugin is the example they use. Spyre depends on Dynamo to trace the graph, and then TorchInductor — the compiler backend — to lower it down to something that runs well on Spyre hardware. Without compile support, that path just breaks.</p>
+<p><strong>Ava:</strong> Is it only about compile though? I feel like there was something about plugins overriding behavior too.</p>
+<p><strong>Brian:</strong> Good catch, yeah. vLLM's layers today support two extensibility hooks. One's called CustomOp, which lets a plugin override just the forward function of a layer. The other is PluggableLayer, which lets you swap out the whole layer. Spyre uses both, because sometimes it needs to inject something like a custom memory layout to run efficiently.</p>
+<p><strong>Ava:</strong> And the flat model rewrite drops that too?</p>
+<p><strong>Brian:</strong> It does, or at least doesn't guarantee it. So put it together: out-of-tree plugins would suddenly need to maintain their own copies of model definitions and layers just to stay working.</p>
+<p><strong>Ava:</strong> That sounds miserable. Every new model needs a PR to transformers, a PR to vLLM, and then a PR to every single plugin that wants to support it.</p>
+<p><strong>Brian:</strong> Right, and they even joke that coding agents like Claude Code or Codex make this more tractable, but it's still burning token budgets across a bunch of different organizations for no real payoff.</p>
+<p><strong>Ava:</strong> You mentioned older or less common GPUs earlier too. Same story?</p>
+<p><strong>Brian:</strong> Same story, plus one more wrinkle. vLLM's leaning more on what's called the transformers modeling backend, which just imports model definitions straight from the transformers library and rewires them to use vLLM's layers. That's increasingly how vLLM supports older or more exotic models, as the old hand-written definitions get retired.</p>
+<p><strong>Ava:</strong> So if those shared layers lose compile support...</p>
+<p><strong>Brian:</strong> ...performance for all those models regresses. Significantly, according to the post. And their own usage numbers show a real chunk of users are still on older or consumer-grade GPUs, not the newest Blackwell chips.</p>
+<p><strong>Ava:</strong> Okay, so real conflict. Move fast at the frontier, or keep everyone else running well. How do they square that?</p>
+<p><strong>Brian:</strong> This is the actual proposal: a new set of hardware-agnostic layers, living in-tree, separate from the flat, hardware-specific stuff. Four design goals. First, compilable — fullgraph torch.compile still works, so accelerators that depend on it are fine.</p>
+<p><strong>Ava:</strong> Second?</p>
+<p><strong>Brian:</strong> Extensible. CustomOp and PluggableLayer stay available, so plugins like Spyre can still override behavior when they need to.</p>
+<p><strong>Ava:</strong> Third?</p>
+<p><strong>Brian:</strong> Isolated. These layers get their own separate set of ops, completely apart from whatever the flat, hardware-specific models are doing. So the frontier team can keep moving fast without worrying they'll break something for Spyre, and vice versa.</p>
+<p><strong>Ava:</strong> And the fourth?</p>
+<p><strong>Brian:</strong> Portable. Wherever possible, implement things in plain PyTorch, or portable kernel languages like Triton or Helion, so the same code runs across many accelerators. If a given hardware target still can't handle that, it falls back to extensibility to plug in something custom.</p>
+<p><strong>Ava:</strong> Okay, so where does this actually plug in? You said there were three flavors of model definitions already — flat, legacy, and the transformers backend.</p>
+<p><strong>Brian:</strong> Right. For the transformers backend, they've changed the rewiring step so it points at these new hardware-agnostic layers instead of the old shared ones. It's already landed on vLLM's main branch, for a limited set of layers, and you can turn it on with an environment variable, USE_HW_AGNOSTIC=1, when you serve a model through the transformers backend.</p>
+<p><strong>Ava:</strong> Has anyone actually tried it beyond a demo?</p>
+<p><strong>Brian:</strong> Yeah, they've validated it with the Spyre plugin, on Gemma 4, Qwen3, and Granite 4.2. And they're planning to fold it into CI soon, then gradually make it the default path for Spyre.</p>
+<p><strong>Ava:</strong> What about the flat models? Do they get hardware-agnostic layers too eventually?</p>
+<p><strong>Brian:</strong> That's the plan, though it hasn't landed yet. Each flat model would get its own model.py written against these hardware-agnostic layers. Shared layers live in one common place, and anything model-specific, they give the example of a DeepSeek V4 attention variant, stays local to that model's own directory, but still has to follow those same four principles. There's apparently a hardware-agnostic DeepSeek V4 pull request already under review.</p>
+<p><strong>Ava:</strong> Alright, the question everyone's actually going to ask: does it perform?</p>
+<p><strong>Brian:</strong> So, to be fair, they're upfront that beating state-of-the-art on Blackwell isn't the goal here. It's portability. But they did run it on NVIDIA H100s, comparing the transformers backend with the flag off versus on, across a handful of recent models.</p>
+<p><strong>Ava:</strong> And?</p>
+<p><strong>Brian:</strong> Total token throughput came within about three point four percent of the native implementation, that's a geometric mean across three recent models. In a couple of cases the hardware-agnostic version was actually slightly faster.</p>
+<p><strong>Ava:</strong> Wait, faster? Even though it's not using hand-tuned CUDA libraries?</p>
+<p><strong>Brian:</strong> Yeah, that surprised me too. It's built purely from portable code, no FlashAttention, no CUTLASS, and it still lands basically neck and neck with implementations that do use those. So the portability tax turns out to be pretty small, at least on H100.</p>
+<p><strong>Ava:</strong> Okay let's wrap this up. Three things I'm taking away. One, frontier models are diverging so fast that vLLM's shared abstractions can't keep up, so they're building hardware-specific flat models to stay competitive.</p>
+<p><strong>Brian:</strong> Two, that move risks breaking torch.compile and plugin support, which matters a lot for out-of-tree accelerators, older GPUs, and anyone leaning on the transformers backend.</p>
+<p><strong>Ava:</strong> And three, their fix is a separate set of hardware-agnostic layers, compilable, extensible, isolated from the frontier code, and portable, and early H100 numbers say that costs you only a few percent of performance.</p>
+<p><strong>Brian:</strong> That's basically it. Still very much a work in progress, but it's a solid answer to a problem a lot of projects just don't deal with well.</p>
+<p><strong>Ava:</strong> Alright, that's the episode. Thanks for listening, and we'll catch you next time.</p>
+<h2>术语</h2>
+<p>Term · 释义</p>
+<p>torch.compile · PyTorch 的编译优化功能，把模型代码转换成优化过的执行图，提升运行速度</p>
+<p>fullgraph compilable · 整个模型能被完整地追踪成一张计算图，不会中途退回普通 Python 执行</p>
+<p>TorchDynamo · PyTorch 中负责把 Python 代码追踪成计算图的组件</p>
+<p>TorchInductor · PyTorch 的编译后端，把追踪出的计算图进一步降低为在具体硬件上高效运行的代码</p>
+<p>flat model · vLLM 中针对特定硬件手写优化、不依赖 torch.compile 的模型实现方式</p>
+<p>out-of-tree (OOT) accelerator · 不在 vLLM 主仓库中维护、由第三方以插件形式支持的硬件加速器，例如 IBM Spyre</p>
+<p>CustomOp · vLLM 提供的扩展机制，允许插件覆盖某个层的前向计算函数</p>
+<p>PluggableLayer · vLLM 提供的扩展机制，允许插件整体替换某个层的实现</p>
+<p>transformers modeling backend · vLLM 中直接复用 Hugging Face transformers 库模型定义，并重新接入 vLLM 层的运行路径</p>
+<p>hardware-agnostic layers · 本文核心方案：与具体硬件解耦、可编译、可扩展、可移植的一套通用层实现</p>
+<p>Triton / Helion · 可移植的 GPU 内核编写语言（DSL），能跨多种加速器运行</p>
+<p>geometric mean · 几何平均数，本文用来汇总多个模型上的吞吐量对比结果</p>
+<p>FlashAttention / CUTLASS · 英伟达生态下经过深度优化的注意力计算库和矩阵运算库</p>
+<h2>口语表达</h2>
+<p>Phrase · 释义</p>
+<p>hit a real tension · 遇到了真实存在的矛盾/取舍</p>
+<p>doesn't fit nicely into · 不太能顺利地融入某个框架或体系</p>
+<p>a lot of hoops to jump through · 要经过很多繁琐的步骤才能做成一件事</p>
+<p>put it together · 把各个信息串起来看/综合起来说</p>
+<p>square that · 调和/解决这种矛盾</p>
+<p>land on main branch · 代码被合并进主分支</p>
+<p>to be fair · 说句公道话/客观地说</p>
+<p>neck and neck with · 与……不相上下，势均力敌</p>
+<p>that's basically it · 大致就是这样了，用来收尾总结</p></body></html>

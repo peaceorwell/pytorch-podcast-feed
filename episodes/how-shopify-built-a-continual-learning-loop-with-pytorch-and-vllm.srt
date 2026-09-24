@@ -1,0 +1,575 @@
+1
+00:00:00,000 --> 00:00:06,290
+Ava: What if every failed production conversation could teach your model something by the next day?
+
+2
+00:00:06,290 --> 00:00:10,454
+That’s the idea behind Shopify’s continual learning loop.
+
+3
+00:00:10,454 --> 00:00:13,899
+Brian: And it’s practical, not just a research slogan.
+
+4
+00:00:13,899 --> 00:00:22,972
+Shopify says its GraphQL agent now beats the frontier-model baseline, while cutting serving cost by ninety-six percent.
+
+5
+00:00:22,972 --> 00:00:27,220
+Ava: That sounds like a big claim. Let’s start with the problem.
+
+6
+00:00:27,220 --> 00:00:30,090
+Why wasn’t a frontier model enough?
+
+7
+00:00:30,090 --> 00:00:33,229
+Brian: Frontier models are a fast way to launch.
+
+8
+00:00:33,229 --> 00:00:39,508
+A small team can put a useful product in front of users and learn from real usage.
+
+9
+00:00:39,508 --> 00:00:46,136
+But scale changes the economics. They can be slow and expensive for every request.
+
+10
+00:00:46,136 --> 00:00:51,070
+Ava: And they’re general-purpose models, so they don’t really know Shopify’s product.
+
+11
+00:00:51,070 --> 00:00:55,887
+Brian: Right. More importantly, they don’t learn from production on their own.
+
+12
+00:00:55,887 --> 00:01:02,004
+A rejected answer or a user correction doesn’t automatically improve the next answer.
+
+13
+00:01:02,004 --> 00:01:10,250
+Ava: So the knowledge accumulates around the model—in prompts, retrieval examples, routing rules, and harness code.
+
+14
+00:01:10,250 --> 00:01:13,341
+Brian: Exactly. The deployed weights stay frozen.
+
+15
+00:01:13,341 --> 00:01:21,657
+Shopify’s flywheel tries to compress that production experience into the continuous space of the model’s weights.
+
+16
+00:01:21,657 --> 00:01:25,024
+PyTorch provides the training foundation.
+
+17
+00:01:25,024 --> 00:01:29,910
+Ava: Before training anything, how do they decide what “better” means?
+
+18
+00:01:29,910 --> 00:01:31,816
+Brian: They define quality first.
+
+19
+00:01:31,816 --> 00:01:37,461
+It starts as a rubric, which turns product requirements into scored criteria.
+
+20
+00:01:37,461 --> 00:01:44,996
+For the GraphQL agent, the criteria include completeness, execution, response quality, and safety.
+
+21
+00:01:44,996 --> 00:01:48,682
+Ava: So the rubric is basically a quality contract.
+
+22
+00:01:48,682 --> 00:01:52,126
+Brian: Yes. It gives every score a concrete meaning.
+
+23
+00:01:52,126 --> 00:01:56,565
+Annotators use it to turn conversations into ground truth.
+
+24
+00:01:56,565 --> 00:02:04,032
+And the samples need to include randomly sampled traffic, not only carefully chosen examples.
+
+25
+00:02:04,032 --> 00:02:07,766
+Ava: Why does random traffic matter so much?
+
+26
+00:02:07,766 --> 00:02:11,665
+Brian: Golden sets test cases you already know to look for.
+
+27
+00:02:11,665 --> 00:02:16,988
+Random samples show what good and bad actually look like in production.
+
+28
+00:02:16,988 --> 00:02:18,988
+They reveal surprises.
+
+29
+00:02:18,988 --> 00:02:22,098
+Ava: How do they check whether the rubric is clear?
+
+30
+00:02:22,098 --> 00:02:28,742
+Brian: They ask their two best annotators or product experts to blindly label twenty-five random samples.
+
+31
+00:02:28,742 --> 00:02:36,008
+Then they measure inter-annotator agreement with Cohen’s kappa, which measures agreement above chance.
+
+32
+00:02:36,008 --> 00:02:38,302
+Ava: And if the kappa is low?
+
+33
+00:02:38,302 --> 00:02:44,433
+Brian: If it’s around zero point two, the rubric is ambiguous. The experts meet and iterate.
+
+34
+00:02:44,433 --> 00:02:51,492
+If people who work on the product every day can’t agree, an LLM won’t magically agree either.
+
+35
+00:02:51,492 --> 00:02:56,810
+Ava: There’s also a ceiling here, right? Humans don’t agree perfectly.
+
+36
+00:02:56,810 --> 00:03:02,561
+Brian: Right. The judge’s ceiling is human agreement. The goal isn’t a perfect judge.
+
+37
+00:03:02,561 --> 00:03:08,368
+It’s a judge that matches humans about as well as humans match each other.
+
+38
+00:03:08,368 --> 00:03:12,678
+Ava: They also want detailed explanations, not just scores.
+
+39
+00:03:12,678 --> 00:03:17,223
+Brian: Yes. A score and one sentence aren’t enough for calibration.
+
+40
+00:03:17,223 --> 00:03:24,164
+They want the reason behind every score. That reasoning becomes valuable training data.
+
+41
+00:03:24,164 --> 00:03:28,906
+Ava: Then they calibrate the judge. What does that involve?
+
+42
+00:03:28,906 --> 00:03:32,309
+Brian: The rubric is only the judge’s first prompt.
+
+43
+00:03:32,309 --> 00:03:37,567
+Calibration turns it into a judge that can run over production data.
+
+44
+00:03:37,567 --> 00:03:45,264
+Shopify uses DSPy and reflection-based optimizers such as GEPA and Agentic Context Engineering.
+
+45
+00:03:45,264 --> 00:03:48,686
+Ava: Can you make those sound less mysterious?
+
+46
+00:03:48,686 --> 00:03:53,928
+Brian: GEPA reflects on natural-language failure traces and evolves the prompt.
+
+47
+00:03:53,928 --> 00:03:59,825
+It keeps a Pareto frontier of candidates instead of greedily choosing one winner.
+
+48
+00:03:59,825 --> 00:04:06,436
+ACE, or Agentic Context Engineering, builds a structured playbook through small edits.
+
+49
+00:04:06,436 --> 00:04:10,194
+Ava: But an offline judge is still only a proxy.
+
+50
+00:04:10,194 --> 00:04:14,223
+Brian: Exactly. They backtest it against previous A/B tests.
+
+51
+00:04:14,223 --> 00:04:25,520
+The judge should recover the direction of known wins and losses in engagement, retention, or whatever behavior the product is designed to drive.
+
+52
+00:04:25,520 --> 00:04:28,390
+Ava: And they run degradation tests too?
+
+53
+00:04:28,390 --> 00:04:28,658
+Brian: Yes.
+
+54
+00:04:28,658 --> 00:04:34,626
+They deliberately make one behavior worse and check whether the matching criterion falls.
+
+55
+00:04:34,626 --> 00:04:42,084
+If the agent stops trying to fulfill the user’s goal, the goal-fulfillment score should drop specifically.
+
+56
+00:04:42,084 --> 00:04:46,802
+Ava: Why use several small judges instead of one giant judge?
+
+57
+00:04:46,802 --> 00:04:50,439
+Brian: Focused judges are easier to interpret and trust.
+
+58
+00:04:50,439 --> 00:04:56,800
+Cramming every product behavior into one judge makes failures hard to understand.
+
+59
+00:04:56,800 --> 00:05:04,038
+Ava: Once the judge works, they improve the original frontier-powered application without changing model weights.
+
+60
+00:05:04,038 --> 00:05:10,151
+Brian: That’s the baseline stage. They optimize prompts, tool definitions, and the harness.
+
+61
+00:05:10,151 --> 00:05:20,180
+The harness is the whole application logic: dynamically assembled prompts, control loops, and orchestration spread across a codebase.
+
+62
+00:05:20,180 --> 00:05:25,234
+Ava: So ordinary prompt tuning only touches a small part of the system.
+
+63
+00:05:25,234 --> 00:05:28,805
+Brian: Right. They treat it as an autoresearch problem.
+
+64
+00:05:28,805 --> 00:05:34,311
+An agent proposes a change to a prompt, a tool definition, or the harness.
+
+65
+00:05:34,311 --> 00:05:41,952
+It evaluates the change with the judge, keeps it if the score improves, and discards it otherwise.
+
+66
+00:05:41,952 --> 00:05:44,678
+Ava: Where do they configure that loop?
+
+67
+00:05:44,678 --> 00:05:56,692
+Brian: In one readable Markdown file: where to get data, which directories the agent may edit, which judge is the metric, which optimizer to use, and the propose-evaluate-keep-or-discard loop.
+
+68
+00:05:56,692 --> 00:06:00,450
+Ava: What happens when those harness improvements plateau?
+
+69
+00:06:00,450 --> 00:06:05,533
+Brian: Then they move from discrete artifacts to continuous parameter updates.
+
+70
+00:06:05,533 --> 00:06:13,328
+They mine anonymized production traffic for hard negatives—conversations the judge correctly scores low.
+
+71
+00:06:13,328 --> 00:06:19,366
+Ava: Across millions of merchants, that must create a huge variety of failures.
+
+72
+00:06:19,366 --> 00:06:19,936
+Brian: It does.
+
+73
+00:06:19,936 --> 00:06:28,632
+Partial context, ambiguous requests, business-specific workflows, tool failures, and many ways to express the same intent.
+
+74
+00:06:28,632 --> 00:06:36,252
+Instead of becoming isolated bug reports or Slack threads, the failures enter a self-healing pipeline.
+
+75
+00:06:36,252 --> 00:06:38,834
+Ava: Walk me through one failure.
+
+76
+00:06:38,834 --> 00:06:42,512
+Brian: A panel of frontier reasoning models critiques it.
+
+77
+00:06:42,512 --> 00:06:46,926
+An arbiter merges the critiques into one repair instruction.
+
+78
+00:06:46,926 --> 00:06:53,896
+That instruction is injected before the user’s turn, a technique sometimes called hinting.
+
+79
+00:06:53,896 --> 00:06:56,406
+Ava: Then they replay the conversation?
+
+80
+00:06:56,406 --> 00:07:01,104
+Brian: Yes. They replay from that point and ask the judge to score it again.
+
+81
+00:07:01,104 --> 00:07:09,284
+If the repair passes, the replay becomes a reinforcement-learning trajectory, with the judge’s score as the reward.
+
+82
+00:07:09,284 --> 00:07:11,698
+Ava: And if it still fails?
+
+83
+00:07:11,698 --> 00:07:14,592
+Brian: It goes to human annotation through Toloka.
+
+84
+00:07:14,592 --> 00:07:22,008
+Expert annotators correct the conversation and score it with the same rubric used to calibrate the judge.
+
+85
+00:07:22,008 --> 00:07:27,566
+Ava: Training has two stages. First is supervised fine-tuning.
+
+86
+00:07:27,566 --> 00:07:32,015
+Brian: Correct. They distill healed trajectories into a smaller model.
+
+87
+00:07:32,015 --> 00:07:39,641
+They train on complete trajectories, including the reasoning that produced them, not only the final answers.
+
+88
+00:07:39,641 --> 00:07:42,604
+That’s chain-of-thought distillation.
+
+89
+00:07:42,604 --> 00:07:48,042
+Ava: So the smaller model can inherit behavior that answers alone wouldn’t teach.
+
+90
+00:07:48,042 --> 00:07:50,730
+Brian: Exactly. Second, they apply GRPO.
+
+91
+00:07:50,730 --> 00:08:01,832
+For each prompt, the model samples a group of responses, the judges score them, and GRPO reinforces the responses that perform best.
+
+92
+00:08:01,832 --> 00:08:10,534
+Ava: Supervised fine-tuning imitates successful trajectories, while GRPO optimizes directly against the quality definition.
+
+93
+00:08:10,534 --> 00:08:14,235
+Brian: That’s the distinction. The pipeline runs daily.
+
+94
+00:08:14,235 --> 00:08:22,836
+They add new trajectories, run a full-parameter fine-tune over new and previous data, and then repeat GRPO.
+
+95
+00:08:22,836 --> 00:08:25,658
+Ava: Why keep old trajectories?
+
+96
+00:08:25,658 --> 00:08:29,789
+Brian: To limit drift and catastrophic forgetting across cycles.
+
+97
+00:08:29,789 --> 00:08:40,864
+PyTorch distributes the training across GPUs using tensor, context, and data parallelism, which makes full-parameter fine-tuning practical at scale.
+
+98
+00:08:40,864 --> 00:08:45,534
+Ava: Now the model is better, but serving it can still be expensive.
+
+99
+00:08:45,534 --> 00:08:51,341
+Brian: That’s where gist compression helps. The agent’s system prompt is long and static.
+
+100
+00:08:51,341 --> 00:08:58,772
+Because attention scales with sequence length, every generated token attends over that whole prefix.
+
+101
+00:08:58,772 --> 00:09:03,610
+Ava: So the prompt is a fixed latency tax on every request.
+
+102
+00:09:03,610 --> 00:09:04,135
+Brian: Exactly.
+
+103
+00:09:04,135 --> 00:09:12,006
+They run the same model as a teacher with the full prompt and as a student with a short sequence of learned gist tokens.
+
+104
+00:09:12,006 --> 00:09:18,456
+A custom PyTorch trainer learns the gist token embeddings while keeping model weights frozen.
+
+105
+00:09:18,456 --> 00:09:22,286
+Ava: And the student matches the teacher’s output distribution?
+
+106
+00:09:22,286 --> 00:09:22,553
+Brian: Yes.
+
+107
+00:09:22,553 --> 00:09:32,452
+The result is a handful of tokens that reproduce the prompt’s behavior at a fraction of the length, with no measured quality loss on the judge.
+
+108
+00:09:32,452 --> 00:09:35,874
+Ava: Let’s look at the GraphQL agent itself.
+
+109
+00:09:35,874 --> 00:09:39,434
+Brian: It serves up to two thousand requests per minute.
+
+110
+00:09:39,434 --> 00:09:43,793
+A merchant might ask which products are almost out of stock.
+
+111
+00:09:43,793 --> 00:09:52,352
+The agent writes and runs a query against Shopify’s Admin GraphQL API, then turns the result into plain language.
+
+112
+00:09:52,352 --> 00:09:54,934
+Ava: What did the whole flywheel change?
+
+113
+00:09:54,934 --> 00:09:56,003
+Brian: First, quality.
+
+114
+00:09:56,003 --> 00:10:02,058
+Self-healing turns low-scoring production conversations into successful trajectories.
+
+115
+00:10:02,058 --> 00:10:11,028
+Together, supervised fine-tuning and reinforcement learning let the specialized model surpass frontier-model performance.
+
+116
+00:10:11,028 --> 00:10:13,274
+Ava: Second, cost.
+
+117
+00:10:13,274 --> 00:10:22,394
+Brian: Serving the traffic on a frontier model could cost an estimated twenty-seven million dollars per year, based on average token costs.
+
+118
+00:10:22,394 --> 00:10:29,032
+The fine-tuned model could be closer to one million dollars—a ninety-six percent reduction.
+
+119
+00:10:29,032 --> 00:10:33,822
+Ava: That changes whether you can leave the feature on for every merchant.
+
+120
+00:10:33,822 --> 00:10:35,458
+Brian: Exactly. Third, speed.
+
+121
+00:10:35,458 --> 00:10:43,916
+Gisting compressed roughly six thousand prompt tokens to about one thousand five hundred learned gist tokens.
+
+122
+00:10:43,916 --> 00:10:46,402
+Ava: What happened in the load test?
+
+123
+00:10:46,402 --> 00:10:56,376
+Brian: At three hundred fifty requests per minute, time-to-first-token fell about nineteen percent, and end-to-end latency fell about thirty-eight percent.
+
+124
+00:10:56,376 --> 00:10:59,126
+Ava: And throughput improved too?
+
+125
+00:10:59,126 --> 00:11:07,016
+Brian: About sixteen percent more requests per second and twelve percent more output tokens per second on identical GPUs.
+
+126
+00:11:07,016 --> 00:11:12,556
+That works out to roughly fourteen percent fewer GPUs for the same traffic.
+
+127
+00:11:12,556 --> 00:11:16,218
+Ava: Are there limitations or open questions?
+
+128
+00:11:16,218 --> 00:11:21,034
+Brian: The article emphasizes that quality depends on the rubric and judge.
+
+129
+00:11:21,034 --> 00:11:25,566
+If those are wrong, the whole loop optimizes the wrong behavior.
+
+130
+00:11:25,566 --> 00:11:30,944
+Human annotation is still needed for failures the critics can’t repair.
+
+131
+00:11:30,944 --> 00:11:35,326
+Ava: And continual learning has to manage drift and forgetting.
+
+132
+00:11:35,326 --> 00:11:41,055
+Brian: Right. That’s why they train on accumulated data, not only the newest examples.
+
+133
+00:11:41,055 --> 00:11:49,020
+The article also presents this as a production case study, so the exact gains may depend on the workload.
+
+134
+00:11:49,020 --> 00:11:53,642
+Ava: Let’s close with the three points I should remember. First?
+
+135
+00:11:53,642 --> 00:11:57,108
+Brian: Define and calibrate quality before optimizing.
+
+136
+00:11:57,108 --> 00:12:04,168
+The rubric, human agreement, backtesting, and degradation tests make the judge trustworthy.
+
+137
+00:12:04,168 --> 00:12:05,622
+Ava: Second?
+
+138
+00:12:05,622 --> 00:12:15,908
+Brian: Improve the frontier baseline in the harness, then turn real failures into trajectories and model-weight updates with supervised fine-tuning and GRPO.
+
+139
+00:12:15,908 --> 00:12:17,314
+Ava: Third?
+
+140
+00:12:17,314 --> 00:12:19,568
+Brian: Compress the prompt for serving.
+
+141
+00:12:19,568 --> 00:12:28,440
+Gist tokens, PyTorch training, and vLLM inference make the specialized model faster, cheaper, and easier to run at scale.
+
+142
+00:12:28,440 --> 00:12:31,655
+Ava: So the durable advantage isn’t one clever prompt.
+
+143
+00:12:31,655 --> 00:12:36,926
+It’s the loop that keeps turning production experience into better weights.
+
+144
+00:12:36,926 --> 00:12:42,100
+Brian: Exactly. Thanks for listening. We’ll see you next time.

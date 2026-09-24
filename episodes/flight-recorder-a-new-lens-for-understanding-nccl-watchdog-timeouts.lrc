@@ -1,0 +1,184 @@
+[ti:Flight Recorder: A New Lens for Understanding NCCL Watchdog Timeouts]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: Your large-scale training job runs for hours, then one line appears: NCCL watchdog timeout.
+[00:06.74]The message tells you almost nothing, and the whole job is stuck.
+[00:11.56]Why should engineers care about Flight Recorder?
+[00:15.47]Brian: Because Flight Recorder can turn that vague timeout into a cross-rank timeline.
+[00:20.59]It helps show which collective diverged, which rank went missing, and where the original call came from.
+[00:27.68]Ava: Let’s start with the basics. What exactly is a collective in PyTorch?
+[00:33.07]Brian: In distributed training, ranks need to synchronize or exchange results.
+[00:38.19]A collective is an operation that involves all ranks in a process group.
+[00:43.38]For example, all_reduce sums a tensor across the group and writes the result back to that tensor.
+[00:50.72]Ava: And different training systems use different collectives?
+[00:54.86]Brian: Right. DDP commonly uses all-reduce.
+[00:58.06]FSDP, which means Fully Sharded Data Parallel, uses all-gather and reduce-scatter.
+[01:05.33]TorchRec often uses all-to-all.
+[01:08.44]Ava: Where does the call go when I write dist. all_reduce?
+[01:12.96]Brian: It passes through the C++ PyTorch dispatcher and a PyBind layer, then reaches c10d.
+[01:20.18]The c10d layer calls a communication backend, such as NCCL for GPU communication or Gloo for CPU communication.
+[01:30.18]Ava: Why have c10d in the middle? Why not call NCCL directly?
+[01:35.65]Brian: PyTorch needs control information before handing work to the communication library.
+[01:41.98]One important feature is the c10d watchdog.
+[01:45.26]This post focuses on NCCL, but the watchdog mechanism can monitor other distributed backends too.
+[01:53.01]Ava: So what does the NCCL watchdog actually watch?
+[01:57.01]Brian: NCCL collectives are scheduled by the CPU and run asynchronously on the GPU.
+[02:02.69]NCCL itself doesn’t provide built-in error checking for a misused collective.
+[02:08.44]If ranks call different collectives, pass invalid arguments, or otherwise misuse the API, the GPU operation can hang forever.
+[02:18.12]Ava: And PyTorch catches that with a Work object?
+[02:21.78]Brian: Yes.
+[02:22.09]The CPU-side Work object wraps the NCCL call with two CUDA events, one before and one after.
+[02:29.07]The watchdog thread periodically checks whether the collective completed on the GPU within a user-defined timeout.
+[02:37.73]The default is ten minutes.
+[02:40.13]Ava: When the limit is exceeded, it throws the famous error.
+[02:44.56]Brian: Exactly. But the name is a little misleading.
+[02:48.20]The error is raised by PyTorch’s NCCL watchdog, not by the NCCL library itself.
+[02:54.60]NCCL appears in the name because the timed-out collective was launched through the NCCL backend.
+[03:02.72]Ava: Why is this error so hard to debug?
+[03:05.39]The log has a sequence number and an operation type, but that doesn’t seem enough.
+[03:12.00]Brian: There are two major reasons. First, it’s a catch-all error.
+[03:15.95]Almost anything that makes a rank wait indefinitely can end in the same timeout: a CPU-side hang, a GPU hang, a CUDA deadlock, invalid collective arguments, or a network problem.
+[03:28.24]Ava: So the timeout doesn’t identify the layer that failed.
+[03:32.28]Brian: Right. Second, the error is raised from the watchdog thread.
+[03:36.72]To avoid that thread hanging too, the log contains limited metadata.
+[03:41.75]The stack trace is from the watchdog thread, not from the main PyTorch thread that scheduled the collective.
+[03:50.08]Ava: That’s a pretty important distinction.
+[03:52.81]Brian: It is. Also, the rank that reports the timeout is rarely the rank that caused it.
+[03:58.41]And the collective shown in the error may simply be the one where the problem became visible, not the original cause.
+[04:06.86]Ava: So rerunning with CUDA_LAUNCH_BLOCKING can take hours and still be frustrating.
+[04:13.69]Brian: Exactly.
+[04:14.26]The article says debugging without Flight Recorder can take hours or longer, often requiring another run with extra debugging flags.
+[04:24.10]Ava: Let’s talk about how collectives normally execute.
+[04:28.26]Brian: The CPU schedules a sequence of compute kernels and NCCL collectives onto the GPU.
+[04:34.84]Later, at a CPU-GPU synchronization point, the CPU waits for the GPU to finish.
+[04:41.18]There are two important synchronization types.
+[04:45.22]Ava: The first is between GPUs?
+[04:48.04]Brian: Yes.
+[04:48.36]Inter-rank GPU-GPU synchronization means every GPU in the process group synchronizes before continuing.
+[04:56.58]Barrier collectives, such as all_reduce, are common sources of watchdog timeouts.
+[05:03.39]Ava: And the second is one rank’s CPU waiting for its own GPU.
+[05:08.18]Brian: Exactly. That can be explicit, such as torch. cuda.
+[05:12.89]synchronize, or implicit, such as moving a tensor between CPU and GPU.
+[05:19.69]Ava: The article says a collective can time out in two broad ways.
+[05:24.15]Brian: Either the collective kernel itself runs too long or hangs, or the ranks become desynchronized.
+[05:30.72]Their collective metadata or state differs when the timeout occurs.
+[05:35.70]Ava: Which one is more common in practice?
+[05:38.74]Brian: Across Meta’s fleet, almost all observed timeouts came from collective desynchronization, not simple slowness or a collective kernel hang.
+[05:48.13]That means increasing the timeout usually won’t fix the issue.
+[05:52.35]You have to resolve the desync.
+[05:54.81]Ava: What causes that desync?
+[05:57.49]Brian: The article groups causes into four categories: CPU-side issues, GPU compute kernel hangs, misconfigured collective arguments, and network or hardware issues.
+[06:09.89]Ava: Let’s take CPU-side issues first.
+[06:13.26]Brian: For a process group, every rank must execute the same, or complementary, collectives in exactly the same order.
+[06:20.88]If one rank schedules nothing, or schedules a different collective, another rank can wait forever and eventually time out.
+[06:29.60]Ava: What if the CPU is simply slow?
+[06:32.80]Brian: Suppose data loading, checkpointing, or PT2 compilation makes some ranks take longer than the watchdog threshold.
+[06:40.36]Those ranks don’t schedule the next collective, while another rank does.
+[06:45.18]The rank that did schedule it may be the one that reports the timeout.
+[06:50.22]Ava: PT2 compilation sounds especially tricky.
+[06:54.38]Brian: It is data-dependent.
+[06:55.98]Compiler cache behavior and dynamic-shape recompilation can make compilation times differ across ranks.
+[07:03.80]If that difference exceeds the watchdog threshold, a timeout can result.
+[07:09.27]This problem motivated PT2 compiler collectives.
+[07:13.26]Ava: And CPU execution divergence means the ranks follow different code paths.
+[07:18.99]Brian: Yes.
+[07:19.28]Data-dependent conditionals can make ranks schedule different collectives or skip one entirely.
+[07:26.22]Data imbalance is one example.
+[07:28.42]If one rank runs out of data earlier, it may leave the training loop one iteration sooner.
+[07:35.34]Ava: Error handling can create the same problem?
+[07:38.45]Brian: Absolutely. An exception handler is rank-specific logic.
+[07:42.60]It might get stuck on the CPU, call another GPU synchronization during teardown, or swallow the exception and continue training.
+[07:52.06]Any of those can leave ranks waiting in incompatible states.
+[07:56.85]Ava: There’s also an edge case involving multiple process groups.
+[08:01.33]Brian: Right.
+[08:01.84]In N-D parallelism, such as FSDP, different process groups may schedule collectives back-to-back on the same GPU.
+[08:11.38]Without proper synchronization, GPU communication execution order can differ across ranks.
+[08:18.98]NCCL 2.
+[08:19.57]26 introduces NCCL_LAUNCH_ORDER_IMPLICIT to enforce the same order as scheduling.
+[08:26.76]Ava: What about a real GPU compute hang?
+[08:30.09]Brian: CUDA execution is sequential within a stream.
+[08:33.31]If a compute kernel hangs, the GPU can’t reach a scheduled collective.
+[08:38.32]The CPU then blocks at a later synchronization point.
+[08:42.11]Depending on the timing, the symptoms can look like a missing collective or a collective state mismatch.
+[08:49.90]Ava: Next is invalid collective arguments.
+[08:53.51]Brian: Usually, input and output tensor types and shapes must agree across ranks.
+[08:59.59]Some operations have global requirements too.
+[09:03.28]For all_to_all_single, the input and output size splits define the communication topology.
+[09:11.02]Ava: So if rank X expects more data from rank Y than Y sends, a receive can wait forever.
+[09:18.17]Brian: Exactly. PyTorch can’t fully verify those NCCL assumptions.
+[09:23.22]An invalid split can leave ncclRecv blocked forever, which later appears as a watchdog timeout.
+[09:31.72]Ava: And the fourth category is the infrastructure layer.
+[09:35.55]Brian: Network or hardware issues account for roughly twenty to thirty percent of the timeouts observed in the article.
+[09:43.66]Transient link or port flaps are common examples.
+[09:47.22]Faulty GPU hardware can also cause hangs across multiple unrelated jobs, often with repeated failures or hardware signals such as XIDs.
+[09:57.35]Ava: Now let’s get to Flight Recorder. What is it recording?
+[10:02.14]Brian: It’s a per-rank, CPU-side ring buffer shared across all process groups.
+[10:07.89]For each collective launch, it records the type, state, input and output data types, input and output sizes, and the CPU call stack.
+[10:18.58]Python and C++ stacks can both be recorded.
+[10:22.41]Ava: What states does a collective move through?
+[10:25.52]Brian: Four states: not scheduled, also called missing; scheduled from the CPU; started on the GPU; and completed on the GPU.
+[10:35.13]Each collective also gets a monotonically increasing sequence ID within each process group.
+[10:42.89]Ava: How does the data get dumped when the job is already falling apart?
+[10:47.75]Brian: If TORCH_NCCL_DUMP_ON_TIMEOUT is set, the watchdog triggers an immediate dump to storage.
+[10:55.64]Users can also retrieve records through a Python API, write to a pipe file, or use an HTTP request.
+[11:04.76]Ava: But what if the rank that’s hanging can’t dump its own records?
+[11:09.02]Brian: That was a key design problem.
+[11:11.44]Flight Recorder uses a side TCP/IP channel through TCPStore.
+[11:16.28]One rank broadcasts a timeout signal, and a dedicated monitor thread on each rank receives it and triggers the dump.
+[11:26.00]Ava: How do they avoid several process groups dumping at once?
+[11:30.36]Brian: Only the monitor thread for the default process group checks signals and starts the dump.
+[11:36.26]Other monitor threads briefly sleep, giving the main dump time to finish.
+[11:41.11]The design is best effort because the system is fragile during a timeout, but inside Meta it achieved a near one-hundred-percent full dump rate.
+[11:51.01]Ava: Why analyze after the timeout instead of coordinating live?
+[11:55.90]Brian: The system is already fragmented, and a single dead rank can break coordination.
+[12:01.88]Waiting live would also waste training resources.
+[12:05.54]So the design first writes raw records, then aggregates and analyzes them offline.
+[12:12.02]Ava: What does the post-timeout analysis look for?
+[12:15.22]Brian: It aligns records from all ranks by sequence ID, collective type, and scheduling order, then groups them by process group.
+[12:24.84]The goal is to find missing ranks and mismatches in type, state, call stack, data type, or size.
+[12:32.76]Ava: Can those mismatches point to the root-cause category?
+[12:36.73]Brian: Usually. CPU slowness often looks like a missing rank or state mismatch.
+[12:42.21]CPU divergence can show a different collective type or call stack.
+[12:47.23]Misconfigured arguments often show dtype or size mismatches.
+[12:51.79]Network issues may show every rank in the started state, with no mismatch.
+[12:57.77]Ava: Is there a tool for doing that alignment?
+[13:00.76]Brian: PyTorch provides fr_trace.
+[13:03.02]It enumerates collective mismatches, participating ranks, metadata, and one representative call stack.
+[13:12.22]Ava: Meta also built a visualization, right?
+[13:15.64]Brian: Yes. They place global collective scheduling order on the horizontal axis.
+[13:21.27]Each row represents a rank and process-group combination.
+[13:25.61]Cells represent collectives, and colors identify combinations of collective type and call stack.
+[13:32.91]Selecting cells opens an icicle chart of the call stacks.
+[13:37.59]Ava: That sounds useful for scanning a huge distributed trace.
+[13:42.38]Brian: That’s the idea.
+[13:43.53]The visualization makes mismatched colors easy to spot and helps compare call stacks quickly.
+[13:50.17]Grouping by process group is especially useful for N-D parallelism and cross-process-group scheduling races.
+[13:58.24]Ava: But Flight Recorder alone doesn’t show what the CPU main thread was doing.
+[14:03.39]Brian: Correct. Effective debugging also needs distributed CPU call-stack telemetry.
+[14:09.12]You want to know whether the CPU was loading data, compiling, waiting at a barrier, synchronizing with the GPU, or handling an exception.
+[14:19.32]The article mentions open-source tools such as py-spy for collecting that information.
+[14:26.08]Ava: What did the case studies reveal?
+[14:28.66]Brian: In one recommendation-system case, metric computation used collectives, but faulty conditional logic caused some ranks to skip them.
+[14:37.57]Flight Recorder’s divergent collective and call stacks isolated the problem.
+[14:43.05]Ava: And the all_to_all case was more subtle.
+[14:46.93]Brian: Yes. Some GPUs were stuck in two different, consecutive all_to_all calls.
+[14:52.31]At first, every rank seemed to run all_to_all, so the cause was unclear.
+[14:57.62]The call stacks showed that different variants came from different operations.
+[15:03.37]Invalid input sizes let some ranks finish the first collective and move to the next while others were still stuck in the first.
+[15:13.08]Ava: That explains why looking only at the operation name was not enough.
+[15:17.82]Brian: Exactly. Sequence, call stack, and argument metadata matter together.
+[15:24.29]Ava: What’s next for Flight Recorder?
+[15:26.85]Brian: The team plans to integrate it with TorchComm, validate it with host-side optimizations such as CUDA graphs, and extend it beyond NCCL to backends including MTIA and Gloo.
+[15:39.82]Ava: Let’s close with the three points I should remember. First?
+[15:44.40]Brian: A watchdog timeout is a catch-all symptom.
+[15:47.38]The reporting rank and the reported collective may not be the original cause.
+[15:53.20]Ava: Second?
+[15:54.65]Brian: Most timeouts observed at Meta came from cross-rank desynchronization, especially CPU-side slowness or divergent execution.
+[16:03.49]Raising the timeout usually doesn’t solve that.
+[16:07.22]Ava: And third?
+[16:08.84]Brian: Flight Recorder preserves per-rank collective history, then aligns it offline so you can locate missing ranks, metadata mismatches, and the relevant call stacks.
+[16:20.30]Ava: That’s a much better lens than staring at one generic stack trace.
+[16:25.45]Brian: Exactly.
+[16:26.09]When the watchdog fires, the useful question is not just, “Which rank timed out?
+[16:32.44]” It’s, “Where did the ranks first stop agreeing? ”
+[16:36.84]Ava: Thanks for listening. We’ll see you next time.

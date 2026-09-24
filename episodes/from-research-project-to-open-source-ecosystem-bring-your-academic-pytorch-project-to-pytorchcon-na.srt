@@ -1,0 +1,443 @@
+1
+00:00:00,000 --> 00:00:06,556
+Ava: What happens when a useful PyTorch research project outlives the paper that created it?
+
+2
+00:00:06,556 --> 00:00:13,838
+That’s the question behind a new academic workshop at PyTorch Conference North America 2026.
+
+3
+00:00:13,838 --> 00:00:14,228
+Brian: Right.
+
+4
+00:00:14,228 --> 00:00:25,564
+The workshop is trying to help projects make a difficult jump: from a research artifact to a sustainable open source project that a wider community can use and maintain.
+
+5
+00:00:25,564 --> 00:00:37,218
+Ava: So this is for university labs and student teams whose code works, but whose project may still depend on one graduating student or one person who knows the release process.
+
+6
+00:00:37,218 --> 00:00:37,827
+Brian: Exactly.
+
+7
+00:00:37,827 --> 00:00:44,601
+The PyTorch Foundation OSPO and Academic Outreach Working Group wants to bridge that gap.
+
+8
+00:00:44,601 --> 00:00:47,493
+OSPO means Open Source Program Office.
+
+9
+00:00:47,493 --> 00:00:57,128
+The group is inviting academic PyTorch projects to apply for a Day 0 workshop focused on education and community adoption.
+
+10
+00:00:57,128 --> 00:01:02,950
+Ava: Let’s start with the basic opportunity. What does a selected team actually get?
+
+11
+00:01:02,950 --> 00:01:08,327
+Brian: Eight selected projects will give short lightning talks during the workshop.
+
+12
+00:01:08,327 --> 00:01:12,855
+Each talk is five minutes, and presenters must attend in person.
+
+13
+00:01:12,855 --> 00:01:18,228
+After that, the teams join a hands-on workshop and mentor office hours.
+
+14
+00:01:18,228 --> 00:01:20,282
+Ava: Office hours with whom?
+
+15
+00:01:20,282 --> 00:01:33,712
+Brian: With maintainers, open source program managers, people who support open source ecosystems in industry and research organizations, open source contributors, and members of the broader PyTorch community.
+
+16
+00:01:33,712 --> 00:01:35,878
+Ava: So it’s not just a showcase.
+
+17
+00:01:35,878 --> 00:01:41,334
+Teams bring their real repositories and work on them with mentors.
+
+18
+00:01:41,334 --> 00:01:47,169
+Brian: That’s the idea. The article describes a move from show-and-tell to show-and-build.
+
+19
+00:01:47,169 --> 00:01:52,580
+The goal is for each team to leave with a prioritized set of next steps.
+
+20
+00:01:52,580 --> 00:01:58,594
+Ava: What kind of projects are they looking for? Is this only about a new model architecture?
+
+21
+00:01:58,594 --> 00:02:03,973
+Brian: No. They want projects with technical value beyond one experiment or one paper.
+
+22
+00:02:03,973 --> 00:02:16,512
+That could be a library or developer tool, a research framework for a specific domain, or a compiler, runtime, profiling, distributed training, inference, or optimization project.
+
+23
+00:02:16,512 --> 00:02:18,902
+Ava: That’s a pretty wide range.
+
+24
+00:02:18,902 --> 00:02:19,317
+Brian: It is.
+
+25
+00:02:19,317 --> 00:02:30,028
+The call also includes work in computer vision, natural language processing, robotics, scientific computing, healthcare, responsible AI, and accessibility.
+
+26
+00:02:30,028 --> 00:02:39,292
+Evaluation and benchmarking frameworks count too, as do reproducibility toolkits, research infrastructure, and educational tools.
+
+27
+00:02:39,292 --> 00:02:43,938
+Ava: And the project has to connect to the PyTorch ecosystem.
+
+28
+00:02:43,938 --> 00:02:49,956
+Brian: Yes. It needs to use PyTorch or another PyTorch Foundation hosted project.
+
+29
+00:02:49,956 --> 00:02:58,520
+The article names DeepSpeed, Helion, Ray, Safetensors, and vLLM as examples of those hosted projects.
+
+30
+00:02:58,520 --> 00:03:03,574
+Ava: Could it be an implementation that accompanies a major research paper?
+
+31
+00:03:03,574 --> 00:03:05,995
+Brian: Yes, if it has a life beyond the paper.
+
+32
+00:03:05,995 --> 00:03:16,524
+They also welcome projects that connect these projects with other parts of the open source AI stack, and they say they’re open to ideas they haven’t thought of yet.
+
+33
+00:03:16,524 --> 00:03:18,738
+Ava: That last part sounds encouraging.
+
+34
+00:03:18,738 --> 00:03:22,994
+A team doesn’t have to force its work into a fixed category.
+
+35
+00:03:22,994 --> 00:03:28,648
+Brian: Right. The larger message is that you don’t need to have everything figured out.
+
+36
+00:03:28,648 --> 00:03:32,806
+Ava: That sounds almost too good to be true for an open source call.
+
+37
+00:03:32,806 --> 00:03:36,390
+What does “not everything figured out” mean here?
+
+38
+00:03:36,390 --> 00:03:44,024
+Brian: Academic research software and sustainable community projects are often built under different conditions.
+
+39
+00:03:44,024 --> 00:03:51,077
+Academic teams optimize for experimentation, publication, reproducibility, and research velocity.
+
+40
+00:03:51,077 --> 00:04:03,932
+A sustainable project also needs documentation, releases, governance, security, contributor onboarding, testing, licensing, maintainer succession, and community operations.
+
+41
+00:04:03,932 --> 00:04:06,329
+Ava: Maintainer succession is a big one.
+
+42
+00:04:06,329 --> 00:04:12,706
+A student may create the project, graduate, and then nobody knows how to keep it moving.
+
+43
+00:04:12,706 --> 00:04:16,423
+Brian: Exactly. The article lists that situation directly.
+
+44
+00:04:16,423 --> 00:04:33,096
+Other examples include documentation that needs work, a repository that new contributors can’t navigate, an informal governance process, weak CI or packaging, or no CONTRIBUTING dot md, SECURITY dot md, or maintainer policy.
+
+45
+00:04:33,096 --> 00:04:37,286
+Ava: So a project can apply even if those pieces are missing?
+
+46
+00:04:37,286 --> 00:04:41,333
+Brian: Yes. Those gaps are part of the reason the workshop exists.
+
+47
+00:04:41,333 --> 00:04:53,548
+Teams may also be unsure how to build a contributor community, how to turn users into contributors, or what would eventually be needed to become a PyTorch Ecosystem project.
+
+48
+00:04:53,548 --> 00:04:59,394
+Ava: Let’s unpack the workshop itself. What happens during the project showcases?
+
+49
+00:04:59,394 --> 00:05:09,102
+Brian: Selected teams explain the problem they’re solving, how they use or extend PyTorch Foundation hosted projects, and the academic context behind the work.
+
+50
+00:05:09,102 --> 00:05:19,544
+They also talk about who uses the project today, why it could matter to the broader community, and what support or changes could help it reach the next stage.
+
+51
+00:05:19,544 --> 00:05:22,702
+Ava: Then the office hours get more practical.
+
+52
+00:05:22,702 --> 00:05:24,101
+Brian: Much more practical.
+
+53
+00:05:24,101 --> 00:05:32,985
+Mentors may ask whether someone can understand what the project does, install it, run it, test it, and learn how to contribute.
+
+54
+00:05:32,985 --> 00:05:36,972
+That’s what the article calls open source readiness.
+
+55
+00:05:36,972 --> 00:05:43,634
+Ava: I like that sequence. First, can a new user get started? Then, can a contributor join?
+
+56
+00:05:43,634 --> 00:05:50,068
+Brian: Yes. Governance is another topic. Who makes decisions? Who can merge changes?
+
+57
+00:05:50,068 --> 00:05:55,432
+What happens when the original academic maintainers move on?
+
+58
+00:05:55,432 --> 00:06:00,054
+Ava: And reproducibility is broader than publishing a paper.
+
+59
+00:06:00,054 --> 00:06:04,780
+Brian: Right. Another researcher should be able to reproduce the results.
+
+60
+00:06:04,780 --> 00:06:13,364
+That means datasets, benchmarks, evaluation methodology, dependencies, and artifacts need to be clearly documented.
+
+61
+00:06:13,364 --> 00:06:15,850
+Ava: What about the operational side?
+
+62
+00:06:15,850 --> 00:06:24,788
+Brian: They’ll discuss security and maintenance too: dependencies, vulnerabilities, releases, and supported PyTorch versions.
+
+63
+00:06:24,788 --> 00:06:28,120
+They may also look at ecosystem positioning.
+
+64
+00:06:28,120 --> 00:06:34,331
+What’s the project’s relationship with PyTorch? What unique problem does it solve?
+
+65
+00:06:34,331 --> 00:06:40,968
+What would need to change before a future PyTorch Ecosystem application made sense?
+
+66
+00:06:40,968 --> 00:06:46,574
+Ava: That sounds like a roadmap conversation, not a pass-or-fail inspection.
+
+67
+00:06:46,574 --> 00:06:49,169
+Brian: That’s how the article presents it.
+
+68
+00:06:49,169 --> 00:07:00,196
+The ambition is to identify gaps and turn them into actionable next steps for making a project easier to use, contribute to, maintain, and grow.
+
+69
+00:07:00,196 --> 00:07:05,730
+Ava: Who can submit? Only professors or official university labs?
+
+70
+00:07:05,730 --> 00:07:05,945
+Brian: No.
+
+71
+00:07:05,945 --> 00:07:27,608
+The call includes university students and graduate researchers, professors and academic educators, research labs and institutes, research software engineers, Academic OSPOs, maintainers of research-originated open source projects, and academic communities building tools around the hosted projects.
+
+72
+00:07:27,608 --> 00:07:31,438
+Ava: And projects can come from anywhere in the world.
+
+73
+00:07:31,438 --> 00:07:31,696
+Brian: Yes.
+
+74
+00:07:31,696 --> 00:07:39,769
+They don’t need to represent a large institution, have thousands of users, or already have a mature open source organization.
+
+75
+00:07:39,769 --> 00:07:52,260
+The organizers care about the idea, its usefulness, its relationship with PyTorch, the work already happening around it, and its potential to grow beyond the original academic environment.
+
+76
+00:07:52,260 --> 00:07:55,130
+Ava: How will they evaluate submissions?
+
+77
+00:07:55,130 --> 00:07:56,956
+Brian: There are six criteria.
+
+78
+00:07:56,956 --> 00:08:04,895
+Academic relevance: the project came from, substantially grew out of, or supports academic research.
+
+79
+00:08:04,895 --> 00:08:12,199
+Ecosystem relevance: it uses, extends, or integrates with PyTorch or another hosted project.
+
+80
+00:08:12,199 --> 00:08:22,552
+Open source readiness: there’s a public repository, an open source license, and enough documentation for mentors to review it.
+
+81
+00:08:22,552 --> 00:08:24,654
+Ava: What are the remaining three?
+
+82
+00:08:24,654 --> 00:08:32,407
+Brian: Potential impact, meaning it addresses a meaningful problem and could help users beyond the original research team.
+
+83
+00:08:32,407 --> 00:08:39,486
+Team commitment, meaning at least one maintainer can attend and continue the agreed next steps afterward.
+
+84
+00:08:39,486 --> 00:08:48,668
+And cohort diversity, so the final group represents different institutions, research areas, project stages, and geographic regions.
+
+85
+00:08:48,668 --> 00:08:51,754
+Ava: What should an applicant put in the submission?
+
+86
+00:08:51,754 --> 00:08:55,181
+Brian: Start with the repository and a short description.
+
+87
+00:08:55,181 --> 00:09:02,446
+Explain where the project came from: a university, lab, research group, course, or academic collaboration.
+
+88
+00:09:02,446 --> 00:09:14,928
+Then describe how it uses or extends PyTorch or its ecosystem, and who it helps, such as researchers, students, machine learning engineers, or a particular scientific community.
+
+89
+00:09:14,928 --> 00:09:18,446
+Ava: They also want evidence of what exists today.
+
+90
+00:09:18,446 --> 00:09:18,751
+Brian: Yes.
+
+91
+00:09:18,751 --> 00:09:27,811
+Users, contributors, releases, papers, deployments, courses, benchmarks, or other signs of adoption are useful context.
+
+92
+00:09:27,811 --> 00:09:40,876
+Then be honest about where you’re stuck: documentation, governance, packaging, testing, contributors, maintainers, visibility, reproducibility, or ecosystem readiness.
+
+93
+00:09:40,876 --> 00:09:45,906
+Ava: And the final question is what the workshop should help achieve.
+
+94
+00:09:45,906 --> 00:09:50,572
+Brian: Exactly. They’re not looking for perfectly polished applications.
+
+95
+00:09:50,572 --> 00:09:54,008
+They’re looking for projects worth helping.
+
+96
+00:09:54,008 --> 00:09:58,726
+Ava: Let’s make the deadline clear. When does this call close?
+
+97
+00:09:58,726 --> 00:10:03,473
+Brian: September thirtieth, twenty twenty-six, at midnight Pacific Time.
+
+98
+00:10:03,473 --> 00:10:10,908
+Registration for the event is separate from the PyTorch Conference and will open later that week.
+
+99
+00:10:10,908 --> 00:10:20,354
+Ava: So if you have a project that deserves a life beyond a paper, thesis, course, grant, or research group, this is a direct invitation.
+
+100
+00:10:20,354 --> 00:10:20,622
+Brian: Yes.
+
+101
+00:10:20,622 --> 00:10:29,925
+The project should already be open source and connected to PyTorch or one of the other hosted projects, but it doesn’t need to be polished.
+
+102
+00:10:29,925 --> 00:10:33,688
+The workshop is designed for the transition itself.
+
+103
+00:10:33,688 --> 00:10:36,245
+Ava: Let’s close with a three-point recap.
+
+104
+00:10:36,245 --> 00:10:43,230
+First, this workshop helps academic PyTorch projects move toward sustainable community adoption.
+
+105
+00:10:43,230 --> 00:11:00,068
+Brian: Second, selected teams get five-minute lightning talks, hands-on work with mentors, and office hours covering readiness, governance, reproducibility, community, security, maintenance, and ecosystem positioning.
+
+106
+00:11:00,068 --> 00:11:05,333
+Ava: Third, the organizers value potential and commitment over perfect maturity.
+
+107
+00:11:05,333 --> 00:11:13,474
+Submit the project, explain what exists, say where you’re stuck, and describe the next step you want help with.
+
+108
+00:11:13,474 --> 00:11:21,360
+Brian: And remember the deadline: September thirtieth, twenty twenty-six, midnight Pacific Time.
+
+109
+00:11:21,360 --> 00:11:22,737
+Ava: That’s it for today.
+
+110
+00:11:22,737 --> 00:11:30,038
+If your academic PyTorch project deserves a future beyond the original lab, bring it to the workshop.
+
+111
+00:11:30,038 --> 00:11:34,636
+Brian: Thanks for listening. We’ll see you in the next episode.

@@ -1,0 +1,147 @@
+[ti:PyTorch 2.12: Faster Math, Unified Graphs, and Wider Hardware Support]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: If your training job spends minutes solving lots of small eigenvalue problems, PyTorch 2.
+[00:06.67]12 may change that to seconds.
+[00:08.92]And the headline number is up to one hundred times faster on CUDA.
+[00:14.22]Brian: Right. This release is also about making PyTorch feel more consistent across hardware.
+[00:20.99]We get a device-agnostic graph API, wider export support, and several distributed and ROCm improvements.
+[00:29.52]Ava: So let's start with the speed story. What exactly changed for batched linalg. eigh?
+[00:36.26]Brian: linalg. eigh computes eigenvalues and eigenvectors for symmetric or Hermitian matrices.
+[00:42.43]In earlier releases, the CUDA path could dispatch each matrix solve separately.
+[00:48.04]That created a big performance gap, especially when you had many small or medium matrices.
+[00:54.78]Ava: So the GPU was doing lots of tiny jobs instead of one big batch?
+[00:59.97]Brian: Exactly. PyTorch has overhauled backend selection.
+[01:03.69]The old MAGMA backend was deprecated in favor of cuSolver, and the dispatch heuristics now use cuSolver's syevj_batched kernel unconditionally for this case.
+[01:15.71]Ava: And that kernel is designed for many matrices at once.
+[01:20.26]Brian: Yes. It processes the batch as a single GPU operation.
+[01:23.97]The article says workloads that used to take minutes can now run in seconds, with speedups of up to one hundred times over the previous release.
+[01:34.22]Ava: That sounds huge, but the wording matters: up to one hundred times, not every workload.
+[01:41.00]Brian: Correct. The gain depends on the workload.
+[01:44.03]The release calls out scientific computing and machine learning jobs that rely on batched eigendecompositions.
+[01:51.96]It also says this helps close longstanding performance gaps with CuPy.
+[01:57.36]Ava: Let's move to optimizers. Adagrad now has fused equals true. What does fused mean here?
+[02:05.03]Brian: A fused optimizer performs the whole optimizer step in one CUDA kernel.
+[02:10.75]Without fusion, separate operations launch separate kernels.
+[02:15.58]Fusion reduces kernel launch overhead and memory traffic.
+[02:20.52]Ava: So Adagrad joins Adam, AdamW, and SGD in having a fused variant.
+[02:27.78]Brian: Exactly. The CUDA kernel was contributed during the 2.
+[02:32.20]11 cycle, and the Python frontend is now exposed in 2. 12.
+[02:36.94]The practical idea is simple: fewer launches and less movement of intermediate data.
+[02:44.16]Ava: Now, the bigger architectural change seems to be torch. accelerator. Graph.
+[02:49.91]Brian: Yes. torch. accelerator.
+[02:51.88]Graph is a new device-agnostic API for graph capture and replay.
+[02:57.14]Instead of users learning a separate graph interface for every backend, they get one common abstraction.
+[03:06.03]Ava: Can you give a plain-language analogy?
+[03:08.61]Brian: Think of recording a fixed sequence of GPU work and replaying that recording many times.
+[03:15.15]The API is like a universal remote.
+[03:17.75]CUDA, XPU, and out-of-tree backends can keep their own internal implementations, but users interact with a consistent control surface.
+[03:28.04]Ava: How do backends plug into it?
+[03:30.72]Brian: Each backend can register an implementation through GraphImplInterface.
+[03:35.93]That keeps backend autonomy while giving applications a shared API.
+[03:40.84]The release has initial XPU support and an extension path for out-of-tree backends through PrivateUse1.
+[03:48.74]Ava: There is also a stream change, right?
+[03:51.73]Brian: Right. c10d::Stream and torch.
+[03:54.42]Stream now expose is_capturing(), which replaces the device-specific is_current_stream_capturing.
+[04:03.12]Stream context manager reentrance was fixed too.
+[04:07.43]Together, these changes improve parity across backends.
+[04:12.72]Ava: What about export and quantization?
+[04:15.85]Brian: torch. export. save and torch. export.
+[04:19.99]load now support Microscaling, or MX, quantization formats. Before 2.
+[04:27.50]12, export could not handle the float8_e8m0fnu dtype used as the shared block-scale exponent in MXFP4, MXFP6, and MXFP8.
+[04:40.92]Ava: So a model could use MX quantization, but the export-to-deployment path was blocked.
+[04:47.32]Brian: Exactly. Now tensors with that dtype can be serialized and deserialized correctly.
+[04:52.90]That unblocks the full workflow for aggressively compressed models, which matters for large language models deployed in cost-constrained or edge environments.
+[05:04.01]Ava: That is a nice example of a small missing dtype support causing a much larger production problem.
+[05:10.79]Brian: Yes. The quantization method existed, but the deployment handoff was incomplete.
+[05:17.45]This release closes that gap.
+[05:20.22]Ava: The release also mentions torch. cond inside CUDA Graphs. Why was that difficult?
+[05:27.02]Brian: torch. cond represents data-dependent control flow.
+[05:30.84]Previously, branches were evaluated on the CPU, so CUDA graph capture had to fall back to CUDA graph trees.
+[05:38.84]With CUDA 12.
+[05:39.81]4 conditional IF nodes, both branches can now be evaluated on the GPU inside one graph capture.
+[05:47.27]Ava: So the graph can contain the decision itself.
+[05:50.91]Brian: Exactly. It can capture and replay the control-flow region.
+[05:55.13]The current support works with the eager and cudagraphs backends.
+[05:59.79]Inductor support is planned for a future release, so that is one limitation to remember.
+[06:06.45]Ava: There is also a numerical correctness update for XPU involving addcdiv.
+[06:12.17]Brian: Yes.
+[06:12.52]addcdiv is a fused arithmetic operation: input plus value times tensor one divided by tensor two.
+[06:21.02]It appears in optimizer update rules such as Adam, AdamW, and RMSprop.
+[06:27.50]Ava: What was going wrong?
+[06:29.43]Brian: Inductor previously lowered the operation with separate multiply and divide instructions.
+[06:35.44]That could create small floating-point rounding differences compared with eager CUDA execution.
+[06:41.84]Over thousands of steps, those differences can accumulate.
+[06:46.10]Ava: And now it uses fused multiply-add instructions?
+[06:50.05]Brian: For CUDA first, and now for XPU as well.
+[06:52.93]The goal is bitwise numerical parity with eager CUDA execution while preserving Triton kernel fusion benefits.
+[07:00.85]That helps teams validate compiled optimizer-heavy training loops on NVIDIA and Intel hardware.
+[07:08.04]Ava: Let's talk distributed training. What changed for custom operators?
+[07:13.17]Brian: Custom operators can now accept ProcessGroup objects directly.
+[07:17.86]Callers no longer have to turn a group into a string name and look it up in a global registry.
+[07:24.97]The c10d functional collective operations, including all_reduce and reduce_scatter, accept both objects and string names.
+[07:34.47]Ava: That sounds like a cleaner interface.
+[07:37.49]Brian: It is, and profiling got richer too.
+[07:40.61]The PyTorch Profiler Events API now exposes flow IDs, flow types, activity types, unfinished events, and Python function events.
+[07:51.70]Its events() output is closer to the Chrome trace JSON output.
+[07:57.42]Ava: How does that help with multi-node debugging?
+[08:00.72]Brian: NCCL collective traces can now be correlated across ranks with a seq_num field.
+[08:06.57]All ranks participating in the same collective share the same sequence number within a process group.
+[08:14.04]That makes post-hoc analysis much more practical.
+[08:18.02]Ava: And FlightRecorder covers more communication backends.
+[08:22.64]Brian: Yes. Its trace analyzer now supports ncclx and gloo alongside nccl and xccl.
+[08:29.65]It also recognizes torchcomms operations such as all_gather_single, reduce_scatter_v, and barrier.
+[08:38.69]A race condition involving multiple process groups was fixed as well.
+[08:45.40]Ava: What platform updates should ROCm users notice?
+[08:49.81]Brian: Several. On AMD GPUs with ROCm 7.
+[08:52.57]02 or newer, the caching allocator supports expandable memory segments.
+[08:58.50]That dynamically grows allocations through virtual memory APIs and reduces fragmentation, matching the CUDA feature.
+[09:08.54]Ava: There is also rocSHMEM.
+[09:11.85]Brian: Right. rocSHMEM brings symmetric memory collective operations to AMD GPUs through torch.
+[09:19.38]ops. symm_mem.
+[09:20.58]It ports on-GPU primitives such as point-to-point, broadcast, all-to-all, and MoE-oriented two-dimensional AllToAllv.
+[09:30.94]Ava: And sparse computation?
+[09:33.38]Brian: hipSPARSELt is enabled by default in ROCm builds at 7. 12 or newer.
+[09:40.24]It adds semi-structured two-to-four sparsity support, and FP8 inputs are supported on MI350X with FP32 output.
+[09:51.51]That enables the torch. _cslt_sparse_mm acceleration path on AMD.
+[09:58.52]Ava: FlexAttention also gets a pipeline change.
+[10:02.71]Brian: Yes. On AMD GPUs, the Triton backend now uses two-stage pipelining for FlexAttention.
+[10:09.20]The article reports five to twenty-six percent speedups across causal, alibi, and sliding-window attention patterns on MI350X.
+[10:18.83]The change was just a one-line configuration adjustment from one stage to two.
+[10:25.14]Ava: What about Apple users?
+[10:27.34]Brian: Apple Silicon binary wheels now ship with ahead-of-time-compiled Metal-4 shaders.
+[10:33.28]They were built on macOS 26 with the Metal-4 standard, so MPS workloads avoid runtime shader compilation on first run and get lower startup latency.
+[10:44.49]Ava: Before we wrap up, we need the migration warnings.
+[10:48.87]Brian: The biggest future change is torchcomms. In an upcoming release, 2.
+[10:53.94]13 or later, PyTorch plans to use torchcomms by default in Distributed.
+[10:59.30]That brings breaking changes to ProcessGroup behavior, even though the team aims to make most migrations automatic.
+[11:08.35]Ava: What should engineers watch for?
+[11:10.93]Brian: ProcessGroups and communicators will need eager initialization during dist.
+[11:16.40]init_process_group, with one backend device.
+[11:19.61]P2P operations on the same group and stream will not be guaranteed to run concurrently; concurrent operations will need batch APIs or a separate group.
+[11:30.62]PyTorch also plans to make torchcomms a required package and deprecate the existing c10d backends.
+[11:38.11]Ava: And TorchScript?
+[11:40.24]Brian: TorchScript is now deprecated. It was deprecated in 2. 10.
+[11:44.78]The recommended direction is torch.
+[11:47.52]export instead of the jit trace and script APIs, and Executorch instead of the embedded runtime.
+[11:55.40]Ava: There is one more packaging detail: CUDA 12. 8 wheels.
+[12:00.74]Brian: Starting with 2. 12, the CUDA 12.
+[12:03.59]8 binary wheel is deprecated and will no longer be in the standard release matrix.
+[12:10.69]The default wheel is CUDA 13. 0, CUDA 13. 2 is experimental, and CUDA 12.
+[12:17.00]6 remains supported for older architectures. Newer GPUs need CUDA 13.
+[12:22.97]0 or newer and an NVIDIA driver upgrade to the versions listed in the release notes.
+[12:30.58]Ava: Let's do the three-point recap. First?
+[12:34.37]Brian: First, performance: batched CUDA linalg.
+[12:37.39]eigh can be up to one hundred times faster, and Adagrad gets a fused optimizer step.
+[12:44.10]Ava: Second: portability and deployment.
+[12:47.71]Brian: Right. torch. accelerator. Graph unifies graph capture and replay, torch.
+[12:53.92]export supports MX quantization, and torch. cond can run inside CUDA Graph capture.
+[13:01.34]Ava: Third: production tooling and platform reach.
+[13:05.69]Brian: That includes richer distributed profiling, broader ROCm support, Metal-4 offline shaders, and migration work toward torchcomms.
+[13:16.73]The release has 2,926 commits from 457 contributors, so there is a lot packed in.
+[13:24.07]Ava: PyTorch 2.
+[13:24.85]12 is faster, more hardware-agnostic, and more ready for deployment, while some migration work is still ahead.
+[13:33.80]Brian: Exactly.
+[13:34.47]Try the features, check the limits for your backend, and report issues as the 2.
+[13:41.16]x series keeps moving.
+[13:43.34]Ava: Thanks for listening. We'll be back with another PyTorch release explained.

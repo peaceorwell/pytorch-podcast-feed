@@ -1,0 +1,435 @@
+1
+00:00:00,000 --> 00:00:07,238
+Ava: Okay so, vLLM. Every time I check the GitHub repo it feels like it's rewriting itself.
+
+2
+00:00:07,238 --> 00:00:11,184
+Brian: Yeah, and this week there's actually a really interesting reason why.
+
+3
+00:00:11,184 --> 00:00:20,284
+There's a new blog post about what they're calling hardware-agnostic layers, and it's basically them admitting they've hit a real tension in the project.
+
+4
+00:00:20,284 --> 00:00:22,650
+Ava: A tension between what?
+
+5
+00:00:22,650 --> 00:00:30,643
+Brian: Between going as fast as possible on the newest GPUs, and still supporting, like, everything else.
+
+6
+00:00:30,643 --> 00:00:35,944
+Older GPUs, AMD, Google's TPUs, IBM's Spyre chips, Huawei Ascend.
+
+7
+00:00:35,944 --> 00:00:41,024
+vLLM's whole pitch has been: one engine, tons of hardware.
+
+8
+00:00:41,024 --> 00:00:43,202
+Ava: Right, that's why people like it.
+
+9
+00:00:43,202 --> 00:00:47,974
+You don't have to rewrite your serving stack for every accelerator.
+
+10
+00:00:47,974 --> 00:00:53,654
+Brian: Exactly. And the way they've pulled that off is with shared abstractions plus torch.
+
+11
+00:00:53,654 --> 00:00:58,049
+compile. So the model code itself stays pretty simple, and torch.
+
+12
+00:00:58,049 --> 00:01:04,620
+compile handles fusing operations and optimizing for whatever hardware you're on underneath.
+
+13
+00:01:04,620 --> 00:01:08,090
+Ava: So why is that suddenly a problem?
+
+14
+00:01:08,090 --> 00:01:12,641
+Brian: Because frontier models are getting really weird, really fast.
+
+15
+00:01:12,641 --> 00:01:22,844
+The article points to DeepSeek V4 and Kimi K3 — both hit million-token context windows, but with completely different attention mechanisms.
+
+16
+00:01:22,844 --> 00:01:24,736
+Totally custom stuff.
+
+17
+00:01:24,736 --> 00:01:29,526
+Ava: And custom stuff doesn't fit nicely into a shared abstraction.
+
+18
+00:01:29,526 --> 00:01:30,218
+Brian: Not easily.
+
+19
+00:01:30,218 --> 00:01:39,338
+To add one of these models today, you have to compose it from vLLM's shared layers, and keep the whole thing what they call fullgraph compilable.
+
+20
+00:01:39,338 --> 00:01:50,444
+That means Dynamo — that's the PyTorch component that traces your Python code into a graph — has to be able to trace the entire model without falling back to plain Python.
+
+21
+00:01:50,444 --> 00:01:55,090
+Ava: That sounds like a lot of hoops for someone just trying to ship a new model.
+
+22
+00:01:55,090 --> 00:01:55,502
+Brian: It is.
+
+23
+00:01:55,502 --> 00:02:05,731
+Every new kernel has to get registered as a torch library op, with a fake implementation for tracing and correct annotations for anything it mutates.
+
+24
+00:02:05,731 --> 00:02:10,200
+The article literally calls this a tax on model development.
+
+25
+00:02:10,200 --> 00:02:12,542
+Ava: Who's paying that tax?
+
+26
+00:02:12,542 --> 00:02:19,021
+Brian: Whoever adds the model. Including outside contributors who bring their own architecture.
+
+27
+00:02:19,021 --> 00:02:32,348
+And on top of that, new NVIDIA Blackwell GPUs and these rack-scale systems, GB300 NVL72, need really careful, hands-on kernel work to overlap computation and communication properly.
+
+28
+00:02:32,348 --> 00:02:36,748
+That's hard to express through a generic compiled path.
+
+29
+00:02:36,748 --> 00:02:42,570
+Ava: So what's vLLM's answer? Just... stop using torch. compile?
+
+30
+00:02:42,570 --> 00:02:47,911
+Brian: For some models, basically yes. They're introducing what they call flat models.
+
+31
+00:02:47,911 --> 00:02:51,494
+Instead of going through the shared layers and torch.
+
+32
+00:02:51,494 --> 00:02:57,511
+compile, these are hardware-specific model definitions with hand-written, custom fusions.
+
+33
+00:02:57,511 --> 00:03:02,864
+All the newest frontier models added recently already use this flat style.
+
+34
+00:03:02,864 --> 00:03:06,327
+Ava: Okay, that makes sense for squeezing out performance.
+
+35
+00:03:06,327 --> 00:03:10,270
+But you said this creates a problem for other hardware.
+
+36
+00:03:10,270 --> 00:03:11,739
+Brian: Right, here's the catch.
+
+37
+00:03:11,739 --> 00:03:20,066
+The layers that flat models used to share with everyone else are going to get refactored in ways that just aren't compatible with torch.
+
+38
+00:03:20,066 --> 00:03:21,396
+compile anymore.
+
+39
+00:03:21,396 --> 00:03:25,370
+Ava: And torch. compile matters for who, exactly?
+
+40
+00:03:25,370 --> 00:03:30,982
+Brian: For out-of-tree accelerators, mainly. IBM's Spyre plugin is the example they use.
+
+41
+00:03:30,982 --> 00:03:41,722
+Spyre depends on Dynamo to trace the graph, and then TorchInductor — the compiler backend — to lower it down to something that runs well on Spyre hardware.
+
+42
+00:03:41,722 --> 00:03:45,328
+Without compile support, that path just breaks.
+
+43
+00:03:45,328 --> 00:03:47,263
+Ava: Is it only about compile though?
+
+44
+00:03:47,263 --> 00:03:51,846
+I feel like there was something about plugins overriding behavior too.
+
+45
+00:03:51,846 --> 00:03:56,732
+Brian: Good catch, yeah. vLLM's layers today support two extensibility hooks.
+
+46
+00:03:56,732 --> 00:04:02,945
+One's called CustomOp, which lets a plugin override just the forward function of a layer.
+
+47
+00:04:02,945 --> 00:04:07,762
+The other is PluggableLayer, which lets you swap out the whole layer.
+
+48
+00:04:07,762 --> 00:04:15,860
+Spyre uses both, because sometimes it needs to inject something like a custom memory layout to run efficiently.
+
+49
+00:04:15,860 --> 00:04:19,114
+Ava: And the flat model rewrite drops that too?
+
+50
+00:04:19,114 --> 00:04:21,733
+Brian: It does, or at least doesn't guarantee it.
+
+51
+00:04:21,733 --> 00:04:30,936
+So put it together: out-of-tree plugins would suddenly need to maintain their own copies of model definitions and layers just to stay working.
+
+52
+00:04:30,936 --> 00:04:32,639
+Ava: That sounds miserable.
+
+53
+00:04:32,639 --> 00:04:42,278
+Every new model needs a PR to transformers, a PR to vLLM, and then a PR to every single plugin that wants to support it.
+
+54
+00:04:42,278 --> 00:04:53,956
+Brian: Right, and they even joke that coding agents like Claude Code or Codex make this more tractable, but it's still burning token budgets across a bunch of different organizations for no real payoff.
+
+55
+00:04:53,956 --> 00:04:59,874
+Ava: You mentioned older or less common GPUs earlier too. Same story?
+
+56
+00:04:59,874 --> 00:05:02,190
+Brian: Same story, plus one more wrinkle.
+
+57
+00:05:02,190 --> 00:05:14,863
+vLLM's leaning more on what's called the transformers modeling backend, which just imports model definitions straight from the transformers library and rewires them to use vLLM's layers.
+
+58
+00:05:14,863 --> 00:05:23,048
+That's increasingly how vLLM supports older or more exotic models, as the old hand-written definitions get retired.
+
+59
+00:05:23,048 --> 00:05:27,046
+Ava: So if those shared layers lose compile support...
+
+60
+00:05:27,046 --> 00:05:33,033
+Brian: ... performance for all those models regresses. Significantly, according to the post.
+
+61
+00:05:33,033 --> 00:05:42,468
+And their own usage numbers show a real chunk of users are still on older or consumer-grade GPUs, not the newest Blackwell chips.
+
+62
+00:05:42,468 --> 00:05:49,298
+Ava: Okay, so real conflict. Move fast at the frontier, or keep everyone else running well.
+
+63
+00:05:49,298 --> 00:05:51,554
+How do they square that?
+
+64
+00:05:51,554 --> 00:06:00,957
+Brian: This is the actual proposal: a new set of hardware-agnostic layers, living in-tree, separate from the flat, hardware-specific stuff.
+
+65
+00:06:00,957 --> 00:06:04,875
+Four design goals. First, compilable — fullgraph torch.
+
+66
+00:06:04,875 --> 00:06:09,784
+compile still works, so accelerators that depend on it are fine.
+
+67
+00:06:09,784 --> 00:06:11,238
+Ava: Second?
+
+68
+00:06:11,238 --> 00:06:12,043
+Brian: Extensible.
+
+69
+00:06:12,043 --> 00:06:20,588
+CustomOp and PluggableLayer stay available, so plugins like Spyre can still override behavior when they need to.
+
+70
+00:06:20,588 --> 00:06:21,922
+Ava: Third?
+
+71
+00:06:21,922 --> 00:06:22,532
+Brian: Isolated.
+
+72
+00:06:22,532 --> 00:06:30,931
+These layers get their own separate set of ops, completely apart from whatever the flat, hardware-specific models are doing.
+
+73
+00:06:30,931 --> 00:06:38,664
+So the frontier team can keep moving fast without worrying they'll break something for Spyre, and vice versa.
+
+74
+00:06:38,664 --> 00:06:40,454
+Ava: And the fourth?
+
+75
+00:06:40,454 --> 00:06:41,059
+Brian: Portable.
+
+76
+00:06:41,059 --> 00:06:51,349
+Wherever possible, implement things in plain PyTorch, or portable kernel languages like Triton or Helion, so the same code runs across many accelerators.
+
+77
+00:06:51,349 --> 00:06:59,164
+If a given hardware target still can't handle that, it falls back to extensibility to plug in something custom.
+
+78
+00:06:59,164 --> 00:07:02,013
+Ava: Okay, so where does this actually plug in?
+
+79
+00:07:02,013 --> 00:07:09,690
+You said there were three flavors of model definitions already — flat, legacy, and the transformers backend.
+
+80
+00:07:09,690 --> 00:07:10,078
+Brian: Right.
+
+81
+00:07:10,078 --> 00:07:19,525
+For the transformers backend, they've changed the rewiring step so it points at these new hardware-agnostic layers instead of the old shared ones.
+
+82
+00:07:19,525 --> 00:07:32,816
+It's already landed on vLLM's main branch, for a limited set of layers, and you can turn it on with an environment variable, USE_HW_AGNOSTIC=1, when you serve a model through the transformers backend.
+
+83
+00:07:32,816 --> 00:07:36,070
+Ava: Has anyone actually tried it beyond a demo?
+
+84
+00:07:36,070 --> 00:07:42,375
+Brian: Yeah, they've validated it with the Spyre plugin, on Gemma 4, Qwen3, and Granite 4. 2.
+
+85
+00:07:42,375 --> 00:07:49,764
+And they're planning to fold it into CI soon, then gradually make it the default path for Spyre.
+
+86
+00:07:49,764 --> 00:07:55,562
+Ava: What about the flat models? Do they get hardware-agnostic layers too eventually?
+
+87
+00:07:55,562 --> 00:08:01,012
+Brian: That's the plan, though it hasn't landed yet. Each flat model would get its own model.
+
+88
+00:08:01,012 --> 00:08:04,180
+py written against these hardware-agnostic layers.
+
+89
+00:08:04,180 --> 00:08:18,184
+Shared layers live in one common place, and anything model-specific, they give the example of a DeepSeek V4 attention variant, stays local to that model's own directory, but still has to follow those same four principles.
+
+90
+00:08:18,184 --> 00:08:23,920
+There's apparently a hardware-agnostic DeepSeek V4 pull request already under review.
+
+91
+00:08:23,920 --> 00:08:29,214
+Ava: Alright, the question everyone's actually going to ask: does it perform?
+
+92
+00:08:29,214 --> 00:08:36,036
+Brian: So, to be fair, they're upfront that beating state-of-the-art on Blackwell isn't the goal here.
+
+93
+00:08:36,036 --> 00:08:37,256
+It's portability.
+
+94
+00:08:37,256 --> 00:08:47,300
+But they did run it on NVIDIA H100s, comparing the transformers backend with the flag off versus on, across a handful of recent models.
+
+95
+00:08:47,300 --> 00:08:48,490
+Ava: And?
+
+96
+00:08:48,490 --> 00:08:57,908
+Brian: Total token throughput came within about three point four percent of the native implementation, that's a geometric mean across three recent models.
+
+97
+00:08:57,908 --> 00:09:03,384
+In a couple of cases the hardware-agnostic version was actually slightly faster.
+
+98
+00:09:03,384 --> 00:09:09,566
+Ava: Wait, faster? Even though it's not using hand-tuned CUDA libraries?
+
+99
+00:09:09,566 --> 00:09:11,434
+Brian: Yeah, that surprised me too.
+
+100
+00:09:11,434 --> 00:09:21,505
+It's built purely from portable code, no FlashAttention, no CUTLASS, and it still lands basically neck and neck with implementations that do use those.
+
+101
+00:09:21,505 --> 00:09:26,524
+So the portability tax turns out to be pretty small, at least on H100.
+
+102
+00:09:26,524 --> 00:09:30,418
+Ava: Okay let's wrap this up. Three things I'm taking away.
+
+103
+00:09:30,418 --> 00:09:42,306
+One, frontier models are diverging so fast that vLLM's shared abstractions can't keep up, so they're building hardware-specific flat models to stay competitive.
+
+104
+00:09:42,306 --> 00:09:44,623
+Brian: Two, that move risks breaking torch.
+
+105
+00:09:44,623 --> 00:09:53,792
+compile and plugin support, which matters a lot for out-of-tree accelerators, older GPUs, and anyone leaning on the transformers backend.
+
+106
+00:09:53,792 --> 00:10:09,454
+Ava: And three, their fix is a separate set of hardware-agnostic layers, compilable, extensible, isolated from the frontier code, and portable, and early H100 numbers say that costs you only a few percent of performance.
+
+107
+00:10:09,454 --> 00:10:10,803
+Brian: That's basically it.
+
+108
+00:10:10,803 --> 00:10:19,044
+Still very much a work in progress, but it's a solid answer to a problem a lot of projects just don't deal with well.
+
+109
+00:10:19,044 --> 00:10:24,674
+Ava: Alright, that's the episode. Thanks for listening, and we'll catch you next time.
