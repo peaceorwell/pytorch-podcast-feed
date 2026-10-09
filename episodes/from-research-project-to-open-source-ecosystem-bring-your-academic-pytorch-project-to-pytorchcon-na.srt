@@ -1,0 +1,554 @@
+1
+00:00:00,000 --> 00:00:06,556
+Ava: What happens when a useful PyTorch research project outlives the paper that created it?
+Ava：一项有用的 PyTorch 研究项目，在催生它的论文发表后仍持续发展，会面临什么？
+
+2
+00:00:06,556 --> 00:00:13,838
+That’s the question behind a new academic workshop at PyTorch Conference North America 2026.
+这正是 2026 年北美 PyTorch 大会新设学术工作坊要探讨的问题。
+
+3
+00:00:13,838 --> 00:00:14,228
+Brian: Right.
+Brian：没错。
+
+4
+00:00:14,228 --> 00:00:25,564
+The workshop is trying to help projects make a difficult jump: from a research artifact to a sustainable open source project that a wider community can use and maintain.
+工作坊希望帮助项目跨过一道难关：从研究成果变成更广泛的社区能够使用和维护的可持续开源项目。
+
+5
+00:00:25,564 --> 00:00:37,218
+Ava: So this is for university labs and student teams whose code works, but whose project may still depend on one graduating student or one person who knows the release process.
+Ava：也就是说，它面向代码已经能用，但项目可能仍依赖某位即将毕业的学生，或唯一懂发布流程的人的大学实验室和学生团队。
+
+6
+00:00:37,218 --> 00:00:37,827
+Brian: Exactly.
+Brian：正是。
+
+7
+00:00:37,827 --> 00:00:44,601
+The PyTorch Foundation OSPO and Academic Outreach Working Group wants to bridge that gap.
+PyTorch 基金会的 OSPO 与学术推广工作组希望弥合这道鸿沟。
+
+8
+00:00:44,601 --> 00:00:47,493
+OSPO means Open Source Program Office.
+OSPO 是“开源项目办公室”（Open Source Program Office）的缩写。
+
+9
+00:00:47,493 --> 00:00:57,128
+The group is inviting academic PyTorch projects to apply for a Day 0 workshop focused on education and community adoption.
+该工作组邀请学术界的 PyTorch 项目申请参加聚焦教育和社区采用的 Day 0 工作坊。
+
+10
+00:00:57,128 --> 00:01:02,950
+Ava: Let’s start with the basic opportunity. What does a selected team actually get?
+Ava：先说说最基本的机会。入选团队能得到什么？
+
+11
+00:01:02,950 --> 00:01:08,327
+Brian: Eight selected projects will give short lightning talks during the workshop.
+Brian：八个入选项目将在工作坊上做简短的闪电演讲。
+
+12
+00:01:08,327 --> 00:01:12,855
+Each talk is five minutes, and presenters must attend in person.
+每场演讲五分钟，演讲者必须到场参加。
+
+13
+00:01:12,855 --> 00:01:18,228
+After that, the teams join a hands-on workshop and mentor office hours.
+之后，团队将参加动手实践工作坊和导师答疑时段。
+
+14
+00:01:18,228 --> 00:01:20,282
+Ava: Office hours with whom?
+Ava：导师都有谁？
+
+15
+00:01:20,282 --> 00:01:33,712
+Brian: With maintainers, open source program managers, people who support open source ecosystems in industry and research organizations, open source contributors, and members of the broader PyTorch community.
+Brian：包括项目维护者、开源项目经理、在企业和研究机构支持开源生态的人士、开源贡献者，以及更广泛的 PyTorch 社区成员。
+
+16
+00:01:33,712 --> 00:01:35,878
+Ava: So it’s not just a showcase.
+Ava：所以这不只是成果展示。
+
+17
+00:01:35,878 --> 00:01:41,334
+Teams bring their real repositories and work on them with mentors.
+团队会带着自己的真实代码仓库，与导师一起改进。
+
+18
+00:01:41,334 --> 00:01:47,169
+Brian: That’s the idea. The article describes a move from show-and-tell to show-and-build.
+Brian：就是这个意思。文章说，活动要从“展示和讲解”走向“展示和共建”。
+
+19
+00:01:47,169 --> 00:01:52,580
+The goal is for each team to leave with a prioritized set of next steps.
+目标是让每个团队离开时，都有一份按优先级排列的后续行动清单。
+
+20
+00:01:52,580 --> 00:01:58,594
+Ava: What kind of projects are they looking for? Is this only about a new model architecture?
+Ava：他们想找什么样的项目？只限新的模型架构吗？
+
+21
+00:01:58,594 --> 00:02:03,973
+Brian: No. They want projects with technical value beyond one experiment or one paper.
+Brian：不是。他们希望项目的技术价值能超越单次实验或一篇论文。
+
+22
+00:02:03,973 --> 00:02:16,512
+That could be a library or developer tool, a research framework for a specific domain, or a compiler, runtime, profiling, distributed training, inference, or optimization project.
+可以是库或开发者工具、特定领域的研究框架，也可以是编译器、运行时、性能分析、分布式训练、推理或优化项目。
+
+23
+00:02:16,512 --> 00:02:18,902
+Ava: That’s a pretty wide range.
+Ava：范围相当广。
+
+24
+00:02:18,902 --> 00:02:19,317
+Brian: It is.
+Brian：是的。
+
+25
+00:02:19,317 --> 00:02:30,028
+The call also includes work in computer vision, natural language processing, robotics, scientific computing, healthcare, responsible AI, and accessibility.
+征集范围还包括计算机视觉、自然语言处理、机器人、科学计算、医疗健康、负责任的 AI 和无障碍领域的项目。
+
+26
+00:02:30,028 --> 00:02:39,292
+Evaluation and benchmarking frameworks count too, as do reproducibility toolkits, research infrastructure, and educational tools.
+评估与基准测试框架、可复现性工具包、研究基础设施和教学工具也都在范围内。
+
+27
+00:02:39,292 --> 00:02:43,938
+Ava: And the project has to connect to the PyTorch ecosystem.
+Ava：而且项目必须与 PyTorch 生态有关。
+
+28
+00:02:43,938 --> 00:02:49,956
+Brian: Yes. It needs to use PyTorch or another PyTorch Foundation hosted project.
+Brian：对。项目需要使用 PyTorch 或 PyTorch 基金会托管的其他项目。
+
+29
+00:02:49,956 --> 00:02:58,520
+The article names DeepSpeed, Helion, Ray, Safetensors, and vLLM as examples of those hosted projects.
+文章举出的托管项目包括 DeepSpeed、Helion、Ray、Safetensors 和 vLLM。
+
+30
+00:02:58,520 --> 00:03:03,574
+Ava: Could it be an implementation that accompanies a major research paper?
+Ava：重大研究论文的配套实现可以申请吗？
+
+31
+00:03:03,574 --> 00:03:05,995
+Brian: Yes, if it has a life beyond the paper.
+Brian：可以，只要它在论文之外还有持续发展的价值。
+
+32
+00:03:05,995 --> 00:03:16,524
+They also welcome projects that connect these projects with other parts of the open source AI stack, and they say they’re open to ideas they haven’t thought of yet.
+他们也欢迎将这些项目与开源 AI 技术栈其他部分连接起来的项目，并表示乐于接受尚未想到的新点子。
+
+33
+00:03:16,524 --> 00:03:18,738
+Ava: That last part sounds encouraging.
+Ava：最后这点挺让人鼓舞。
+
+34
+00:03:18,738 --> 00:03:22,994
+A team doesn’t have to force its work into a fixed category.
+团队不必硬把自己的工作塞进固定类别。
+
+35
+00:03:22,994 --> 00:03:28,648
+Brian: Right. The larger message is that you don’t need to have everything figured out.
+Brian：对。更重要的信息是，不用事先把所有事情都想明白。
+
+36
+00:03:28,648 --> 00:03:32,806
+Ava: That sounds almost too good to be true for an open source call.
+Ava：对开源项目征集来说，这听着好得有点不真实。
+
+37
+00:03:32,806 --> 00:03:36,390
+What does “not everything figured out” mean here?
+这里的“不用把所有事情都想明白”具体是什么意思？
+
+38
+00:03:36,390 --> 00:03:44,024
+Brian: Academic research software and sustainable community projects are often built under different conditions.
+Brian：学术研究软件和可持续的社区项目，往往是在不同条件下开发的。
+
+39
+00:03:44,024 --> 00:03:51,077
+Academic teams optimize for experimentation, publication, reproducibility, and research velocity.
+学术团队更注重实验、发表论文、可复现性和研究进度。
+
+40
+00:03:51,077 --> 00:04:03,932
+A sustainable project also needs documentation, releases, governance, security, contributor onboarding, testing, licensing, maintainer succession, and community operations.
+可持续的项目还需要文档、版本发布、治理、安全、帮助新贡献者上手、测试、许可证、维护者接班安排和社区运营。
+
+41
+00:04:03,932 --> 00:04:06,329
+Ava: Maintainer succession is a big one.
+Ava：维护者接班是个大问题。
+
+42
+00:04:06,329 --> 00:04:12,706
+A student may create the project, graduate, and then nobody knows how to keep it moving.
+学生创建项目后毕业了，接着没人知道该怎么把项目继续做下去。
+
+43
+00:04:12,706 --> 00:04:16,423
+Brian: Exactly. The article lists that situation directly.
+Brian：没错。文章明确列举了这种情况。
+
+44
+00:04:16,423 --> 00:04:33,096
+Other examples include documentation that needs work, a repository that new contributors can’t navigate, an informal governance process, weak CI or packaging, or no CONTRIBUTING dot md, SECURITY dot md, or maintainer policy.
+其他例子包括文档有待完善、新贡献者难以摸清代码仓库、治理流程不成文、持续集成或打包薄弱，或者缺少 CONTRIBUTING.md、SECURITY.md 或维护者政策。
+
+45
+00:04:33,096 --> 00:04:37,286
+Ava: So a project can apply even if those pieces are missing?
+Ava：所以即使缺少这些，项目也可以申请？
+
+46
+00:04:37,286 --> 00:04:41,333
+Brian: Yes. Those gaps are part of the reason the workshop exists.
+Brian：可以。这些短板正是举办工作坊的原因之一。
+
+47
+00:04:41,333 --> 00:04:53,548
+Teams may also be unsure how to build a contributor community, how to turn users into contributors, or what would eventually be needed to become a PyTorch Ecosystem project.
+团队也可能不清楚如何建立贡献者社区、如何让用户成为贡献者，或将来成为 PyTorch Ecosystem 项目需要满足什么条件。
+
+48
+00:04:53,548 --> 00:04:59,394
+Ava: Let’s unpack the workshop itself. What happens during the project showcases?
+Ava：我们具体聊聊工作坊。项目展示环节会做什么？
+
+49
+00:04:59,394 --> 00:05:09,102
+Brian: Selected teams explain the problem they’re solving, how they use or extend PyTorch Foundation hosted projects, and the academic context behind the work.
+Brian：入选团队会说明自己要解决的问题、如何使用或扩展 PyTorch 基金会托管的项目，以及相关的学术背景。
+
+50
+00:05:09,102 --> 00:05:19,544
+They also talk about who uses the project today, why it could matter to the broader community, and what support or changes could help it reach the next stage.
+他们还会介绍目前谁在使用项目、项目为何可能对更广泛的社区有价值，以及哪些支持或改进能帮助项目迈向下一阶段。
+
+51
+00:05:19,544 --> 00:05:22,702
+Ava: Then the office hours get more practical.
+Ava：接下来，答疑时间会更注重实践。
+
+52
+00:05:22,702 --> 00:05:24,101
+Brian: Much more practical.
+Brian：会实用得多。
+
+53
+00:05:24,101 --> 00:05:32,985
+Mentors may ask whether someone can understand what the project does, install it, run it, test it, and learn how to contribute.
+导师可能会看，别人能否理解项目的用途，安装、运行和测试它，并学会如何参与贡献。
+
+54
+00:05:32,985 --> 00:05:36,972
+That’s what the article calls open source readiness.
+文章把这称为“开源就绪度”。
+
+55
+00:05:36,972 --> 00:05:43,634
+Ava: I like that sequence. First, can a new user get started? Then, can a contributor join?
+Ava：我喜欢这个顺序。先看新用户能否上手，再看贡献者能否参与。
+
+56
+00:05:43,634 --> 00:05:50,068
+Brian: Yes. Governance is another topic. Who makes decisions? Who can merge changes?
+Brian：对。治理也是一个话题：谁做决定？谁有权合并修改？
+
+57
+00:05:50,068 --> 00:05:55,432
+What happens when the original academic maintainers move on?
+最初的学术项目维护者离开后怎么办？
+
+58
+00:05:55,432 --> 00:06:00,054
+Ava: And reproducibility is broader than publishing a paper.
+Ava：可复现性也不只是发表论文。
+
+59
+00:06:00,054 --> 00:06:04,780
+Brian: Right. Another researcher should be able to reproduce the results.
+Brian：没错。其他研究者应该能够复现结果。
+
+60
+00:06:04,780 --> 00:06:13,364
+That means datasets, benchmarks, evaluation methodology, dependencies, and artifacts need to be clearly documented.
+这意味着数据集、基准测试、评估方法、依赖项和成果文件都需要清楚记录。
+
+61
+00:06:13,364 --> 00:06:15,850
+Ava: What about the operational side?
+Ava：运营方面呢？
+
+62
+00:06:15,850 --> 00:06:24,788
+Brian: They’ll discuss security and maintenance too: dependencies, vulnerabilities, releases, and supported PyTorch versions.
+Brian：他们也会讨论安全和维护，包括依赖项、漏洞、版本发布，以及支持哪些 PyTorch 版本。
+
+63
+00:06:24,788 --> 00:06:28,120
+They may also look at ecosystem positioning.
+他们可能还会考察项目在生态中的定位。
+
+64
+00:06:28,120 --> 00:06:34,331
+What’s the project’s relationship with PyTorch? What unique problem does it solve?
+项目与 PyTorch 有什么关系？它解决了什么独特的问题？
+
+65
+00:06:34,331 --> 00:06:40,968
+What would need to change before a future PyTorch Ecosystem application made sense?
+要做出哪些改变，今后申请加入 PyTorch Ecosystem 才合适？
+
+66
+00:06:40,968 --> 00:06:46,574
+Ava: That sounds like a roadmap conversation, not a pass-or-fail inspection.
+Ava：听起来这是在讨论发展路线，而不是进行合格与否的检查。
+
+67
+00:06:46,574 --> 00:06:49,169
+Brian: That’s how the article presents it.
+Brian：文章就是这么介绍的。
+
+68
+00:06:49,169 --> 00:07:00,196
+The ambition is to identify gaps and turn them into actionable next steps for making a project easier to use, contribute to, maintain, and grow.
+目标是找出不足，制定可执行的后续步骤，让项目更易使用、贡献和维护，也更有发展空间。
+
+69
+00:07:00,196 --> 00:07:05,730
+Ava: Who can submit? Only professors or official university labs?
+Ava：谁能提交申请？只有教授或大学的正式实验室吗？
+
+70
+00:07:05,730 --> 00:07:05,945
+Brian: No.
+Brian：不是。
+
+71
+00:07:05,945 --> 00:07:27,608
+The call includes university students and graduate researchers, professors and academic educators, research labs and institutes, research software engineers, Academic OSPOs, maintainers of research-originated open source projects, and academic communities building tools around the hosted projects.
+征集对象包括大学生和研究生、教授和高校教师、研究实验室和机构、科研软件工程师、学术机构开源项目办公室（Academic OSPO）、源于科研的开源项目维护者，以及围绕托管项目开发工具的学术社区。
+
+72
+00:07:27,608 --> 00:07:31,438
+Ava: And projects can come from anywhere in the world.
+Ava：世界各地的项目都可以申请。
+
+73
+00:07:31,438 --> 00:07:31,696
+Brian: Yes.
+Brian：对。
+
+74
+00:07:31,696 --> 00:07:39,769
+They don’t need to represent a large institution, have thousands of users, or already have a mature open source organization.
+项目不必来自大型机构，不必有数千名用户，也不必已经建立成熟的开源组织。
+
+75
+00:07:39,769 --> 00:07:52,260
+The organizers care about the idea, its usefulness, its relationship with PyTorch, the work already happening around it, and its potential to grow beyond the original academic environment.
+组织者看重项目的构想、实用性、与 PyTorch 的关系、现有工作，以及走出最初学术环境的发展潜力。
+
+76
+00:07:52,260 --> 00:07:55,130
+Ava: How will they evaluate submissions?
+Ava：他们会如何评估申请？
+
+77
+00:07:55,130 --> 00:07:56,956
+Brian: There are six criteria.
+Brian：有六项标准。
+
+78
+00:07:56,956 --> 00:08:04,895
+Academic relevance: the project came from, substantially grew out of, or supports academic research.
+学术相关性：项目源于学术研究、在学术研究中得到显著发展，或为学术研究提供支持。
+
+79
+00:08:04,895 --> 00:08:12,199
+Ecosystem relevance: it uses, extends, or integrates with PyTorch or another hosted project.
+生态相关性：项目使用、扩展或集成了 PyTorch 或其他托管项目。
+
+80
+00:08:12,199 --> 00:08:22,552
+Open source readiness: there’s a public repository, an open source license, and enough documentation for mentors to review it.
+开源就绪度：项目有公开代码仓库、开源许可证，以及足以供导师评审的文档。
+
+81
+00:08:22,552 --> 00:08:24,654
+Ava: What are the remaining three?
+Ava：剩下三项呢？
+
+82
+00:08:24,654 --> 00:08:32,407
+Brian: Potential impact, meaning it addresses a meaningful problem and could help users beyond the original research team.
+Brian：潜在影响力，即项目解决了重要问题，也可能帮助原研究团队之外的用户。
+
+83
+00:08:32,407 --> 00:08:39,486
+Team commitment, meaning at least one maintainer can attend and continue the agreed next steps afterward.
+团队投入度，即至少有一名维护者能参加活动，并在之后继续落实商定的后续步骤。
+
+84
+00:08:39,486 --> 00:08:48,668
+And cohort diversity, so the final group represents different institutions, research areas, project stages, and geographic regions.
+还有入选项目的多样性，确保最终入选项目来自不同机构、研究领域、发展阶段和地区。
+
+85
+00:08:48,668 --> 00:08:51,754
+Ava: What should an applicant put in the submission?
+Ava：申请材料里该写什么？
+
+86
+00:08:51,754 --> 00:08:55,181
+Brian: Start with the repository and a short description.
+Brian：先提供代码仓库链接和简短介绍。
+
+87
+00:08:55,181 --> 00:09:02,446
+Explain where the project came from: a university, lab, research group, course, or academic collaboration.
+说明项目的来源，比如大学、实验室、研究小组、课程或学术合作。
+
+88
+00:09:02,446 --> 00:09:14,928
+Then describe how it uses or extends PyTorch or its ecosystem, and who it helps, such as researchers, students, machine learning engineers, or a particular scientific community.
+然后说明它如何使用或扩展 PyTorch 及其生态，以及它能帮助谁，比如研究者、学生、机器学习工程师或某个科学研究领域的群体。
+
+89
+00:09:14,928 --> 00:09:18,446
+Ava: They also want evidence of what exists today.
+Ava：他们也想看到项目目前已有成果的证据。
+
+90
+00:09:18,446 --> 00:09:18,751
+Brian: Yes.
+Brian：对。
+
+91
+00:09:18,751 --> 00:09:27,811
+Users, contributors, releases, papers, deployments, courses, benchmarks, or other signs of adoption are useful context.
+用户、贡献者、发布版本、论文、实际部署、课程、基准测试或其他采用情况，都能提供有用的背景。
+
+92
+00:09:27,811 --> 00:09:40,876
+Then be honest about where you’re stuck: documentation, governance, packaging, testing, contributors, maintainers, visibility, reproducibility, or ecosystem readiness.
+然后坦诚说明遇到的困难：文档、治理、打包、测试、贡献者、维护者、知名度、可复现性，或融入生态的准备情况。
+
+93
+00:09:40,876 --> 00:09:45,906
+Ava: And the final question is what the workshop should help achieve.
+Ava：最后一个问题是，希望工作坊帮助实现什么。
+
+94
+00:09:45,906 --> 00:09:50,572
+Brian: Exactly. They’re not looking for perfectly polished applications.
+Brian：没错。他们并不要求申请材料尽善尽美。
+
+95
+00:09:50,572 --> 00:09:54,008
+They’re looking for projects worth helping.
+他们想找的是值得扶持的项目。
+
+96
+00:09:54,008 --> 00:09:58,726
+Ava: Let’s make the deadline clear. When does this call close?
+Ava：把截止时间说清楚吧。这次征集何时结束？
+
+97
+00:09:58,726 --> 00:10:03,473
+Brian: September thirtieth, twenty twenty-six, at midnight Pacific Time.
+Brian：太平洋时间 2026 年 9 月 30 日午夜。
+
+98
+00:10:03,473 --> 00:10:10,908
+Registration for the event is separate from the PyTorch Conference and will open later that week.
+活动报名与 PyTorch 大会报名分开，将在当周晚些时候开放。
+
+99
+00:10:10,908 --> 00:10:20,354
+Ava: So if you have a project that deserves a life beyond a paper, thesis, course, grant, or research group, this is a direct invitation.
+Ava：所以，如果你的项目值得在论文、学位论文、课程、资助项目或研究小组结束后继续发展，这就是一份直接的邀请。
+
+100
+00:10:20,354 --> 00:10:20,622
+Brian: Yes.
+Brian：是的。
+
+101
+00:10:20,622 --> 00:10:29,925
+The project should already be open source and connected to PyTorch or one of the other hosted projects, but it doesn’t need to be polished.
+项目应已开源，并与 PyTorch 或其他托管项目之一有关联，但不必打磨得很完善。
+
+102
+00:10:29,925 --> 00:10:33,688
+The workshop is designed for the transition itself.
+这个工作坊就是为帮助项目完成这一转型而设的。
+
+103
+00:10:33,688 --> 00:10:36,245
+Ava: Let’s close with a three-point recap.
+Ava：最后用三点总结一下。
+
+104
+00:10:36,245 --> 00:10:43,230
+First, this workshop helps academic PyTorch projects move toward sustainable community adoption.
+第一，这个工作坊帮助学术界的 PyTorch 项目走向可持续的社区应用。
+
+105
+00:10:43,230 --> 00:11:00,068
+Brian: Second, selected teams get five-minute lightning talks, hands-on work with mentors, and office hours covering readiness, governance, reproducibility, community, security, maintenance, and ecosystem positioning.
+Brian：第二，入选团队将进行五分钟闪电演讲，与导师一起动手实践，并参加答疑，讨论准备情况、治理、可复现性、社区、安全、维护和生态定位。
+
+106
+00:11:00,068 --> 00:11:05,333
+Ava: Third, the organizers value potential and commitment over perfect maturity.
+Ava：第三，主办方更看重潜力和投入，而非项目是否已经尽善尽美。
+
+107
+00:11:05,333 --> 00:11:13,474
+Submit the project, explain what exists, say where you’re stuck, and describe the next step you want help with.
+提交项目，说明已有的成果、遇到的难题，以及希望在哪个下一步获得帮助。
+
+108
+00:11:13,474 --> 00:11:21,360
+Brian: And remember the deadline: September thirtieth, twenty twenty-six, midnight Pacific Time.
+Brian：别忘了截止时间：太平洋时间 2026 年 9 月 30 日午夜。
+
+109
+00:11:21,360 --> 00:11:22,737
+Ava: That’s it for today.
+Ava：今天就到这里。
+
+110
+00:11:22,737 --> 00:11:30,038
+If your academic PyTorch project deserves a future beyond the original lab, bring it to the workshop.
+如果你的学术 PyTorch 项目值得走出最初的实验室、继续发展，就带它来参加工作坊吧。
+
+111
+00:11:30,038 --> 00:11:34,636
+Brian: Thanks for listening. We’ll see you in the next episode.
+Brian：感谢收听，我们下期见。

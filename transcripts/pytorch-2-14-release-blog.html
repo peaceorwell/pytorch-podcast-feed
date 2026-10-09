@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PyTorch 2.14: A Faster GEMM Backend, a Rewritten NCCL, and Declarative Dynamic Shapes</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/pytorch-2-14-release-blog/">原视频 / 原文</a></p><h1>PyTorch 2.14: A Faster GEMM Backend, a Rewritten NCCL, and Declarative Dynamic Shapes</h1>
+<p>原文：[PyTorch 2.14 Release Blog](https://pytorch.org/blog/pytorch-2-14-release-blog/)</p>
+<h2>摘要</h2>
+<p>PyTorch 2.14 发布，本期主要聊三块内容。第一是 NVGEMM，一个基于 CuTeDSL 生成 CUTLASS 内核的新矩阵乘法后端，这次补上了 epilogue 融合，还支持低精度格式，能跟 Triton、ATen 一起参与自动调优。第二是分布式那块的大动作：重写版 NCCL 后端以预览形式进屋，容错重配置和单边 RMA 窗口成了 c10d 的一等概念，Flight Recorder 也不再只服务 NCCL 一家。第三是 Apple Silicon，SVD、QR、Cholesky 这些线性代数运算终于有了原生 Metal 内核，解码路径上一个 8.5 倍的性能坑也被填上了。另外还顺带提了 torch.switch 多路分支、@dynamic_spec 声明式动态形状，以及 ROCm、XPU、Rubin 架构的平台支持进展。这些功能大多还标着 API Unstable，说明接口本身可能还会变。</p>
+<h2>对话</h2>
+<p>Ava: Okay so PyTorch just dropped 2. 14. Almost three thousand commits since 2. 13.</p>
+<p>Ava：好吧，PyTorch 刚发布了 2.14。自 2.13 以来，提交次数接近三千次。</p>
+<p>That's a lot to unpack.</p>
+<p>这么多内容，得好好捋一捋。</p>
+<p>Brian: Yeah, 2,995 commits, 487 contributors. It's a big one.</p>
+<p>Brian：没错，2,995 次提交，487 位贡献者。这次更新规模不小。</p>
+<p>But there's a clear thread running through it if you squint.</p>
+<p>不过仔细看，会发现其中有一条清晰的主线。</p>
+<p>Ava: Which is?</p>
+<p>Ava：是什么？</p>
+<p>Brian: PyTorch trying to be one platform that works the same whether you're on NVIDIA, AMD, Intel, or a Mac.</p>
+<p>Brian：PyTorch 正努力成为一个统一的平台，让你无论使用 NVIDIA、AMD、Intel 还是 Mac，都能获得一致的体验。</p>
+<p>Faster matmuls, a rewritten networking backend, native math on Apple GPUs.</p>
+<p>更快的矩阵乘法、重写的网络通信后端，以及 Apple GPU 上的原生数学运算。</p>
+<p>Same story, three fronts.</p>
+<p>同一个方向，三条战线。</p>
+<p>Ava: Let's start with the matmul thing. NVGEMM. What even is that?</p>
+<p>Ava：先说矩阵乘法吧。NVGEMM 到底是什么？</p>
+<p>Brian: So, GEMM is just General Matrix Multiply — the operation that eats most of your GPU time in a transformer.</p>
+<p>Brian：GEMM 就是通用矩阵乘法——在 Transformer 中，它会消耗 GPU 大部分计算时间。</p>
+<p>NVGEMM is a new backend for it inside Inductor, PyTorch's compiler.</p>
+<p>NVGEMM 是 PyTorch 编译器 Inductor 里的一个新后端，用来执行这项运算。</p>
+<p>Ava: And it's built on CuTeDSL?</p>
+<p>Ava：它是基于 CuTeDSL 构建的？</p>
+<p>Brian: Right, that landed in 2.</p>
+<p>Brian：对，这项技术在 2.13 中首次推出，</p>
+<p>13 as a way to generate CUTLASS kernels — CUTLASS is NVIDIA's template library for writing fast GPU math.</p>
+<p>可以用来生成 CUTLASS 内核——CUTLASS 是 NVIDIA 编写高速 GPU 数学运算的模板库。</p>
+<p>In 2. 13 it could only spit out a standalone kernel.</p>
+<p>在 2.13 中，它只能生成独立的内核。</p>
+<p>Whatever came after, like a bias add, stayed in a separate kernel that had to re-read the result from memory.</p>
+<p>后续操作，比如加偏置，都得放在单独的内核里，还要从内存重新读取结果。</p>
+<p>Ava: That sounds wasteful.</p>
+<p>Ava：听起来挺浪费的。</p>
+<p>Brian: It is. So the big addition in 2. 14 is epilogue fusion.</p>
+<p>Brian：确实。所以 2.14 的一大新增功能就是尾处理融合。</p>
+<p>Now the bias add, the activation, the rescale — they get folded right into the same kernel.</p>
+<p>现在，加偏置、激活、重新缩放等操作都能直接融合进同一个内核。</p>
+<p>No extra memory round trip.</p>
+<p>不必再额外往返访问内存。</p>
+<p>Ava: And this competes against what PyTorch already had?</p>
+<p>Ava：它是要和 PyTorch 现有的方案竞争吗？</p>
+<p>Brian: Exactly, it's not a replacement, it's a third candidate.</p>
+<p>Brian：没错，它不是替代方案，而是第三个候选项。</p>
+<p>Inductor autotunes NVGEMM alongside Triton and ATen and picks whichever is fastest for your shape.</p>
+<p>Inductor 会将 NVGEMM 与 Triton、ATen 一起进行自动调优，针对你的张量形状选出最快的方案。</p>
+<p>It also reaches the low-precision paths now, so things like NVFP4 — a four-bit floating format — get their scaling folded into the kernel too, instead of paying for a separate multiply.</p>
+<p>它现在也支持低精度计算路径，所以像 NVFP4 这种四位浮点格式，也能把缩放操作融合进内核，不用再单独做一次乘法。</p>
+<p>Ava: Any catch?</p>
+<p>Ava：有什么限制吗？</p>
+<p>Brian: You have to opt in, add NVGEMM to the autotune backend list.</p>
+<p>Brian：你得主动启用它，把 NVGEMM 加到自动调优的后端列表里。</p>
+<p>And NVFP4 support needs Blackwell hardware.</p>
+<p>而且 NVFP4 支持需要 Blackwell 硬件。</p>
+<p>If an epilogue is too weird for it to express, it just falls back to Triton, so you're not worse off.</p>
+<p>如果某种尾处理操作太特殊，无法表达，它就会回退到 Triton，所以性能不会更差。</p>
+<p>Ava: Okay, let's move to distributed training. This is the part I actually care about.</p>
+<p>Ava：好，我们来聊分布式训练。这才是我真正关心的部分。</p>
+<p>Brian: Big one here too.</p>
+<p>Brian：这方面也有重磅更新。</p>
+<p>There's a preview of a rewritten NCCL backend — NCCL being NVIDIA's Collective Communications Library, the thing that handles all-reduce and friends across GPUs.</p>
+<p>现在提供了一个重写版 NCCL 后端的预览版。NCCL 是 NVIDIA 集合通信库，负责处理 GPU 间的全归约等操作。</p>
+<p>Ava: Rewritten how?</p>
+<p>Ava：具体怎么重写的？</p>
+<p>Brian: It's ported from a project called torchcomms, which showed up in 2. 13.</p>
+<p>Brian：它移植自一个名为 torchcomms 的项目，该项目在 2.13 中首次出现。</p>
+<p>Now it lands in-tree as basically a drop-in replacement, nicknamed nccl2, and it's slated to become the default backend in 2.</p>
+<p>现在它作为基本可直接替换的组件纳入了 PyTorch 源码树，昵称是 nccl2，并计划在 2.15 中成为默认后端。</p>
+<p>15.</p>
+<p>2.15。</p>
+<p>Ava: What does it actually buy you over the old one?</p>
+<p>Ava：相比旧版，它具体带来了什么？</p>
+<p>Brian: Nonblocking communicators, one-sided memory access, and — this is the headline for me — fault tolerance built in as a first-class concept, not a hack bolted onto NCCL specifically.</p>
+<p>Brian：非阻塞通信器、单边内存访问——还有我认为最重要的一点：内置了故障容错，将其视为一等功能，而不是专门针对 NCCL 临时拼凑的补丁。</p>
+<p>Ava: Wait, back up. What does fault tolerance mean in this context?</p>
+<p>Ava：等等，回头说说。在这里，故障容错具体是什么意思？</p>
+<p>Isn't that usually a checkpoint-and-restart thing?</p>
+<p>这通常不就是检查点加重启吗？</p>
+<p>Brian: That's exactly the pain point.</p>
+<p>Brian：这正是最棘手的问题。</p>
+<p>Normally when one rank dies in a big job, you tear down the whole process group and restart it, which throws away warm state across the entire cluster.</p>
+<p>通常，大型作业中只要一个 rank 进程挂掉，就得拆掉整个进程组再重启，整个集群已经预热好的状态也会随之丢失。</p>
+<p>Ava: Ouch. That's expensive at scale.</p>
+<p>Ava：哎，这种规模下代价可不小。</p>
+<p>Brian: Very.</p>
+<p>Brian：非常大。</p>
+<p>So now the Backend and ProcessGroup objects expose reconfiguration interfaces — a group can be rebuilt in place instead of destroyed.</p>
+<p>现在 Backend 和 ProcessGroup 对象都提供了重新配置接口，可以原地重建进程组，而不用销毁它。</p>
+<p>And this isn't NCCL-only, Gloo gets it too.</p>
+<p>而且这不只适用于 NCCL，Gloo 也支持了。</p>
+<p>Ava: You mentioned one-sided memory access. What's that, exactly?</p>
+<p>Ava：你提到单边内存访问。那具体是什么？</p>
+<p>Brian: Think RMA, remote memory access.</p>
+<p>Brian：可以把它理解为 RMA，也就是远程内存访问。</p>
+<p>Normally a collective needs both sides to show up and synchronize.</p>
+<p>通常，集体通信需要双方都参与并进行同步。</p>
+<p>One-sided means one rank can just read or write another rank's memory directly, no matching call needed on the other end.</p>
+<p>单边访问则意味着一个 rank 可以直接读写另一个 rank 的内存，不需要对方同时发起匹配的调用。</p>
+<p>Ava: When would you want that?</p>
+<p>Ava：什么情况下会用到它？</p>
+<p>Brian: Irregular access patterns.</p>
+<p>Brian：不规则的访问模式。</p>
+<p>Embedding lookups, weight transfer, expert routing in mixture-of-experts models.</p>
+<p>比如嵌入查找、权重传输，以及混合专家模型中的专家路由。</p>
+<p>Anywhere the access pattern isn't a clean all-to-all.</p>
+<p>只要访问模式不是规整的全对全通信，都适用。</p>
+<p>Ava: And there was something about a Flight Recorder?</p>
+<p>Ava：还有个叫 Flight Recorder 的东西？</p>
+<p>Brian: Right, that's the trace buffer people use to debug hung or mismatched collectives.</p>
+<p>Brian：对，那是用来排查集合通信卡住或不匹配的追踪缓冲区。</p>
+<p>It used to be wired specifically into NCCL.</p>
+<p>它以前专门接在 NCCL 上。</p>
+<p>Now it hooks through ProcessGroup generically, so it works for Gloo or any custom backend too.</p>
+<p>现在它通过通用的 ProcessGroup 接入，所以 Gloo 和自定义后端也能用。</p>
+<p>Debugging a hang doesn't mean giving up your trace just because you're not on NCCL.</p>
+<p>即使用的不是 NCCL，排查卡顿时也能保留追踪记录。</p>
+<p>Ava: Makes sense. Let's switch gears — literally, since there's a feature called torch.</p>
+<p>Ava：明白。换个话题——还真有个功能叫 torch.</p>
+<p>switch.</p>
+<p>switch，也就是 torch.switch。</p>
+<p>Brian: Ha, yeah. So torch.</p>
+<p>Brian：哈哈，对。torch.</p>
+<p>cond already existed for a two-way branch inside a compiled graph — if this, else that.</p>
+<p>cond，也就是 torch.cond，早就支持在编译图中做二选一分支。</p>
+<p>But if you needed, say, eight-way branching, like picking one of eight experts in an MoE model, you had to nest torch.</p>
+<p>但如果需要八路分支，比如在 MoE 模型里从八个专家中选一个，就得层层嵌套 torch.</p>
+<p>cond calls.</p>
+<p>cond 调用。</p>
+<p>Ava: Which gets ugly fast.</p>
+<p>Ava：那很快就会变得很难看。</p>
+<p>Brian: Right, it bloats the traced graph and hides what you're actually doing. torch.</p>
+<p>Brian：对，追踪图会膨胀，也看不清实际逻辑。而 torch.switch</p>
+<p>switch does multi-way branching natively, dispatching on an index.</p>
+<p>可以按索引直接选择多个分支。</p>
+<p>It's aimed squarely at mixture-of-experts routing.</p>
+<p>它主要就是为混合专家模型的路由设计的。</p>
+<p>Ava: There's also something about while loops and CUDA graphs?</p>
+<p>Ava：while 循环和 CUDA 图也有新变化？</p>
+<p>Brian: torch. while_loop can now be captured inside a CUDA graph.</p>
+<p>Brian：现在 torch.while_loop 可以被捕获进 CUDA 图。</p>
+<p>Normally a data-dependent loop count forces a device-to-host copy to decide how many iterations to run, and that breaks graph capture right where you'd want it intact.</p>
+<p>通常，循环次数如果取决于数据，就得把数据从设备传回主机来决定迭代次数，这会打断图捕获。</p>
+<p>Ava: So now the loop count can vary at replay time without breaking capture?</p>
+<p>Ava：所以现在重放时循环次数可以变化，也不会破坏图捕获？</p>
+<p>Brian: Exactly.</p>
+<p>Brian：没错。</p>
+<p>The condition gets re-evaluated on GPU at the end of each iteration using CUDA's native while-node support.</p>
+<p>借助 CUDA 原生的 while 节点，每次迭代结束时都会在 GPU 上重新判断条件。</p>
+<p>It's not a speed win by itself, it just means a variable-length loop no longer kicks you out of the graph entirely.</p>
+<p>这本身不会提速，但变长循环终于可以留在图里了。</p>
+<p>Ava: Okay, now the one I've been waiting for — Apple Silicon.</p>
+<p>Ava：好，终于说到我期待的 Apple Silicon 了。</p>
+<p>My Mac finally gets real linear algebra?</p>
+<p>我的 Mac 终于能好好做线性代数运算了？</p>
+<p>Brian: Yes! This was a genuine gap before.</p>
+<p>Brian：是的！以前这确实是个短板。</p>
+<p>SVD, eigh — that's the eigendecomposition for Hermitian matrices — QR, and Cholesky.</p>
+<p>SVD、eigh——也就是厄米矩阵的特征分解——还有 QR 和 Cholesky。</p>
+<p>All were leaning on Apple's MPSGraph framework, or just falling back to CPU.</p>
+<p>这些运算以前要么依赖苹果的 MPSGraph 框架，要么回退到 CPU。</p>
+<p>Ava: Which kills performance if you're doing anything numerical.</p>
+<p>Ava：做数值计算时，这会严重拖慢速度。</p>
+<p>Brian: Right, mixed CPU and MPS round trips are exactly the kind of thing that quietly tanks your throughput.</p>
+<p>Brian：对，在 CPU 和 MPS 之间来回传数据，会悄悄拉低吞吐量。</p>
+<p>Now SVD, eigh, and lstsq run via native Jacobi-style Metal kernels for float32.</p>
+<p>现在，float32 的 SVD、eigh 和 lstsq 都由原生的 Jacobi 式 Metal 内核执行。</p>
+<p>Cholesky got a faster panel-factorization algorithm too, something like 1. 2 to 2.</p>
+<p>Cholesky 也换用了更快的面板分解算法，提速约 1.2 倍到</p>
+<p>8x faster depending on matrix size.</p>
+<p>2.8 倍，具体取决于矩阵大小。</p>
+<p>Ava: Any limits?</p>
+<p>Ava：有什么限制吗？</p>
+<p>Brian: float64 still falls back to CPU, because Metal simply has no double-precision type.</p>
+<p>Brian：float64 仍会回退到 CPU，因为 Metal 没有双精度类型。</p>
+<p>And there's a whole separate five-part rewrite of reduction kernels — full reductions, strided ones, argmax and argmin — moving off MPSGraph onto hand-written Metal.</p>
+<p>另外，归约内核也分五部分重写了，包括全量归约、跨步归约、argmax 和 argmin，从 MPSGraph 改用手写 Metal 内核。</p>
+<p>Ava: I saw something about an 8. 5x slowdown fix too.</p>
+<p>Ava：我还看到修复了一个导致速度慢 8.5 倍的问题。</p>
+<p>Brian: Yeah, that one's specific but important if you run models locally.</p>
+<p>Brian：对，这个问题很具体，但对本地运行模型的人很重要。</p>
+<p>Single-token decode — the shape you get when you're generating one token at a time — was falling off the fast path in F.</p>
+<p>单 token 解码，也就是每次生成一个 token 时，会错过 F.linear</p>
+<p>linear on MPS. Eight point five times slower than it should've been, on bf16 and fp16.</p>
+<p>在 MPS 上的快速路径；用 bf16 和 fp16 时，速度比应有水平慢了 8.5 倍。</p>
+<p>Ava: That's huge for anyone doing local inference on a Mac.</p>
+<p>Ava：对在 Mac 上做本地推理的人来说，这影响太大了。</p>
+<p>Brian: Exactly, it's one of the bigger remaining gaps between MPS and CUDA for autoregressive generation, and this closes a good chunk of it.</p>
+<p>Brian：没错，这是自回归生成时 MPS 与 CUDA 之间较大的性能差距之一；这次缩小了不少。</p>
+<p>Ava: Quick one — what's @dynamic_spec?</p>
+<p>Ava：快速问一句，@dynamic_spec 是什么？</p>
+<p>Brian: It's a cleanup, not a new capability exactly.</p>
+<p>Brian：主要是整理现有机制，严格说不算新功能。</p>
+<p>Before this, declaring which dimensions of your input can vary at runtime meant a different mechanism depending on whether you were using torch.</p>
+<p>以前，要声明输入的哪些维度能在运行时变化，得看你用的是 torch.compile、</p>
+<p>compile, torch. export, or make_fx.</p>
+<p>torch.export 还是 make_fx：各有一套机制。</p>
+<p>Ava: So three different ways to say the same thing.</p>
+<p>Ava：也就是同一件事有三种写法。</p>
+<p>Brian: Right, and the declaration usually lived far away from the model code.</p>
+<p>Brian：对，而且这些声明通常离模型代码很远。</p>
+<p>Now you define a shape spec once, attach it to your function with a decorator, and all three entry points pick it up automatically.</p>
+<p>现在只需定义一次形状规范，用装饰器挂到函数上，三个入口就会自动识别。</p>
+<p>Ava: And platform support — I saw ROCm and Rubin mentioned.</p>
+<p>Ava：平台支持方面，我看到提到了 ROCm 和 Rubin。</p>
+<p>Brian: ROCm 7. 14 wheels now build from AMD's TheRock SDK. Intel XPU gets native graph capture.</p>
+<p>Brian：ROCm 7.14 的 wheel 包现在由 AMD 的 TheRock SDK 构建。Intel XPU 也支持原生计算图捕获了。</p>
+<p>And Inductor now targets Rubin, NVIDIA's next architecture after Blackwell.</p>
+<p>Inductor 现在也支持 NVIDIA 继 Blackwell 之后的新架构 Rubin。</p>
+<p>Ava: Anything we should flag as not fully baked yet?</p>
+<p>Ava：有什么功能还不够成熟，需要提醒大家吗？</p>
+<p>Brian: Almost everything in this release is tagged API Unstable, so expect some churn.</p>
+<p>Brian：这次发布的功能几乎都标为 API Unstable，后续可能会有调整。</p>
+<p>Complex-tensor support in torch.</p>
+<p>torch.compile 对复数张量的支持</p>
+<p>compile is explicitly experimental — not every complex operation is covered yet.</p>
+<p>仍明确处于实验阶段，尚未覆盖所有复数运算。</p>
+<p>And Python 3. 15 support landed, but it's eager-mode only for now — calling torch.</p>
+<p>Python 3.15 已获支持，但目前仅限即时执行模式；调用 torch.compile</p>
+<p>compile under 3. 15 just raises an error rather than quietly running slower.</p>
+<p>在 Python 3.15 下会直接报错，而不会悄悄地以较慢速度运行。</p>
+<p>Ava: Good to know before someone upgrades blind. So, wrapping up — three things to remember?</p>
+<p>Ava：这得提醒准备升级的人。最后，有哪三点值得记住？</p>
+<p>Brian: One: NVGEMM brings epilogue fusion and low-precision support to PyTorch's fastest matmul path.</p>
+<p>Brian：第一，NVGEMM 为 PyTorch 最快的矩阵乘法路径带来了尾声融合和低精度支持。</p>
+<p>Two: fault tolerance and one-sided memory access are now built into distributed training, not bolted on.</p>
+<p>第二，容错和单边内存访问现已内置于分布式训练，而不是后加的功能。</p>
+<p>Three: Apple Silicon finally gets native linear algebra and a major decode-speed fix.</p>
+<p>第三，Apple Silicon 终于获得原生线性代数支持，还有一项显著提升解码速度的修复。</p>
+<p>Ava: That's PyTorch 2. 14. Thanks for listening, and we'll catch you next release.</p>
+<p>Ava：以上就是 PyTorch 2.14。感谢收听，下个版本再见。</p>
+<h2>术语</h2>
+<p>Term · 释义</p>
+<p>NVGEMM · 基于 CuTeDSL 生成 CUTLASS 内核的新矩阵乘法后端，作为 Inductor 的候选算子与 Triton、ATen 竞争</p>
+<p>GEMM · 通用矩阵乘法（General Matrix Multiply），GPU 上最耗时的核心运算之一</p>
+<p>CuTeDSL · 用于生成 CUTLASS 内核的领域特定语言（DSL）</p>
+<p>epilogue fusion · 将矩阵乘法之后的操作（如加偏置、激活函数、缩放）融合进同一个内核，避免额外的内存读写</p>
+<p>NCCL · NVIDIA Collective Communications Library，NVIDIA 的集合通信库，用于多 GPU 间的 all-reduce 等操作</p>
+<p>torchcomms · 2.13 引入的通信后端项目，2.14 中其能力以 nccl2 形式合入主干</p>
+<p>c10d · PyTorch 分布式通信的核心库，管理进程组和集合通信</p>
+<p>RMA / 单边操作 · Remote Memory Access，无需对端配合即可直接读写远程内存的通信方式</p>
+<p>Flight Recorder · 用于诊断集合通信挂起或不匹配问题的跟踪缓冲区工具</p>
+<p>torch.switch · 新的高阶算子，支持基于索引的多路分支，替代嵌套的 torch.cond</p>
+<p>torch.while_loop · 支持数据依赖循环次数的控制流算子，2.14 起可被捕获进 CUDA graph</p>
+<p>CUDA graph · 将一系列 GPU 操作预先捕获并可重放的机制，减少每次调用的开销</p>
+<p>@dynamic_spec · 声明式动态形状 API，让 torch.compile、torch.export、make_fx 共用同一套形状声明</p>
+<p>MPS / Metal · Apple Silicon 上的 GPU 计算框架（Metal Performance Shaders）及其底层 Metal 内核</p>
+<p>MoE · Mixture of Experts，混合专家模型架构</p>
+<h2>口语表达</h2>
+<p>Phrase · 释义</p>
+<p>That's a lot to unpack. · 信息量很大，得慢慢梳理</p>
+<p>if you squint · 仔细一看／粗略看的话（引出一个不太明显的规律）</p>
+<p>Same story, three fronts. · 同样的思路，在三个方向上重复</p>
+<p>That sounds wasteful. · 这样听起来很浪费</p>
+<p>Any catch? · 有什么坑／附加条件吗？</p>
+<p>Wait, back up. · 等等，倒回去解释一下</p>
+<p>Which gets ugly fast. · 这样很快就会变得很糟糕</p>
+<p>That's huge for anyone doing X. · 这对做某件事的人来说影响很大</p>
+<p>Good to know before someone upgrades blind. · 在人们盲目升级之前，这点很值得知道</p>
+<p>quietly tanks your throughput · 悄无声息地拖垮你的吞吐量</p></body></html>

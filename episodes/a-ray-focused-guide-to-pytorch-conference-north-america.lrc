@@ -1,0 +1,247 @@
+[ti:Ray Across the PyTorch Stack: Data, Training, Serving, and RL]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: Your model needs more machines, but suddenly you're debugging data loading, storage, and scheduling.
+[00:00.00]Ava：模型需要更多机器，你却突然要排查数据加载、存储和调度问题。
+[00:06.88]When did training become an infrastructure project?
+[00:06.88]训练什么时候变成基础设施项目了？
+[00:10.74]Brian: That's why this conference guide matters.
+[00:10.74]Brian：这就是这份会议指南的价值。
+[00:13.55]It follows Ray across those problems, from preparing data to training and production.
+[00:13.55]它介绍了 Ray 如何贯穿这些环节，从数据准备到训练和生产部署。
+[00:19.37]The interesting question is how those pieces fit together.
+[00:19.37]值得探讨的是，这些环节如何衔接。
+[00:23.69]Ava: I'm Ava, a software engineer outside the PyTorch core team.
+[00:23.69]Ava：我是 Ava，一名不在 PyTorch 核心团队的软件工程师。
+[00:28.58]Brian, you're our PyTorch guide. Give us the starting point: what's Ray?
+[00:28.58]Brian，你是我们的 PyTorch 向导。先说说 Ray 是什么？
+[00:34.89]Brian: Ray is a distributed compute framework.
+[00:34.89]Brian：Ray 是一个分布式计算框架。
+[00:37.93]It helps teams scale AI frameworks, libraries, and models across machines.
+[00:37.93]它帮助团队将 AI 框架、库和模型扩展到多台机器。
+[00:43.70]The article describes a consistent developer surface across the AI lifecycle.
+[00:43.70]文章介绍了贯穿 AI 全生命周期的一致开发接口。
+[00:50.05]Ava: So it covers the journey from getting data ready to running a model for users?
+[00:50.05]Ava：也就是从准备数据，到把模型提供给用户使用？
+[00:55.73]Brian: Right.
+[00:55.73]Brian：对。
+[00:56.14]That includes curating multimodal data, meaning data with different types of content, training across multiple nodes, and deploying on virtual machines or clusters managed by Kubernetes.
+[00:56.14]这包括整理多模态数据，也就是包含不同类型内容的数据；在多个节点上训练；以及部署到虚拟机或 Kubernetes 管理的集群。
+[01:09.18]Ava: And this is a guide to upcoming talks, so we're getting previews?
+[01:09.18]Ava：这是一份即将举行的演讲指南，所以我们看到的是预告？
+[01:13.68]Brian: Exactly.
+[01:13.68]Brian：没错。
+[01:14.32]It's a Ray-focused guide to PyTorch Conference North America, twenty twenty-six, in San Jose.
+[01:14.32]这是一份关于 2026 年圣何塞 PyTorch 北美大会的 Ray 专题指南。
+[01:21.72]It gives us engineering examples, but it isn't a detailed benchmark report.
+[01:21.72]它提供了工程实例，但不是详细的基准测试报告。
+[01:28.05]Ava: The first theme is Ray and Kubernetes evolving together.
+[01:28.05]Ava：第一个主题是 Ray 与 Kubernetes 的协同演进。
+[01:32.13]Why does that deserve attention?
+[01:32.13]为什么值得关注？
+[01:34.81]Brian: The article describes two communities users depend on.
+[01:34.81]Brian：文章介绍了用户所依赖的两个社区。
+[01:38.95]The PyTorch Foundation includes PyTorch and Ray.
+[01:38.95]PyTorch 基金会涵盖 PyTorch 和 Ray。
+[01:42.63]The Cloud Native Computing Foundation, or CNCF, includes Kubernetes and other infrastructure projects.
+[01:42.63]云原生计算基金会（CNCF）涵盖 Kubernetes 和其他基础设施项目。
+[01:50.80]Ava: Separate communities, but the engineer building a system needs both.
+[01:50.80]Ava：社区虽不同，但构建系统的工程师两边都需要。
+[01:55.31]The organization chart doesn't make the integration work disappear.
+[01:55.31]组织架构图不会让集成工作凭空消失。
+[02:00.11]Brian: Exactly. The talks explore a unified open source AI stack.
+[02:00.11]Brian：没错。这些演讲探讨如何构建统一的开源 AI 技术栈。
+[02:04.59]Google, Anyscale, and the broader community are collaborating to connect those ecosystems and prevent fragmentation.
+[02:04.59]Google、Anyscale 和更广泛的社区正合作连接这两个生态，避免碎片化。
+[02:13.90]Ava: Okay, that's the motivation. Let's get closer to the training job.
+[02:13.90]Ava：好，这就是背景。我们来看看训练任务。
+[02:18.93]What's LinkedIn building?
+[02:18.93]LinkedIn 在构建什么？
+[02:21.18]Brian: A three-layer Ray-based training stack.
+[02:21.18]Brian：一个基于 Ray 的三层训练技术栈。
+[02:24.01]First, a data loading library built with Ray actors, which are workers that can keep state.
+[02:24.01]第一层是用 Ray actor 构建的数据加载库；actor 是能保留状态的工作进程。
+[02:30.61]It streams Avro, Parquet, and Iceberg data.
+[02:30.61]它以流式方式读取 Avro、Parquet 和 Iceberg 数据。
+[02:34.08]Ava: That's the data layer. What sits above it?
+[02:34.08]Ava：这是数据层。上面一层是什么？
+[02:37.60]Brian: Ray Train, with Fully Sharded Data Parallel, or FSDP, and Hybrid Sharded Data Parallel, or HSDP.
+[02:37.60]Brian：Ray Train，配合全分片数据并行（FSDP）和混合分片数据并行（HSDP）。
+[02:45.75]Those are distributed training strategies.
+[02:45.75]这些都是分布式训练策略。
+[02:49.31]The layer also supports elastic scaling and asynchronous checkpointing.
+[02:49.31]这一层还支持弹性扩缩容和异步保存检查点。
+[02:55.69]Ava: Elastic scaling means adjusting resources, and asynchronous checkpointing means saving training state without making everything wait for the whole save?
+[02:55.69]Ava：弹性扩缩容是调整资源；异步保存检查点是保存训练状态时，不必让所有操作都等它完成？
+[03:04.97]Brian: That's the basic idea. The third layer provisions clusters on demand.
+[03:04.97]Brian：基本就是这样。第三层按需配置集群。
+[03:10.05]But the central lesson here is separating data loading from the machines doing the GPU work.
+[03:10.05]但这里的关键经验是，让数据加载与执行 GPU 计算的机器分开。
+[03:17.17]Ava: GPU meaning graphics processing unit. So where does the loading happen?
+[03:17.17]Ava：GPU 就是图形处理器。那么数据在哪里加载？
+[03:23.98]Brian: On dedicated CPU nodes, using central processing units.
+[03:23.98]Brian：在专用 CPU 节点上，也就是使用中央处理器的节点。
+[03:28.16]Data travels through a zero-copy bridge, meaning the transfer avoids an extra data copy.
+[03:28.16]数据通过零拷贝桥接传输，避免额外复制。
+[03:34.84]Think of a separate preparation area feeding the kitchen.
+[03:34.84]就像单独的备料区为厨房供料。
+[03:39.52]Ava: Let the cooks cook. What did that change?
+[03:39.52]Ava：让厨师专心做菜。这样带来了什么变化？
+[03:42.97]Brian: The guide reports a fifty to seventy percent reduction in dataloader memory.
+[03:42.97]Brian：指南称，数据加载器的内存占用降低了 50% 至 70%。
+[03:47.98]It also mentions a situation where LinkedIn had to work around Ray to reclaim twenty-four percent of step time.
+[03:47.98]它还提到，LinkedIn 曾通过绕开 Ray，让每步训练耗时降低了 24%。
+[03:55.65]Ava: Wait, so a Ray success story includes working around Ray?
+[03:55.65]Ava：等等，一个 Ray 的成功案例还包括绕开 Ray？
+[04:00.61]Brian: Yes, and that's useful.
+[04:00.61]Brian：是的，这点很有参考价值。
+[04:02.24]An infrastructure choice can help overall while still creating a specific problem.
+[04:02.24]一种基础设施方案整体上可能有帮助，同时仍会带来某个具体问题。
+[04:08.06]The article doesn't explain that workaround, so we can't reconstruct it.
+[04:08.06]文章没有解释具体的绕开方法，所以我们无法还原。
+[04:13.51]Ava: The takeaway is to separate the work, then measure what still slows it down.
+[04:13.51]Ava：结论是先把工作分开，再测量还有什么在拖慢速度。
+[04:18.76]How does Uber's example compare?
+[04:18.76]Uber 的案例怎么样？
+[04:21.33]Brian: Uber Eats is migrating its recommendation stack from TensorFlow and Horovod to PyTorch.
+[04:21.33]Brian：Uber Eats 正在将推荐系统从 TensorFlow 和 Horovod 迁移到 PyTorch。
+[04:27.41]Ray Data replaces legacy Spark-based preprocessing with distributed feature-statistics computation and zero-copy batch transformations.
+[04:27.41]Ray Data 用分布式特征统计计算和零拷贝批量转换，取代了原先基于 Spark 的预处理。
+[04:37.20]Ava: Feature statistics being information calculated about the model's input features.
+[04:37.20]Ava：特征统计就是针对模型输入特征计算出的信息。
+[04:42.57]What results does the guide report?
+[04:42.57]指南报告了什么成果？
+[04:45.23]Brian: Data transformation is five times faster and uses ninety percent less memory.
+[04:45.23]Brian：数据转换速度提高了 5 倍，内存占用减少了 90%。
+[04:50.92]Training throughput improves twenty times.
+[04:50.92]训练吞吐量提高了 20 倍。
+[04:54.03]Those are reported results for Uber's redesign.
+[04:54.03]这些是 Uber 此次重新设计所报告的结果。
+[04:57.85]Ava: Twenty times is a big number. Can we tell how much came from Ray Data alone?
+[04:57.85]Ava：20 倍可不小。能看出其中有多少归功于 Ray Data 吗？
+[05:03.89]Brian: No.
+[05:03.89]Brian：不能。
+[05:04.09]The article doesn't isolate each change's contribution or provide the full measurement setup.
+[05:04.09]文章没有单独量化每项改动的贡献，也没有提供完整的测试条件。
+[05:10.31]It's an impressive case to investigate, but it doesn't predict another team's improvement.
+[05:10.31]这是个值得研究的出色案例，但不能据此预测其他团队能提升多少。
+[05:16.69]Ava: We've covered loading and transformation.
+[05:16.69]Ava：我们聊过数据加载和转换了。
+[05:19.74]What if the data simply doesn't arrive from storage fast enough?
+[05:19.74]如果数据从存储系统传来的速度就是不够快呢？
+[05:24.84]Brian: That's the storage talk's focus.
+[05:24.84]Brian：这正是那场存储主题演讲的重点。
+[05:27.37]It describes GPUs waiting on legacy REST-based access, a web request style.
+[05:27.37]演讲提到，传统的 REST 式访问会让 GPU 等待；REST 是一种网络请求方式。
+[05:33.29]Rapid Storage proposes a high-throughput protocol based on gRPC, a remote procedure call framework.
+[05:33.29]Rapid Storage 提出采用基于 gRPC 的高吞吐量协议；gRPC 是一种远程过程调用框架。
+[05:41.46]Ava: How does that reach PyTorch?
+[05:41.46]Ava：它怎么接入 PyTorch？
+[05:44.12]Brian: Through fsspec, a filesystem interface layer.
+[05:44.12]Brian：通过文件系统接口层 fsspec。
+[05:47.62]The team says the benefits extend across its ecosystem, including Ray.
+[05:47.62]团队表示，收益也覆盖包括 Ray 在内的生态系统。
+[05:53.06]For a storage-bound pipeline, storage is the delivery truck that keeps arriving late.
+[05:53.06]对受存储速度制约的处理流程来说，存储就像总是迟到的送货车。
+[06:00.02]Ava: And a faster kitchen still waits for that truck.
+[06:00.02]Ava：厨房再快，也得等那辆车。
+[06:03.37]There's also a climate model talk in the serving section. What's Ray doing there?
+[06:03.37]服务部署部分还有一场气候模型演讲。Ray 在其中做什么？
+[06:09.37]Brian: Ray helps scale training for a physics-constrained generative model used in climate downscaling.
+[06:09.37]Brian：Ray 帮助扩展用于气候降尺度的物理约束生成模型的训练规模。
+[06:15.84]The talk follows that model into production, including export to ONNX, the Open Neural Network Exchange format.
+[06:15.84]演讲还介绍了模型如何投入生产，包括导出为 ONNX，即开放神经网络交换格式。
+[06:23.66]Ava: Does the guide say Ray handles the entire serving path?
+[06:23.66]Ava：指南说整个服务流程都由 Ray 负责吗？
+[06:28.09]Brian: It places Ray in the training recipe.
+[06:28.09]Brian：它将 Ray 用于训练流程。
+[06:30.87]The serving path includes ONNX Runtime, Temporal, and a vLLM agent.
+[06:30.87]服务流程则包括 ONNX Runtime、Temporal 和一个 vLLM 智能体。
+[06:35.89]It also covers keeping the sampling process outside the exported graph and enforcing physics constraints during inference.
+[06:35.89]演讲还讨论了如何将采样过程留在导出的计算图之外，以及如何在推理时施加物理约束。
+[06:45.39]Ava: So we should pay attention to each tool's actual role.
+[06:45.39]Ava：所以我们得看清每个工具的实际作用。
+[06:49.41]Now, why does post-training get so much space?
+[06:49.41]那么，为什么后训练占了这么多篇幅？
+[06:53.18]Brian: Post-training means further training after a model's initial training.
+[06:53.18]Brian：后训练是指模型完成初始训练后继续训练。
+[06:57.80]At Pinterest, teams adopted different frameworks, data formats, and distributed strategies.
+[06:57.80]在 Pinterest，各团队采用了不同的框架、数据格式和分布式策略。
+[07:03.80]They spent weeks connecting open source frameworks to internal infrastructure before training even started.
+[07:03.80]训练还没开始，他们就得花几周时间把开源框架接入内部基础设施。
+[07:11.22]Ava: Weeks before the first step. That's a painful progress bar.
+[07:11.22]Ava：第一步还没开始就得等几周，这进度条看着真难受。
+[07:16.10]Brian: Their earlier platform owned the PyTorch training loop and reached ninety-five percent adoption.
+[07:16.10]Brian：他们之前的平台负责 PyTorch 训练循环，采用率达到了 95%。
+[07:22.75]But post-training loops lived inside fast-moving external frameworks.
+[07:22.75]但后训练循环存在于快速迭代的外部框架中。
+[07:27.54]Keeping platform ownership of that loop became a problem.
+[07:27.54]平台继续掌控训练循环就成了问题。
+[07:31.84]Ava: What's their new boundary?
+[07:31.84]Ava：他们现在怎么划分职责？
+[07:33.91]Brian: PTEnv is a lifecycle harness, a support structure around training.
+[07:33.91]Brian：PTEnv 是一个训练生命周期框架，为训练提供外围支持。
+[07:39.10]It owns data, orchestration, scaling, evaluation, and export.
+[07:39.10]它负责数据、编排、扩展、评估和导出。
+[07:43.89]The open source framework owns the inner training loop.
+[07:43.89]开源框架负责内部训练循环。
+[07:48.57]Ava: Like managing the theater while each production brings its own performance?
+[07:48.57]Ava：就像剧院负责运营，每个剧组负责自己的演出？
+[07:53.62]Brian: Yes.
+[07:53.62]Brian：对。
+[07:53.93]One interface supports separate-process execution with Ray for reinforcement learning, or RL.
+[07:53.93]同一个接口支持通过 Ray 以独立进程运行强化学习，即 RL。
+[08:00.96]It also supports in-process execution with MS-Swift for supervised fine-tuning, meaning training on supplied examples.
+[08:00.96]也支持通过 MS-Swift 在进程内运行监督微调，也就是用给定样本训练。
+[08:09.90]Framework selection becomes a configuration choice.
+[08:09.90]选择框架成了一项配置选择。
+[08:14.11]Ava: That sounds flexible. What difficulties remain?
+[08:14.11]Ava：听起来很灵活。还有什么难题？
+[08:18.44]Brian: The talk includes bottlenecks in synchronizing model weights and workarounds for mixture-of-experts models, or MoE models, which contain multiple expert components.
+[08:18.44]Brian：演讲谈到了同步模型权重时的瓶颈，以及针对混合专家模型（MoE）的变通办法；这种模型包含多个专家组件。
+[08:29.17]A shared interface doesn't remove those engineering problems.
+[08:29.17]统一接口并不能消除这些工程难题。
+[08:33.50]Ava: And SkyRL tackles reinforcement learning itself?
+[08:33.50]Ava：SkyRL 也解决强化学习本身的问题吗？
+[08:37.65]Brian: Right. It's a modular RL library.
+[08:37.65]Brian：对，它是一个模块化的强化学习库。
+[08:40.01]It separates training, inference, and environments, with Ray coordinating them.
+[08:40.01]它把训练、推理和环境分开，由 Ray 统筹协调。
+[08:45.68]The motivation includes agents handling longer tasks and interactions with multiple turns.
+[08:45.68]其动机包括让智能体处理更长的任务和多轮交互。
+[08:52.49]Ava: What scale does the session discuss?
+[08:52.49]Ava：这场分享讨论了多大规模？
+[08:55.41]Brian: Fully asynchronous RL training on mixture-of-experts models with more than three hundred fifty billion parameters, using Megatron and vLLM.
+[08:55.41]Brian：借助 Megatron 和 vLLM，在超过3500亿参数的混合专家模型上进行完全异步的强化学习训练。
+[09:05.07]It also covers a shared Tinker Engine for researchers using their own hardware.
+[09:05.07]还介绍了供研究人员在自有硬件上使用的共享 Tinker Engine。
+[09:10.90]Ava: Underneath that, what does Ray Core need to do?
+[09:10.90]Ava：底层的 Ray Core 需要做什么？
+[09:14.90]Brian: Schedule trainers and inference engines, then support moving fresh weights between them.
+[09:14.90]Brian：调度训练器和推理引擎，并支持在两者之间传输最新权重。
+[09:21.08]Its demo discusses scheduling across ten thousand nodes and Ray Direct Transport, which moves PyTorch tensors directly between GPUs.
+[09:21.08]演示还谈到跨一万个节点的调度，以及让 PyTorch 张量在 GPU 之间直接传输的 Ray Direct Transport。
+[09:30.71]Ava: Tensors being the arrays holding model data.
+[09:30.71]Ava：张量就是存放模型数据的数组。
+[09:33.69]Does scheduling at that scale establish end-to-end training performance?
+[09:33.69]这种规模的调度能证明端到端训练性能吗？
+[09:38.93]Brian: The guide doesn't establish that connection.
+[09:38.93]Brian：这篇指南没有证明两者之间的联系。
+[09:42.02]It presents scheduling scale and transport improvements as separate achievements.
+[09:42.02]它将调度规模和传输改进作为两项独立成果介绍。
+[09:47.71]The demo also promises a future roadmap, but the article doesn't give its details.
+[09:47.71]演示还预告了未来路线图，但文章没有给出细节。
+[09:53.82]Ava: Let's finish with three points.
+[09:53.82]Ava：最后总结三点。
+[09:56.38]First, Ray spans the AI lifecycle, and its integration with Kubernetes is a major theme.
+[09:56.38]第一，Ray 覆盖 AI 的整个生命周期，与 Kubernetes 的集成是一大主题。
+[10:03.97]Brian: Second, data preparation, storage, and weight movement deserve attention alongside model computation.
+[10:03.97]Brian：第二，除了模型计算，数据准备、存储和权重传输也值得关注。
+[10:11.31]The talks show concrete gains, plus bottlenecks that still need work.
+[10:11.31]这些演讲展示了具体进展，也指出了仍需解决的瓶颈。
+[10:16.68]Ava: Third, flexible platform boundaries matter as training frameworks change.
+[10:16.68]Ava：第三，随着训练框架变化，灵活的平台边界很重要。
+[10:21.69]Treat these conference results as specific cases, and bring questions about their measurement conditions.
+[10:21.69]应把这些会议成果视为具体案例，并追问其测量条件。
+[10:29.24]Brian: Thanks for listening, and we'll see you next time.
+[10:29.24]Brian：感谢收听，我们下次再见。

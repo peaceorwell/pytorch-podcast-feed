@@ -1,0 +1,251 @@
+[ti:A Clearer Route to PyTorch Certification]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: You know some Python. You've studied machine learning.
+[00:00.00]Ava：你懂一些 Python，也学过机器学习。
+[00:03.61]Now you're learning PyTorch, and you'd like a clear target.
+[00:03.61]现在你开始学 PyTorch，想有个明确目标。
+[00:07.55]What should you actually learn before trying to prove you can use it?
+[00:07.55]在证明自己会用它之前，究竟该学些什么？
+[00:12.52]Brian: That's the problem this article addresses.
+[00:12.52]Brian：这正是这篇文章要回答的问题。
+[00:15.55]It introduces a learning pathway for the PyTorch Certified Associate, or PTCA, certification.
+[00:15.55]文章介绍了一条备考 PyTorch Certified Associate（PTCA）认证的学习路径。
+[00:22.28]It brings focused learning and the certification exam together in one structured experience.
+[00:22.28]它把有针对性的学习和认证考试整合成一套有条理的课程。
+[00:29.28]Ava: I'm Ava, a software engineer outside the PyTorch core team.
+[00:29.28]Ava：我是 Ava，一名不在 PyTorch 核心团队的软件工程师。
+[00:33.88]Brian, you're here to walk us through it.
+[00:33.88]Brian，今天请你带我们了解一下。
+[00:37.08]Is the main news a new exam, or a new way to prepare?
+[00:37.08]这次的主要消息是新考试，还是新的备考方式？
+[00:41.56]Brian: The announcement is about the new Certification Pathway.
+[00:41.56]Brian：这次发布的是新的认证学习路径。
+[00:45.37]It's offered through Linux Foundation Education, and it combines four self-paced learning modules with the PTCA certification exam.
+[00:45.37]它由 Linux Foundation Education 提供，包含四个自主安排进度的学习模块和 PTCA 认证考试。
+[00:54.63]Ava: Okay, so the learning and the exam come in one product.
+[00:54.63]Ava：明白了，学习和考试打包在一起。
+[00:58.06]But putting them together wouldn't automatically make the learning useful.
+[00:58.06]但放在一起，不代表课程自然就有用。
+[01:02.67]What's the connection between the course material and the certification?
+[01:02.67]课程内容和认证有什么联系？
+[01:07.51]Brian: The article says the learning more closely aligns with the certification's domains and competencies.
+[01:07.51]Brian：文章说，课程内容与认证考查的领域和能力更加一致。
+[01:13.80]In plain English, those are the areas it covers and the skills you're expected to understand.
+[01:13.80]说白了，就是考试覆盖的内容，以及你需要掌握的技能。
+[01:20.00]Ava: It's like having a map with the destination marked.
+[01:20.00]Ava：就像拿到一张标出了目的地的地图。
+[01:23.06]You still have to make the trip, but at least the road and the destination belong on the same map.
+[01:23.06]路还得自己走，但至少路线和目的地在同一张地图上。
+[01:29.28]Brian: Right. That's a useful way to think about the structure.
+[01:29.28]Brian：对，这样理解它的安排很贴切。
+[01:33.33]The modules cover the same key areas measured by PTCA, with learning and hands-on labs along the way.
+[01:33.33]这些模块涵盖 PTCA 考查的关键领域，途中还有学习内容和动手实验。
+[01:40.98]Ava: Before we open that map, who's it for?
+[01:40.98]Ava：看这张地图之前，先说说它适合谁？
+[01:43.59]Our listeners may already work on deep-learning frameworks.
+[01:43.59]我们的听众可能已经在研究深度学习框架。
+[01:47.63]Some will be comfortable with ideas that a beginner hasn't met yet.
+[01:47.63]有些人熟悉的概念，初学者可能还没接触过。
+[01:52.57]Brian: PTCA is designed for early-stage practitioners who have Python and machine learning experience and are beginning to work with PyTorch.
+[01:52.57]Brian：PTCA 面向有 Python 和机器学习经验、刚开始使用 PyTorch 的入门阶段从业者。
+[02:01.49]That's the audience the article explicitly names.
+[02:01.49]这是文章明确指出的目标人群。
+[02:05.11]Ava: So we shouldn't describe it as starting from absolutely zero.
+[02:05.11]Ava：所以不能说它是从零开始。
+[02:09.03]There's already some programming and machine learning background in the picture.
+[02:09.03]学习者需要有一定的编程和机器学习基础。
+[02:14.17]The new ground is working with PyTorch.
+[02:14.17]新要学的是使用 PyTorch。
+[02:17.03]Brian: Exactly. And the stated aim is a strong foundation.
+[02:17.03]Brian：没错。它的目标是打下扎实的基础。
+[02:20.73]For an experienced framework engineer listening today, that helps set expectations about the level of this announcement.
+[02:20.73]对有经验的框架工程师来说，这也说明了这次发布内容的定位。
+[02:29.78]Ava: Let's walk through the learning. Four modules sounds manageable as a structure.
+[02:29.78]Ava：来看看课程安排。四个模块，结构上挺清晰。
+[02:34.84]What are their names, and how do they connect to the work of building a model?
+[02:34.84]它们分别叫什么？又怎样对应模型开发工作？
+[02:40.19]Brian: They're PyTorch Fundamentals, Data Handling in PyTorch, PyTorch Model Development, and Optimizing PyTorch.
+[02:40.19]Brian：分别是 PyTorch Fundamentals（PyTorch 基础）、Data Handling in PyTorch（PyTorch 数据处理）、PyTorch Model Development（PyTorch 模型开发）和 Optimizing PyTorch（PyTorch 优化）。
+[02:47.58]Together, they cover core skills from working with tensors and devices through improving model performance.
+[02:47.58]它们涵盖从张量、设备操作到提升模型性能的核心技能。
+[02:55.40]Ava: Let's unpack tensors and devices briefly.
+[02:55.40]Ava：简单说说张量和设备吧。
+[02:58.42]Think of tensors as containers of numerical data, and devices as where computation happens.
+[02:58.42]可以把张量看作数值数据的容器，设备则是执行计算的地方。
+[03:05.14]What does the article say learners will do with them?
+[03:05.14]文章说学员会用它们做什么？
+[03:09.40]Brian: They'll work with tensors and devices across the model lifecycle.
+[03:09.40]Brian：他们会在模型的整个生命周期中使用张量和设备。
+[03:13.59]That's the span of working with a model, which the article describes here as going from training through prediction.
+[03:13.59]这里的模型生命周期，文章描述为从训练到预测的全过程。
+[03:21.42]Ava: That gives the fundamentals a purpose.
+[03:21.42]Ava：这样，基础知识就有了实际用途。
+[03:24.03]You're following those concepts through actual model work.
+[03:24.03]你会在实际的模型工作中用到这些概念。
+[03:28.03]Does the post explain individual exercises, or show what a learner builds?
+[03:28.03]文章有介绍具体练习，或展示学员会做出什么吗？
+[03:33.48]Brian: It doesn't give that level of detail.
+[03:33.48]Brian：没有讲得那么细。
+[03:36.14]It names the skills and says there are hands-on labs.
+[03:36.14]它列出了要学的技能，也说有动手实验。
+[03:39.96]We don't get an exercise list or a sample project.
+[03:39.96]但没有练习清单或示例项目。
+[03:43.91]Ava: Fair enough. Next comes data handling.
+[03:43.91]Ava：明白。接下来是数据处理。
+[03:46.61]That's a familiar part of the workflow for our audience, but the PyTorch names may still be new to some listeners.
+[03:46.61]我们的听众熟悉这部分流程，但有些人可能还不熟悉 PyTorch 里的这些名称。
+[03:55.08]Brian: The pathway covers preparing and managing data using Datasets, DataLoaders, and transforms.
+[03:55.08]Brian：这条学习路径涵盖如何用 Datasets、DataLoaders 和 transforms 准备、管理数据。
+[04:01.83]Those are the named tools for this part of the learning.
+[04:01.83]这就是课程在数据处理部分提到的工具。
+[04:06.33]Ava: For anyone hearing those names for the first time, could we give them a simple picture?
+[04:06.33]Ava：能给第一次听到这些名称的朋友简单解释一下吗？
+[04:12.09]Three unfamiliar terms in one sentence can feel like a small vocabulary exam.
+[04:12.09]一句话里出现三个陌生术语，感觉像在做一场小型词汇测验。
+[04:17.55]Brian: Think of organizing your material, bringing it into the workflow, and applying changes to it.
+[04:17.55]Brian：可以把它理解为整理材料、将其送入工作流程，再对其进行处理。
+[04:24.17]That's a rough picture of Datasets, DataLoaders, and transforms.
+[04:24.17]这大致就是 Datasets、DataLoaders 和 transforms 的作用。
+[04:28.72]The post doesn't explain their mechanics.
+[04:28.72]文章没有解释它们的具体工作机制。
+[04:31.99]Ava: Got it. The point to remember is preparing and managing data.
+[04:31.99]Ava：明白了。要记住的重点是准备和管理数据。
+[04:36.38]Then we reach model development.
+[04:36.38]接下来是模型开发。
+[04:38.68]What building blocks does the article actually name there?
+[04:38.68]文章在这部分具体提到了哪些基础组件？
+[04:43.21]Brian: It names PyTorch layers, activations, loss functions, and optimizers for building neural networks.
+[04:43.21]Brian：文章提到了用于构建神经网络的 PyTorch 层、激活函数、损失函数和优化器。
+[04:49.90]In broad terms, that's model structure, how signals change, how errors are measured, and how learning is guided.
+[04:49.90]概括来说，就是模型结构、信号如何变化、如何衡量误差，以及如何引导学习。
+[04:57.89]Ava: That vocabulary will be familiar to someone with machine learning experience.
+[04:57.89]Ava：有机器学习经验的人应该熟悉这些术语。
+[05:03.05]The pathway gives those ideas a PyTorch setting.
+[05:03.05]这条学习路径把这些概念放进了 PyTorch 的语境。
+[05:06.27]Do we know which network architectures it teaches?
+[05:06.27]我们知道它会教哪些网络架构吗？
+[05:09.97]Brian: We don't. The article stays at the level of core concepts and workflows.
+[05:09.97]Brian：不知道。文章只介绍了核心概念和工作流程。
+[05:14.90]It doesn't list architectures, so we shouldn't fill in a syllabus from our own expectations.
+[05:14.90]它没有列出具体架构，所以我们不能凭自己的预期补出一份课程大纲。
+[05:21.56]Ava: Right. We've got fundamentals, data, and model development.
+[05:21.56]Ava：对。我们已经讲了基础知识、数据和模型开发。
+[05:26.05]The fourth module is Optimizing PyTorch.
+[05:26.05]第四个模块是“优化 PyTorch”。
+[05:29.09]That title will probably catch a framework engineer's attention. What's included?
+[05:29.09]这个标题大概会吸引框架工程师的注意。它包括什么？
+[05:35.61]Brian: The article names torch.
+[05:35.61]Brian：文章提到了 torch。
+[05:37.29]compile, Automatic Mixed Precision, the PyTorch Profiler, and distributed training concepts.
+[05:37.29]还有 compile、Automatic Mixed Precision（自动混合精度）、PyTorch Profiler（性能分析器）和分布式训练概念。
+[05:43.73]They're included in the skills for measuring and optimizing performance.
+[05:43.73]这些都属于衡量和优化性能所需的技能。
+[05:49.11]Ava: Let's slow down on that list. We'd say torch dot compile aloud.
+[05:49.11]Ava：我们仔细看看这份清单。torch.compile 口头上会读作“torch 点 compile”。
+[05:53.86]It's a named PyTorch tool here.
+[05:53.86]这里指的是一个有明确名称的 PyTorch 工具。
+[05:56.19]Does the announcement tell us how deeply the pathway explores compilation?
+[05:56.19]公告有说这条学习路径会把编译讲到什么程度吗？
+[06:02.11]Brian: No. It names torch. compile, but doesn't describe the depth of coverage.
+[06:02.11]Brian：没有。它提到了 torch.compile，但没说明会讲多深。
+[06:07.25]We can't tell from this post how much time learners spend on it or which details they study.
+[06:07.25]单凭这篇文章，我们不知道学员会花多少时间学习它，也不知道会学哪些细节。
+[06:14.17]Ava: And Automatic Mixed Precision means using a mix of numerical precisions.
+[06:14.17]Ava：而 Automatic Mixed Precision 指的是混合使用不同的数值精度。
+[06:19.42]The PyTorch Profiler is a performance analysis tool.
+[06:19.42]PyTorch Profiler 是性能分析工具。
+[06:23.21]Those names can sound quite advanced when they arrive together.
+[06:23.21]这些名称一起出现，听起来会相当高深。
+[06:28.15]Brian: They can. But remember the stated goal: foundational skills.
+[06:28.15]Brian：确实。不过要记住，文章说的目标是掌握基础技能。
+[06:32.32]The article includes these tools in that foundation without giving us a detailed account of what learners do with each one.
+[06:32.32]文章把这些工具纳入基础学习内容，但没有详细说明学员会怎样使用每个工具。
+[06:41.20]Ava: Then there's distributed training, meaning training work spread across computing resources.
+[06:41.20]Ava：还有分布式训练，也就是把训练任务分配到不同计算资源上。
+[06:47.26]The wording is distributed training concepts.
+[06:47.26]原文的措辞是“分布式训练概念”。
+[06:50.26]That seems like a detail we should keep when describing the offering.
+[06:50.26]介绍这项课程时，我们应该保留这个细节。
+[06:55.21]Brian: Yes. We should preserve that wording.
+[06:55.21]Brian：对，应该保留这个说法。
+[06:57.88]The post doesn't promise a particular distributed setup or level of practical depth.
+[06:57.88]文章没有承诺具体的分布式配置，也没有说明实践会深入到什么程度。
+[07:03.97]It tells us those concepts are part of the coverage.
+[07:03.97]它只说会涵盖这些概念。
+[07:08.08]Ava: Let me check I've got the overall shape.
+[07:08.08]Ava：我来确认一下整体安排。
+[07:10.93]Work with tensors and devices, prepare the data, build neural networks, and measure and improve performance.
+[07:10.93]使用张量和设备、准备数据、构建神经网络，然后衡量并提升性能。
+[07:18.60]That's the learning route.
+[07:18.60]这就是学习路线。
+[07:20.79]Brian: That's it. And those areas connect to what the certification measures.
+[07:20.79]Brian：没错。这些内容也对应着认证考核的能力。
+[07:26.03]The article describes the overall progression as learn, build, validate, and certify.
+[07:26.03]文章把整个过程概括为学习、构建、验证和认证。
+[07:32.74]Ava: How much learning time is included?
+[07:32.74]Ava：学习部分需要多长时间？
+[07:34.90]A structured route is helpful, but people also need to understand the size of the commitment before they put it on their calendar.
+[07:34.90]有条理的学习路线很有帮助，但大家安排时间前，也需要知道要投入多少精力。
+[07:43.31]Brian: The full pathway includes fifteen to seventeen hours of self-paced learning and hands-on labs.
+[07:43.31]Brian：完整路径包含 15 至 17 小时的自主学习和动手实验。
+[07:49.50]Self-paced means learners can work through the material at their own pace.
+[07:49.50]自主学习意味着学员可以按自己的进度完成内容。
+[07:54.72]Ava: Wait, so could someone finish those hours and assume they're ready for the exam?
+[07:54.72]Ava：等等，学完这些课时，就能认为自己准备好考试了吗？
+[08:00.57]I can already imagine myself treating the final lesson like a finish line.
+[08:00.57]我已经能想象自己把最后一课当成终点了。
+[08:06.33]Brian: The article directly cautions against that assumption.
+[08:06.33]Brian：文章明确提醒大家不要这样想。
+[08:10.07]Certification readiness takes more than completing coursework.
+[08:10.07]准备好参加认证考试，光完成课程还不够。
+[08:14.37]It recommends additional hands-on practice and real-world experience with PyTorch as you prepare.
+[08:14.37]文章建议备考时进一步动手练习，并积累使用 PyTorch 的实际经验。
+[08:21.44]Ava: Like finishing driving lessons and still needing more time behind the wheel.
+[08:21.44]Ava：就像上完驾驶课，还需要更多时间上路练习。
+[08:26.51]Completing a set of lessons is a clear milestone, but confidence with the work needs practice.
+[08:26.51]完成一套课程是明确的里程碑，但要熟练掌握，还得靠练习。
+[08:33.14]Brian: Exactly. And the article doesn't say how many additional hours you'll need.
+[08:33.14]Brian：没错。文章也没说还需要练多少小时。
+[08:38.57]Fifteen to seventeen hours describes the included learning and labs, not a guaranteed total preparation time.
+[08:38.57]15 到 17 小时指的是课程和实验的学时，不是保证够用的备考总时长。
+[08:46.81]Ava: Let's talk about results, then.
+[08:46.81]Ava：那我们聊聊成效吧。
+[08:48.87]Does this announcement show that people pass more often, learn faster, or get better model performance after following the pathway?
+[08:48.87]这则公告是否表明，学完这套课程的人通过率更高、学得更快，或模型性能更好？
+[08:57.89]Brian: It doesn't provide those results.
+[08:57.89]Brian：文章没有提供这些结果。
+[09:00.04]There are no pass rates or performance benchmarks in the article.
+[09:00.04]文章里没有通过率，也没有性能基准数据。
+[09:04.27]The concrete announcement is the structured offering and its alignment with the certification.
+[09:04.27]它明确宣布的是一套结构化课程，以及课程与认证内容的对应关系。
+[09:10.74]Ava: And what does the certification itself validate?
+[09:10.74]Ava：那认证本身能证明什么？
+[09:13.77]I'd like to keep that separate from simply saying someone has watched lessons or completed a course.
+[09:13.77]我想把它和看过课程视频、完成课程区分开。
+[09:20.43]Brian: It validates understanding of core concepts and workflows used by engineers and researchers to design, train, optimize, and work with machine learning models.
+[09:20.43]Brian：它验证的是对核心概念和工作流程的理解，这些是工程师和研究人员设计、训练、优化及使用机器学习模型时会用到的。
+[09:31.45]That's the scope described here.
+[09:31.45]文章描述的认证范围就是这些。
+[09:34.03]Ava: What about practical details beyond the learning?
+[09:34.03]Ava：学习内容之外，还有哪些实用信息？
+[09:37.21]If somebody wants to take the next step, does this post give the price, exam format, or passing score?
+[09:37.21]如果有人想参加考试，这篇文章有说价格、考试形式或及格分数吗？
+[09:44.19]Brian: Those details aren't in the supplied article. It also doesn't announce future modules.
+[09:44.19]Brian：提供的文章没有这些细节，也没有宣布未来会推出新模块。
+[09:50.22]Its next step for learners is to build their skills and prepare for the included exam.
+[09:50.22]文章建议学习者接下来继续提升技能，为其中包含的考试做准备。
+[09:56.59]Ava: Let's leave listeners with three points.
+[09:56.59]Ava：最后给听众总结三点。
+[09:59.53]First, this pathway brings four self-paced modules and the PTCA exam together through Linux Foundation Education, with learning aligned to the certification's core areas.
+[09:59.53]第一，这套学习路径通过 Linux Foundation Education，将四个自主进度学习模块与 PTCA 考试结合起来，课程内容对应认证的核心领域。
+[10:12.35]Brian: Second, it's aimed at people with Python and machine learning experience who are starting PyTorch.
+[10:12.35]Brian：第二，它面向有 Python 和机器学习经验、刚开始接触 PyTorch 的人。
+[10:19.57]It covers fundamentals, data handling, model development, and optimization.
+[10:19.57]内容涵盖基础知识、数据处理、模型开发和优化。
+[10:25.44]Ava: Third, the fifteen to seventeen hours of learning and labs are a foundation.
+[10:25.44]Ava：第三，15 到 17 小时的课程和实验只是基础。
+[10:30.65]The article recommends more hands-on practice and real-world experience before the exam.
+[10:30.65]文章建议在考试前多动手练习，积累实际项目经验。
+[10:37.03]Brian: Thanks for listening to Ava and Brian, and we'll see you next time.
+[10:37.03]Brian：感谢收听 Ava 和 Brian 的节目，我们下次见。

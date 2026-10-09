@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Why DeepEP and MXFP8 Make DeepSeek-V3 Training 41% Faster</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/enabling-up-to-41-faster-pre-training-mxfp8-and-deepep-for-deepseek-v3-on-b200-with-torchtitan/">原视频 / 原文</a></p><h1>Why DeepEP and MXFP8 Make DeepSeek-V3 Training 41% Faster</h1>
+<p>原文：[Enabling Up to 41% Faster Pre-training: MXFP8 and DeepEP for DeepSeek-V3 on B200 with TorchTitan](https://pytorch.org/blog/enabling-up-to-41-faster-pre-training-mxfp8-and-deepep-for-deepseek-v3-on-b200-with-torchtitan/)</p>
+<h2>摘要</h2>
+<p>本期讨论 PyTorch 与 Nebius 如何在 256 张 NVIDIA B200 GPU 上，用 TorchTitan 训练 DeepSeek-V3 的 671B 和 16B MoE 模型。实验比较了 BF16 基线、DeepEP 通信优化和 MXFP8 grouped GEMM 计算优化：671B 模型从每秒 651 个 token 提升到 918 个，整体快了 41%。其中 DeepEP 单独带来 32% 提升，说明跨节点 all-to-all 通信是主要瓶颈。对 16B 模型进行 1500 步训练后，MXFP8 与 BF16 的 loss 曲线几乎一致，显示没有明显收敛损失。</p>
+<h2>对话</h2>
+<p>Ava: What if you could train a 671B-parameter Mixture-of-Experts model 41% faster, using open-source PyTorch tools?</p>
+<p>Ava：如果用开源 PyTorch 工具，能把一个 671B 参数的专家混合模型训练速度提高 41%，会怎样？</p>
+<p>That’s the result we’re unpacking today.</p>
+<p>这就是我们今天要聊的成果。</p>
+<p>Brian: And the interesting part is that the gain comes from two different places: MXFP8 speeds up matrix multiplication, while DeepEP speeds up expert communication.</p>
+<p>Brian：有意思的是，提速来自两个方面：MXFP8 加快矩阵乘法，DeepEP 加快专家间通信。</p>
+<p>Together, they reached 918 tokens per second on 256 NVIDIA B200 GPUs.</p>
+<p>两者结合后，在 256 块 NVIDIA B200 GPU 上达到了每秒 918 个 token。</p>
+<p>Ava: Let’s start with the setup. This was a joint PyTorch and Nebius experiment, right?</p>
+<p>Ava：先说实验配置。这是 PyTorch 和 Nebius 联合做的实验，对吧？</p>
+<p>Brian: Right. They used TorchTitan as the pre-training framework on a Nebius Cloud cluster.</p>
+<p>Brian：对。他们在 Nebius Cloud 集群上，用 TorchTitan 作为预训练框架。</p>
+<p>The cluster had 32 nodes, eight B200 GPUs per node, so 256 GPUs in total.</p>
+<p>集群有 32 个节点，每个节点 8 块 B200 GPU，总共 256 块。</p>
+<p>Ava: And the model was DeepSeek-V3, with both a 671B version and a 16B MoE version.</p>
+<p>Ava：模型是 DeepSeek-V3，分别用了 671B 版本和 16B MoE 版本。</p>
+<p>Brian: Exactly. The 671B experiment measured throughput.</p>
+<p>Brian：没错。671B 实验测的是吞吐量。</p>
+<p>The 16B experiment checked whether MXFP8 changes training convergence.</p>
+<p>16B 实验检验 MXFP8 是否影响训练收敛。</p>
+<p>Ava: Why focus on Mixture-of-Experts models? What makes them difficult to train?</p>
+<p>Ava：为什么聚焦专家混合模型？它们难训在哪里？</p>
+<p>Brian: They have two major costs. First, the experts do a lot of matrix multiplication.</p>
+<p>Brian：主要有两项开销。首先，专家需要做大量矩阵乘法。</p>
+<p>Second, every layer needs two all-to-all exchanges: one to dispatch tokens to experts, and another to combine the results.</p>
+<p>其次，每一层都要进行两次全对全通信：一次把 token 分发给专家，一次汇总结果。</p>
+<p>Ava: So computation and communication can both become bottlenecks.</p>
+<p>Ava：所以计算和通信都可能成为瓶颈。</p>
+<p>Brian: Yes. And the communication pattern is especially awkward.</p>
+<p>Brian：对。而且它的通信模式尤其棘手。</p>
+<p>The router decides dynamically which tokens go to which experts.</p>
+<p>路由器会动态决定把哪些 token 送给哪些专家。</p>
+<p>That means the transfer sizes and destinations change at every step.</p>
+<p>这意味着每一步的传输量和目标位置都会变化。</p>
+<p>Ava: Which is a bad match for a generic all-to-all operation designed around fixed transfers.</p>
+<p>Ava：这就不太适合按固定传输设计的通用全对全操作。</p>
+<p>Brian: That’s the idea.</p>
+<p>Brian：正是如此。</p>
+<p>As expert parallelism, or EP, grows, this communication cost gets worse.</p>
+<p>随着专家并行，也就是 EP，的规模扩大，通信开销会更高。</p>
+<p>In the 671B run, EP was 32 across 32 nodes, so inter-node traffic mattered a lot.</p>
+<p>671B 实验在 32 个节点上采用 EP=32，因此跨节点流量影响很大。</p>
+<p>Ava: Okay. Let’s talk about the first optimization: MXFP8. What does the name mean?</p>
+<p>Ava：好。先聊第一项优化：MXFP8。这个名字是什么意思？</p>
+<p>Brian: MXFP8 means Microscaling FP8.</p>
+<p>Brian：MXFP8 是微缩放 FP8。</p>
+<p>It’s a low-precision format defined by the OCP Microscaling Specification.</p>
+<p>它是 OCP 微缩放规范定义的一种低精度格式。</p>
+<p>Standard float8 often uses one scale factor per tensor or per row.</p>
+<p>标准 float8 通常每个张量或每一行共用一个缩放因子。</p>
+<p>MXFP8 uses a shared exponent, called an E8M0 scale, for every block of 32 elements.</p>
+<p>MXFP8 则每 32 个元素共用一个指数，称为 E8M0 缩放值。</p>
+<p>Ava: So the scaling is more local.</p>
+<p>Ava：也就是说，缩放范围更局部。</p>
+<p>Brian: Right.</p>
+<p>Brian：对。</p>
+<p>That finer-grained scaling helps preserve numerical fidelity while still using FP8 tensor cores.</p>
+<p>这种更细粒度的缩放有助于保持数值精度，同时仍能使用 FP8 张量核心。</p>
+<p>NVIDIA Blackwell supports MXFP8 natively through its tcgen05.</p>
+<p>NVIDIA Blackwell 通过 tcgen05.</p>
+<p>mma tensor core instructions.</p>
+<p>mma 张量核心指令原生支持 MXFP8。</p>
+<p>Ava: That’s why B200 is a natural target. There’s no emulation overhead for MXFP8 GEMMs.</p>
+<p>Ava：所以 B200 很适合跑它。MXFP8 GEMM 不需要模拟，因而没有这方面的开销。</p>
+<p>Brian: Yes. Blackwell can provide up to two times the peak TFLOPS of BF16 for eligible GEMMs.</p>
+<p>Brian：对。对于适用的 GEMM，Blackwell 的峰值 TFLOPS 最高可达 BF16 的两倍。</p>
+<p>But the article measures end-to-end training, so the real speedup depends on overhead and on which operations are eligible.</p>
+<p>但文章测的是端到端训练，实际提速取决于额外开销，以及哪些操作能用 MXFP8。</p>
+<p>Ava: How did TorchTitan apply it?</p>
+<p>Ava：TorchTitan 是怎么用上它的？</p>
+<p>Brian: Through TorchAO.</p>
+<p>Brian：通过 TorchAO。</p>
+<p>For linear layers, TorchAO dynamically quantizes inputs to MXFP8 for the forward output, input gradient, and weight gradient GEMMs.</p>
+<p>在线性层中，TorchAO 会为前向输出、输入梯度和权重梯度这三类 GEMM，将输入动态量化为 MXFP8。</p>
+<p>The results accumulate back to BF16.</p>
+<p>计算结果则累加为 BF16。</p>
+<p>Ava: And for the experts?</p>
+<p>Ava：专家层呢？</p>
+<p>Brian: For routed experts, it converts torch grouped matrix multiplication operations to a TorchAO grouped GEMM function.</p>
+<p>Brian：对于路由专家，它把 torch 的分组矩阵乘法操作转换为 TorchAO 的分组 GEMM 函数。</p>
+<p>The same three GEMMs use dynamically quantized MXFP8 inputs.</p>
+<p>这三类 GEMM 同样使用动态量化为 MXFP8 的输入。</p>
+<p>Ava: The article says grouped GEMMs dominate MoE expert layers.</p>
+<p>Ava：文章说，分组 GEMM 是 MoE 专家层的主要开销。</p>
+<p>Brian: Exactly. The recipe quantizes inputs immediately before each grouped GEMM.</p>
+<p>Brian：没错。这套方案会在每次分组 GEMM 前立即量化输入。</p>
+<p>When the GEMM dimensions are large, the compute cost grows faster than the quantization cost, so the overhead becomes relatively small.</p>
+<p>GEMM 维度较大时，计算量比量化开销增长得更快，所以量化的相对开销会变小。</p>
+<p>Ava: But for small dimensions, quantization can cancel the benefit.</p>
+<p>Ava：但维度较小时，量化开销可能抵消收益。</p>
+<p>Brian: Yes. The article is clear about that limitation.</p>
+<p>Brian：对。文章明确指出了这个局限。</p>
+<p>In smaller MoE models, the quantization overhead can match or exceed the MXFP8 speedup, leading to neutral or even negative performance.</p>
+<p>在较小的 MoE 模型中，量化开销可能等于甚至超过 MXFP8 带来的提速，最终性能持平，甚至下降。</p>
+<p>Ava: Now DeepEP sounds like a very different kind of optimization.</p>
+<p>Ava：DeepEP 听起来是另一种优化。</p>
+<p>Brian: It is.</p>
+<p>Brian：是的。</p>
+<p>DeepEP is a GPU communication library developed by DeepSeek specifically for MoE expert-parallel dispatch and combine operations.</p>
+<p>DeepEP 是 DeepSeek 专为 MoE 专家并行中的 token 分发和结果汇总开发的 GPU 通信库。</p>
+<p>Ava: What does it change compared with standard all-to-all?</p>
+<p>Ava：与标准的全对全通信相比，它改变了什么？</p>
+<p>Brian: It uses purpose-built NVLink and RDMA kernels.</p>
+<p>Brian：它使用专门设计的 NVLink 和 RDMA 内核。</p>
+<p>Inside a node, data moves over high-bandwidth NVLink.</p>
+<p>节点内，数据通过高带宽 NVLink 传输。</p>
+<p>Between nodes, it uses RDMA over InfiniBand.</p>
+<p>节点间，则通过 InfiniBand 使用 RDMA。</p>
+<p>This hierarchical path matches the hardware’s bandwidth differences.</p>
+<p>这种分层传输方式适应了硬件带宽的差异。</p>
+<p>Ava: The article mentions around 900 gigabytes per second for intra-node NVLink.</p>
+<p>Ava：文章提到，节点内 NVLink 的带宽约为每秒 900 GB。</p>
+<p>Brian: Yes, that’s the approximate figure given for the setup.</p>
+<p>Brian：对，这是该配置给出的近似值。</p>
+<p>DeepEP also uses NVSHMEM, which provides a Partitioned Global Address Space.</p>
+<p>DeepEP 还使用 NVSHMEM，它提供分区全局地址空间。</p>
+<p>Each GPU can map a symmetric memory region that peers can address.</p>
+<p>每个 GPU 都能映射一块其他 GPU 可寻址的对称内存区域。</p>
+<p>Ava: And with InfiniBand GPUDirect Async, the GPU can drive network operations directly from CUDA kernels.</p>
+<p>Ava：借助 InfiniBand GPUDirect Async，GPU 还能直接从 CUDA 内核发起网络操作。</p>
+<p>Brian: Right. That removes CPU involvement, which is useful for small, dynamic transfers.</p>
+<p>Brian：没错。这省去了 CPU 的参与，尤其适合小规模、动态的数据传输。</p>
+<p>DeepEP also fuses metadata such as token embeddings, expert indices, and routing weights into one communication operation.</p>
+<p>DeepEP 还将词元嵌入、专家索引和路由权重等信息合并到一次通信操作中。</p>
+<p>Ava: Fewer launches and fewer synchronization points.</p>
+<p>Ava：这样启动次数和同步点都更少。</p>
+<p>Brian: Exactly.</p>
+<p>Brian：正是如此。</p>
+<p>It can also be configured to use a chosen number of streaming multiprocessors, leaving the remaining SMs available for overlapping computation.</p>
+<p>它还可以配置为只使用指定数量的流式多处理器，让剩余的 SM 用于并行计算。</p>
+<p>Ava: Before the results, tell me about the actual 671B training configuration.</p>
+<p>Ava：讲结果之前，先说说 671B 模型的实际训练配置。</p>
+<p>Brian: The sequence length was 8192, with a local batch size of 64.</p>
+<p>Brian：序列长度为 8192，本地批量大小为 64。</p>
+<p>Tensor Parallel, or TP, was 2. Pipeline Parallel, PP, was 2. Data Parallel, DP, was 1.</p>
+<p>张量并行 TP 为 2，流水线并行 PP 为 2，数据并行 DP 为 1。</p>
+<p>Expert Parallel was 32, and Expert Tensor Parallel was 1.</p>
+<p>专家并行 EP 为 32，专家张量并行为 1。</p>
+<p>Ava: They also used full activation checkpointing and torch. compile for the model and loss.</p>
+<p>Ava：他们还使用了完整激活检查点，并用 torch.compile 编译模型和损失函数。</p>
+<p>Brian: Correct.</p>
+<p>Brian：没错。</p>
+<p>The learning rate was one times ten to the minus four, with 2,000 warmup steps, and the dataset was C4.</p>
+<p>学习率为 1×10⁻⁴，预热 2,000 步，数据集为 C4。</p>
+<p>Ava: What were the three configurations?</p>
+<p>Ava：三种配置分别是什么？</p>
+<p>Brian: First, BF16 with standard expert parallel communication.</p>
+<p>Brian：第一种是 BF16，使用标准的专家并行通信。</p>
+<p>That was the baseline at 651 tokens per second. Second, BF16 with DeepEP.</p>
+<p>这是基线，每秒处理 651 个词元。第二种是 BF16 加 DeepEP。</p>
+<p>Third, MXFP8 on all grouped GEMMs together with DeepEP.</p>
+<p>第三种是所有分组 GEMM 都使用 MXFP8，并搭配 DeepEP。</p>
+<p>Ava: And DeepEP alone reached 859 tokens per second.</p>
+<p>Ava：单用 DeepEP 就达到了每秒 859 个词元。</p>
+<p>Brian: Yes. That’s a 32% improvement over the 651-token baseline.</p>
+<p>Brian：对，比每秒 651 个词元的基线提升了 32%。</p>
+<p>It was the single largest individual gain.</p>
+<p>这是单项优化中最大的提升。</p>
+<p>Ava: So communication was the dominant bottleneck at that scale.</p>
+<p>Ava：所以在这个规模下，通信是主要瓶颈。</p>
+<p>Brian: That’s the interpretation in the article.</p>
+<p>Brian：文章是这样解读的。</p>
+<p>With EP equal to 32 across 32 nodes, inter-node all-to-all was a major part of step time.</p>
+<p>EP 为 32、跨越 32 个节点时，节点间全对全通信占了单步训练时间的很大一部分。</p>
+<p>DeepEP’s NVLink and RDMA forwarding reduced that cost substantially.</p>
+<p>DeepEP 通过 NVLink 和 RDMA 转发，大幅降低了这部分开销。</p>
+<p>Ava: Then adding MXFP8 grouped GEMMs pushed throughput to 918 tokens per second, for a total gain of 41%.</p>
+<p>Ava：再加上 MXFP8 分组 GEMM，吞吐量达到每秒 918 个词元，总提升为 41%。</p>
+<p>Brian: Right. The two optimizations composed well because they target different bottlenecks.</p>
+<p>Brian：对。两项优化配合得很好，因为它们针对不同的瓶颈。</p>
+<p>DeepEP works on all-to-all communication. MXFP8 works on GEMM computation.</p>
+<p>DeepEP 优化全对全通信，MXFP8 优化 GEMM 计算。</p>
+<p>Ava: The article says the combined result is close to the sum of the individual improvements.</p>
+<p>Ava：文章说，组合后的提升接近两项单独提升之和。</p>
+<p>Brian: Yes, although the exact individual MXFP8-only number isn’t reported in the summary table.</p>
+<p>Brian：是的，不过汇总表没有报告单用 MXFP8 的确切结果。</p>
+<p>What’s reported is the baseline, the DeepEP result, and the combined result.</p>
+<p>表中报告的是基线、使用 DeepEP 的结果，以及组合使用的结果。</p>
+<p>Ava: That’s a useful distinction. We shouldn’t invent a separate MXFP8 speedup.</p>
+<p>Ava：这个区别很重要。我们不能凭空给出 MXFP8 单独带来的加速幅度。</p>
+<p>Brian: Exactly.</p>
+<p>Brian：没错。</p>
+<p>The evidence supports complementarity, not a precise standalone percentage for MXFP8 in this 671B comparison.</p>
+<p>这些数据能说明两项优化互补，却无法得出 MXFP8 在这次 671B 对比中单独提升的准确百分比。</p>
+<p>Ava: Now, speed is only useful if training still behaves correctly.</p>
+<p>Ava：速度提升的前提是训练仍然正常。</p>
+<p>How did they validate that?</p>
+<p>他们是怎么验证的？</p>
+<p>Brian: They used the 16B DeepSeek-V3 MoE model and ran BF16 and MXFP8 experiments for 1,500 training steps.</p>
+<p>Brian：他们用 16B 的 DeepSeek-V3 MoE 模型，分别进行了 1,500 步的 BF16 和 MXFP8 训练实验。</p>
+<p>These runs used standard EP, without DeepEP.</p>
+<p>这些实验使用标准 EP，没有使用 DeepEP。</p>
+<p>Ava: What was different in the 16B setup?</p>
+<p>Ava：16B 的配置有什么不同？</p>
+<p>Brian: The local batch size was 16. TP and PP were both 1, DP was 1, and EP was still 32.</p>
+<p>Brian：本地批量大小为 16。TP 和 PP 都为 1，DP 为 1，EP 仍为 32。</p>
+<p>They used sequence length 8192, full activation checkpointing, torch.</p>
+<p>序列长度为 8192，使用完整激活检查点，并用 torch.</p>
+<p>compile for model and loss, the same learning rate of one times ten to the minus four, 2,000 warmup steps, and the C4 dataset.</p>
+<p>compile 编译模型和损失函数；学习率同为 1×10⁻⁴，预热 2,000 步，数据集为 C4。</p>
+<p>Ava: And the loss curves?</p>
+<p>Ava：损失曲线呢？</p>
+<p>Brian: They were virtually identical.</p>
+<p>Brian：几乎完全一致。</p>
+<p>The article says MXFP8 showed no meaningful divergence from BF16 over that training window.</p>
+<p>文章称，在这段训练期间，MXFP8 与 BF16 没有出现明显偏离。</p>
+<p>Ava: So MXFP8 was equivalent to BF16 for convergence in this experiment.</p>
+<p>Ava：也就是说，在这次实验中，MXFP8 和 BF16 的收敛表现相当。</p>
+<p>Brian: Yes, over 1,500 steps on the 16B model.</p>
+<p>Brian：对，在 16B 模型上训练了 1,500 步。</p>
+<p>That supports the numerical stability of the recipe, while staying within the scope of the test.</p>
+<p>这说明该训练方案在测试范围内具有数值稳定性。</p>
+<p>Ava: Let’s discuss the limitations and what comes next.</p>
+<p>Ava：聊聊局限和下一步吧。</p>
+<p>Brian: The 671B experiment only applied MXFP8 to grouped GEMMs, meaning the routed experts.</p>
+<p>Brian：671B 模型的实验只对分组 GEMM，也就是路由专家，使用了 MXFP8。</p>
+<p>It couldn’t apply MXFP8 to attention and shared-expert linear layers.</p>
+<p>注意力层和共享专家的线性层还无法使用 MXFP8。</p>
+<p>Ava: Why not?</p>
+<p>Ava：为什么？</p>
+<p>Brian: Because torch.</p>
+<p>Brian：因为 torch。</p>
+<p>compile didn’t yet support MXFP8 linear layers when combined with tensor parallelism.</p>
+<p>compile 当时还不支持与张量并行结合使用的 MXFP8 线性层。</p>
+<p>The 671B configuration required TP equal to 2, so those linear layers were excluded.</p>
+<p>671B 模型的配置要求 TP 为 2，因此这些线性层被排除在外。</p>
+<p>Ava: Once TP, torch.</p>
+<p>Ava：等 TP、torch。</p>
+<p>compile, and MXFP8 linear-layer support work together in TorchTitan, throughput may improve further.</p>
+<p>compile 和 MXFP8 线性层支持能在 TorchTitan 中协同工作，吞吐量可能进一步提升。</p>
+<p>Brian: That’s the expected next step described by the authors.</p>
+<p>Brian：这正是作者提出的下一步。</p>
+<p>They also provide open-source recipes and training configurations for reproducibility on a Nebius Cloud B200 cluster.</p>
+<p>他们还公开了训练方案和配置，方便在 Nebius Cloud 的 B200 集群上复现。</p>
+<p>Ava: The infrastructure story is part of the experiment too.</p>
+<p>Ava：基础设施也是这次实验的一部分。</p>
+<p>Nebius used Soperator, which brings Slurm-style scheduling and multi-node behavior to Kubernetes.</p>
+<p>Nebius 使用 Soperator，让 Kubernetes 具备 Slurm 式调度和多节点运行能力。</p>
+<p>Brian: Yes.</p>
+<p>Brian：没错。</p>
+<p>It continuously checked GPU and interconnect health, including NCCL all-reduce benchmarks and GPU XID errors.</p>
+<p>它持续检查 GPU 和互连的健康状况，包括 NCCL all-reduce 基准测试和 GPU XID 错误。</p>
+<p>Nodes below performance thresholds could be drained and replaced automatically.</p>
+<p>性能低于阈值的节点可以自动退出运行并被替换。</p>
+<p>Ava: And resizing was a single command, with new nodes inheriting the runtime environment.</p>
+<p>Ava：扩容也只需一条命令，新节点会继承运行环境。</p>
+<p>Brian: That reduced the operational work around cluster setup, stragglers, and failed jobs, so the team could focus on the training recipe.</p>
+<p>Brian：这减少了集群搭建、慢节点和任务失败带来的运维工作，让团队能专注于训练方案。</p>
+<p>Ava: Let’s close with the three points I’d write down.</p>
+<p>Ava：最后总结我会记下的三点。</p>
+<p>First: for the 671B model, DeepEP was the biggest lever, taking throughput from 651 to 859 tokens per second.</p>
+<p>第一，对 671B 模型来说，DeepEP 的作用最大，将吞吐量从每秒 651 个 token 提升到 859 个。</p>
+<p>Brian: Second: adding MXFP8 grouped GEMMs to DeepEP reached 918 tokens per second, a 41% total gain, because compute and communication optimizations complemented each other.</p>
+<p>Brian：第二，在 DeepEP 基础上加入 MXFP8 分组 GEMM 后，吞吐量达到每秒 918 个 token，总体提升 41%，因为计算和通信优化相互配合。</p>
+<p>Ava: Third: on the 16B model, MXFP8 and BF16 had equivalent loss behavior over 1,500 steps, while broader MXFP8 coverage still depends on TP and torch.</p>
+<p>Ava：第三，在 16B 模型上，MXFP8 和 BF16 训练 1,500 步的损失表现相当；但要将 MXFP8 用于更多层，仍取决于 TP 和 torch。</p>
+<p>compile support.</p>
+<p>compile 的支持。</p>
+<p>Brian: That’s the whole story: faster expert communication, faster eligible GEMMs, and convergence that stayed aligned in the tested window.</p>
+<p>Brian：这就是全部：专家通信更快，适用的 GEMM 更快，而且在测试期间收敛表现保持一致。</p>
+<p>Ava: Thanks for listening. We’ll be back with another PyTorch paper or blog post soon.</p>
+<p>Ava：感谢收听。我们很快会带来另一篇 PyTorch 论文或博文。</p>
+<h2>术语</h2>
+<p>Term · 释义</p>
+<p>Mixture-of-Experts (MoE) · 混合专家模型</p>
+<p>TorchTitan · PyTorch 的大模型预训练框架</p>
+<p>MXFP8 · 微缩放 FP8 数值格式</p>
+<p>DeepEP · 面向 MoE 专家并行通信优化的库</p>
+<p>Grouped GEMM · 分组通用矩阵乘法</p>
+<p>Expert Parallelism (EP) · 专家并行</p>
+<p>Tensor Parallelism (TP) · 张量并行</p>
+<p>All-to-all · 全对全通信操作</p>
+<p>NVLink · GPU 节点内高速互连</p>
+<p>RDMA · 远程直接内存访问</p>
+<p>NVSHMEM · 支持 GPU 间共享寻址和通信的库</p>
+<p>GPUDirect Async · 允许 GPU 直接发起网络操作的机制</p>
+<p>torch.compile · PyTorch 编译功能</p>
+<p>BF16 · Brain Floating Point 16，16 位浮点格式</p>
+<p>Activation checkpointing · 激活检查点技术，用计算换显存</p>
+<h2>口语表达</h2>
+<p>Phrase · 释义</p>
+<p>Let’s start with the setup. · 我们先从整体设置讲起。</p>
+<p>That’s the idea. · 核心就是这个意思。</p>
+<p>So computation and communication can both become bottlenecks. · 所以计算和通信都可能成为瓶颈。</p>
+<p>That’s a useful distinction. · 这是一个有用的区分。</p>
+<p>We shouldn’t invent a separate speedup. · 我们不应该凭空编造一个单独的加速数字。</p>
+<p>What comes next? · 接下来会怎样？</p>
+<p>Let’s close with the three points. · 最后总结三个要点。</p>
+<p>That’s the whole story. · 这就是整个故事。</p></body></html>

@@ -1,0 +1,591 @@
+# Why Agent Sessions Change the Rules of Inference
+
+原文：[Session-Aware Agentic Inference with NVIDIA Dynamo - PyTorch](https://pytorch.org/blog/session-aware-agentic-inference-with-nvidia-dynamo/)
+
+## 摘要
+
+智能体在调用工具时可能暂停生成，但它的上下文仍占用 KV 缓存；并发会让这种占用迅速累积。NVIDIA Dynamo 用稳定的会话 ID 串联请求，使追踪回放、会话级调度和缓存感知路由成为可能。文章报告，在指定的 SWE-bench 配置下，会话感知调度比单独使用 KV 感知路由提高了约百分之十二到十六的吞吐量。共享缓存索引仍处于实验阶段，而 KvHint 等主动移动缓存的机制仍在开发中。
+
+## 对话
+
+Ava: An agent can use GPU memory while it's waiting for a tool.
+
+Ava：智能体等待工具返回时，仍可能占用 GPU 显存。
+
+How can a paused conversation do that?
+
+对话都暂停了，怎么还会占显存？
+
+Brian: Its key-value, or KV, cache can stay in memory between model calls.
+
+Brian：它的键值缓存，也就是 KV 缓存，可以在两次模型调用之间留在显存里。
+
+With many agents running, those waiting contexts add up.
+
+很多智能体同时运行时，这些等待中的上下文就会越积越多。
+
+That's why this matters for serving.
+
+所以这对推理服务很重要。
+
+Ava: So the server sees more than a stream of unrelated questions?
+
+Ava：服务器看到的不只是一串互不相关的问题？
+
+Brian: Exactly. An agentic session is a chain of model calls and tool calls.
+
+Brian：没错。一次智能体会话由一连串模型调用和工具调用组成。
+
+A coding session may start with a huge prompt, then keep adding to that context on every turn.
+
+一次编程会话可能从很长的提示词开始，之后每一轮都继续扩充上下文。
+
+Ava: And a single task can start subagents too.
+
+Ava：而且单个任务也能启动子智能体。
+
+Brian: Right. Those subagents may run in parallel.
+
+Brian：对，这些子智能体可能并行运行。
+
+Meanwhile, the main agent spends much of its time waiting for tools.
+
+与此同时，主智能体有很多时间都在等工具返回。
+
+Its cached context may still occupy space.
+
+它缓存的上下文可能仍在占用显存。
+
+Ava: What happens at the start of a long session?
+
+Ava：长会话开始时会发生什么？
+
+Brian: The model does a prefill: it processes the input prompt and builds the KV cache it can reuse during generation.
+
+Brian：模型会先做预填充：处理输入提示词，并建立生成时可复用的 KV 缓存。
+
+If that cache is evicted, a later call may need to process the context again.
+
+如果缓存被清除，后续调用可能得重新处理上下文。
+
+Ava: That sounds expensive when the context keeps growing.
+
+Ava：上下文不断变长的话，代价听起来很高。
+
+Brian: It is the problem the article focuses on.
+
+Brian：这正是文章关注的问题。
+
+The serving system has to keep useful context available across turns while making room for many sessions at once.
+
+推理服务系统既要跨轮次保留有用的上下文，也要同时为许多会话腾出空间。
+
+Ava: What does NVIDIA Dynamo add to see the whole session?
+
+Ava：NVIDIA Dynamo 靠什么识别整个会话？
+
+Brian: A stable session ID.
+
+Brian：一个固定的会话 ID。
+
+Every large language model request in one agent's chain carries the same identifier.
+
+同一智能体调用链中的每个大语言模型请求都带着这个标识。
+
+A child session can also carry its parent's ID.
+
+子会话也可以带上父会话的 ID。
+
+Ava: So the ID is like a ticket that stays with the agent, even when it leaves to use a tool?
+
+Ava：所以这个 ID 就像一张随身票据，智能体去调用工具时也不会丢？
+
+Brian: That's a useful analogy. Dynamo can connect the returning request to earlier turns.
+
+Brian：这个比喻很贴切。Dynamo 能把返回的请求与之前的轮次关联起来。
+
+The session information is available to several optimizations, and each one is opt-in.
+
+多个优化功能都能使用会话信息，而且每项都需单独启用。
+
+Ava: Does an agent developer have to change their code?
+
+Ava：智能体开发者需要改代码吗？
+
+Brian: For Claude Code, Codex, and OpenCode, Dynamo recognizes identity headers they already send.
+
+Brian：对于 Claude Code、Codex 和 OpenCode，Dynamo 能识别它们已有的身份请求头。
+
+Other harnesses can use plugins. A custom harness can send one canonical session header.
+
+其他智能体框架可以用插件。自定义框架则可以发送一个统一的会话请求头。
+
+Ava: By harness, you mean the software coordinating the model and its tools?
+
+Ava：你说的框架，是协调模型和工具的软件吗？
+
+Brian: Yes. Dynamo maps those different headers into the same internal session information.
+
+Brian：对。Dynamo 会把不同的请求头映射成相同格式的内部会话信息。
+
+Downstream components don't need to know which harness sent the request.
+
+下游组件不必知道请求来自哪个智能体框架。
+
+Ava: All right. Once requests are connected, what can engineers measure?
+
+Ava：明白了。请求关联起来后，工程师能测量什么？
+
+Brian: They can collect session-linked traces.
+
+Brian：他们可以收集按会话关联的追踪记录。
+
+Each request gets a record after its response stream ends, with timing, output token count, finish reason, KV cache metrics, and tool-call names.
+
+每个请求的响应流结束后，都会生成一条记录，包含耗时、输出 token 数、结束原因、KV 缓存指标和工具调用名称。
+
+Ava: Does that record include the user's prompt?
+
+Ava：记录里会有用户的提示词吗？
+
+Brian: By default, it doesn't store prompt, response, or tool-call content.
+
+Brian：默认不会存储提示词、响应或工具调用的内容。
+
+Those can be enabled separately.
+
+这些内容可以分别启用存储。
+
+The default replay information includes input length and hashes of sequence blocks.
+
+默认用于重放的信息包括输入长度和序列块的哈希值。
+
+Ava: Hashes of blocks? What are they for?
+
+Ava：块的哈希值有什么用？
+
+Brian: They let replay preserve which prompt prefixes are shared across turns and sessions.
+
+Brian：它们能让重放保留不同轮次和会话之间共享的提示词前缀关系。
+
+Think of matching fingerprints.
+
+可以把它们想成能相互匹配的指纹。
+
+The replay can recognize a repeated piece of context without using its original tokens.
+
+重放时无需原始 token，也能识别重复的上下文片段。
+
+Ava: Wait, so one captured session can become a repeatable workload?
+
+Ava：等等，也就是说，捕获一次会话就能得到可重复运行的工作负载？
+
+Brian: Yes. The capture records the requests the agent sent.
+
+Brian：对。捕获过程会记录智能体发出的请求。
+
+Engineers can replay that schedule without asking the original agent to make its decisions again or calling its tools again.
+
+工程师可以按记录的顺序重放这些请求，无需让原智能体重新做决策或再次调用工具。
+
+Ava: And there are two ways to replay it?
+
+Ava：重放有两种方式？
+
+Brian: Offline, AISimulate runs the request graph through a simulated scheduler, router, and KV cache.
+
+Brian：离线方式是用 AISimulate，让请求图经过模拟的调度器、路由器和 KV 缓存。
+
+That lets engineers compare policies or cache sizes without spending GPU time.
+
+这样工程师不用占用 GPU 时间，就能比较不同策略或缓存大小。
+
+Ava: What about the second way?
+
+Ava：另一种方式呢？
+
+Brian: AIPerf replays the same graph against a real Dynamo endpoint on real GPUs.
+
+Brian：AIPerf 会在真实 GPU 上，向真实的 Dynamo 服务端点重放同一个请求图。
+
+That's where they measure actual latency, throughput, and cache behavior.
+
+他们在那里测量实际延迟、吞吐量和缓存表现。
+
+Ava: So the trace connects agent behavior to what the inference stack did.
+
+Ava：所以追踪记录能把智能体的行为和推理系统的运行情况对应起来。
+
+What's the routing problem?
+
+路由有什么问题？
+
+Brian: A request-level router places one request at a time.
+
+Brian：请求级路由器每次只分配一个请求。
+
+It asks which worker has the best cache overlap with this prompt.
+
+它会判断哪个工作节点的缓存与当前提示词重合最多。
+
+That's useful, but it can't see the whole agent's growing working set.
+
+这有用，但它看不到整个智能体不断扩大的工作集。
+
+Ava: Working set means the context the session may need again?
+
+Ava：工作集是指会话之后可能还要用到的上下文？
+
+Brian: Here, yes: the cached tokens assigned to active programs.
+
+Brian：在这里是的，指分配给活跃程序的已缓存 token。
+
+If many agents reach the same step, their combined working sets can exceed GPU memory, then CPU memory.
+
+如果很多智能体走到同一步，它们的工作集加起来可能先超过 GPU 显存，再超过 CPU 内存。
+
+Ava: And then the server throws away context it'll soon need.
+
+Ava：然后服务器就会丢掉很快还要用的上下文。
+
+Brian: Exactly. It evicts cache from live sessions and later does repeated prefill.
+
+Brian：没错。它会清除活跃会话的缓存，之后又得重复做预填充。
+
+The article calls that cache thrashing. The extra work can cut throughput.
+
+文章称之为缓存抖动。额外的计算会降低吞吐量。
+
+Ava: Could the router slow agents down before that happens?
+
+Ava：路由器能在那之前让智能体放慢速度吗？
+
+Brian: That's the idea behind session-aware admission control.
+
+Brian：这就是会话感知准入控制的思路。
+
+Admission control decides when a program can proceed.
+
+准入控制决定程序何时可以继续运行。
+
+Dynamo's strategy can apply backpressure when an agent reaches a tool boundary.
+
+Dynamo 的策略可以在智能体到达工具调用边界时施加背压。
+
+Ava: Why choose the tool boundary?
+
+Ava：为什么选工具调用边界？
+
+Brian: The current model turn can finish.
+
+Brian：当前这轮模型生成可以先完成。
+
+Then the program can be paused logically before its next turn.
+
+然后在下一轮开始前，逻辑上暂停这个程序。
+
+There's no need to interrupt generation halfway through.
+
+这样不用在生成到一半时中断。
+
+Ava: Let's make that concrete. What does the scheduler track?
+
+Ava：说具体点，调度器会跟踪什么？
+
+Brian: It groups requests by session ID.
+
+Brian：它按会话 ID 对请求分组。
+
+Each program has two states: REASONING or ACTING, and ACTIVE or PAUSED.
+
+每个程序有两组状态：REASONING 或 ACTING，以及 ACTIVE 或 PAUSED。
+
+It enters ACTING at a tool boundary.
+
+程序到达工具调用边界时进入 ACTING 状态。
+
+Ava: What triggers a pause?
+
+Ava：什么情况会触发暂停？
+
+Brian: The scheduler estimates each worker's KV utilization from its assigned programs' token weights and the worker's cache capacity.
+
+Brian：调度器根据分配给各工作节点的程序的 token 权重，以及节点的缓存容量，估算各节点的 KV 缓存使用率。
+
+At ninety-five percent, it pauses the smallest ACTING programs until utilization falls to eighty percent.
+
+达到 95% 时，它会从最小的 ACTING 程序开始暂停，直到使用率降至 80%。
+
+Ava: Does it resume them as soon as utilization drops a little?
+
+Ava：使用率稍微下降，就会恢复这些程序吗？
+
+Brian: It waits until utilization reaches eighty-five percent or less.
+
+Brian：要等使用率降到 85% 或以下。
+
+That gap keeps pause and resume from flipping back and forth near the limit.
+
+这个区间可以避免在阈值附近反复暂停和恢复。
+
+Ava: And if there's no ACTING program to pause?
+
+Ava：如果没有 ACTING 程序可暂停呢？
+
+Brian: It marks the smallest REASONING program for a pause at its next tool boundary.
+
+Brian：它会标记最小的 REASONING 程序，等它到达下一个工具调用边界时暂停。
+
+When there's room again, paused programs are considered from smallest token count upward.
+
+空间腾出来后，会按 token 数从少到多考虑恢复已暂停的程序。
+
+Ava: Could one small session stay paused forever?
+
+Ava：小会话会不会一直被暂停？
+
+Brian: The design includes a thirty-minute forced-resume cap to prevent indefinite starvation.
+
+Brian：设计中设有 30 分钟的强制恢复上限，避免无限期等待。
+
+It also briefly boosts the priority of resumed requests.
+
+恢复后的请求还会短暂获得更高优先级。
+
+Ava: What did the tests show?
+
+Ava：测试结果怎么样？
+
+Brian: In the article's SWE-bench setup, two TP4 MiniMax-M2 replicas ran on one node with eight H100 GPUs.
+
+Brian：文章的 SWE-bench 测试在一台配备 8 块 H100 GPU 的节点上运行了两个 TP4 MiniMax-M2 副本。
+
+Program-aware scheduling improved throughput by roughly twelve to sixteen percent over KV-aware routing alone.
+
+与单独使用 KV 感知路由相比，程序感知调度将吞吐量提高了约 12% 到 16%。
+
+Ava: So that number belongs to that setup, not every deployment.
+
+Ava：所以这个数字只适用于那套测试配置，不能套用到所有部署。
+
+Brian: Right. The article ties the gain to avoiding repeated prefill in that workload.
+
+Brian：对。文章认为，这项提升来自该工作负载中减少了重复预填充。
+
+It doesn't claim the same percentage for every model or concurrency level.
+
+它没有说所有模型或并发水平都能达到同样的增幅。
+
+Ava: Did they test the idea on agent training workloads too?
+
+Ava：他们也在智能体训练任务上测试了吗？
+
+Brian: Yes, on agentic reinforcement learning rollouts.
+
+Brian：测试了智能体强化学习的轨迹生成。
+
+At low concurrency, their strategy was roughly even with VERL's default Global LB, or global load balancing.
+
+低并发时，他们的策略与 VERL 默认的 Global LB（全局负载均衡）表现大致相当。
+
+Ava: What changed when more agents ran together?
+
+Ava：更多智能体同时运行时，情况有什么变化？
+
+Brian: At medium concurrency in that test, model-token throughput was eleven to fourteen point six percent higher.
+
+Brian：在那项测试的中等并发下，模型 token 吞吐量提高了 11% 到 14.6%。
+
+At high concurrency, Global LB throughput dropped sharply while the session-aware strategy kept scaling.
+
+高并发时，Global LB 的吞吐量大幅下降，而会话感知策略仍能继续扩展。
+
+Ava: That's the scheduling part. What happens when useful KV cache moves out of GPU memory?
+
+Ava：这是调度部分。如果有用的 KV 缓存从 GPU 显存移出，会怎样？
+
+Brian: The router needs to know where it went.
+
+Brian：路由器得知道它被移到了哪里。
+
+Dynamo already considered cache on a worker's GPU and in its native CPU offload.
+
+Dynamo 已考虑工作节点 GPU 上的缓存及其原生 CPU 卸载缓存。
+
+The article adds an experimental index for an external shared store.
+
+这篇文章又为外部共享存储引入了实验性索引。
+
+Ava: The shared store here is Mooncake?
+
+Ava：这里的共享存储是 Mooncake 吗？
+
+Brian: Yes. Mooncake Store publishes events when objects are stored or removed.
+
+Brian：对。Mooncake Store 会在对象存入或移除时发布事件。
+
+Dynamo uses those events to maintain a shared-pool index, so it can account for reusable cache when placing requests.
+
+Dynamo 利用这些事件维护共享池索引，以便在分配请求时计入可复用缓存。
+
+Ava: Can it count a page as reusable if only part of that page is in the store?
+
+Ava：如果存储里只有一个页面的一部分，也能算可复用吗？
+
+Brian: No. Every physical object needed for the worker's layout must be present.
+
+Brian：不能。工作节点布局所需的每个物理对象都必须齐全。
+
+Think of a kit with several parts: one missing part means the kit isn't ready.
+
+就像一套零件，少一个就没法用。
+
+Ava: Here's the catch: couldn't the router count the same prefix twice, once on the GPU and once in Mooncake?
+
+Ava：但有个问题：路由器会不会把同一个前缀算两次，一次算在 GPU 上，一次算在 Mooncake 里？
+
+Brian: It avoids that. Shared-pool credit applies only beyond the device-resident prefix.
+
+Brian：不会。共享池只对设备驻留前缀之后的部分计分。
+
+The placement score then combines native cache overlap, shared-pool credit, and live worker load.
+
+分配评分会综合原生缓存重叠量、共享池得分和工作节点的实时负载。
+
+Ava: So far, the router finds cache and controls concurrency. What's next?
+
+Ava：到目前为止，路由器负责查找缓存和控制并发。接下来呢？
+
+Brian: The article looks toward programmatic KV cache management.
+
+Brian：文章接着谈到可编程的 KV 缓存管理。
+
+Dynamo knows session lifecycles across workers.
+
+Dynamo 了解跨工作节点的会话生命周期。
+
+An inference engine such as vLLM or SGLang knows the exact cache state it holds.
+
+而 vLLM 或 SGLang 这样的推理引擎，清楚自己持有的缓存具体是什么状态。
+
+Ava: How do those two views work together?
+
+Ava：这两种视角怎么配合？
+
+Brian: Dynamo would send a soft KvHint expressing what it wants.
+
+Brian：Dynamo 会发送软性 KvHint，表达它的意图。
+
+The engine would decide how to carry that out against its actual cache state.
+
+引擎再根据实际缓存状态决定如何执行。
+
+It can clip, delay, or ignore a hint.
+
+它可以缩减、延后或忽略提示。
+
+Ava: What might a hint ask for?
+
+Ava：提示可能要求做什么？
+
+Brian: Share could move a cached prefix between workers.
+
+Brian：Share 可以在工作节点之间迁移已缓存的前缀。
+
+Prefetch could bring KV toward faster memory before it's needed.
+
+Prefetch 可以在需要之前把 KV 提前移到更快的内存。
+
+Demote could move it toward a colder tier during a long tool call.
+
+Demote 可以在漫长的工具调用期间把它移到较冷的存储层。
+
+Ava: Are all those movements working today?
+
+Ava：这些迁移现在都能用了吗？
+
+Brian: The article says Share has a working implementation in HiCache.
+
+Brian：文章说，Share 已在 HiCache 中实现。
+
+Prefetch and Demote are designed to build on that machinery.
+
+Prefetch 和 Demote 计划基于同一套机制实现。
+
+The broader hint interface is still a proposal.
+
+更完整的提示接口仍处于提案阶段。
+
+Ava: What tells Dynamo which cached blocks belong to which session?
+
+Ava：Dynamo 怎么知道哪些缓存块属于哪个会话？
+
+Brian: Its Session-Prefix Indexer. It's a radix tree, a tree that groups shared prefixes.
+
+Brian：靠 Session-Prefix Indexer。它是一棵基数树，按共享前缀组织数据。
+
+Its branches represent sessions or subagent sessions, and it tracks their KV block locations and lineage.
+
+树的分支代表会话或子智能体会话，并记录其 KV 块的位置和血缘关系。
+
+Ava: So it can see a shared beginning and the different paths agents take afterward.
+
+Ava：这样就能看出共同的开头，以及智能体之后走出的不同路径。
+
+Brian: Exactly. Engine cache events and router prefix hits keep that view updated.
+
+Brian：没错。引擎缓存事件和路由器的前缀命中会不断更新这份信息。
+
+Dynamo is experimenting with policies that use it to decide which hints to send.
+
+Dynamo 正在试验利用这些信息决定发送哪些提示的策略。
+
+Ava: Give me the three-point recap before my own context gets evicted.
+
+Ava：趁我的上下文还没被淘汰，来个三点总结吧。
+
+Brian: First, a stable session ID connects agent turns.
+
+Brian：第一，稳定的会话 ID 把智能体的多轮交互串起来。
+
+Second, traces and session-aware scheduling help measure work and reduce cache thrashing.
+
+第二，追踪数据和感知会话的调度有助于衡量工作量、减少缓存抖动。
+
+Third, shared-cache indexing and proposed hints aim to keep useful context available across memory tiers.
+
+第三，共享缓存索引和拟议中的提示机制，旨在让有用的上下文持续留在各级内存中。
+
+Ava: Thanks for listening. We'll catch you next time.
+
+Ava：感谢收听，我们下次见。
+
+## 术语
+
+| Term | 释义 |
+|---|---|
+| KV cache | 键值缓存；保存模型已处理上下文的信息，供后续生成或请求复用。 |
+| prefill | 预填充；模型处理输入提示并建立缓存的阶段。 |
+| session ID | 会话标识；把同一智能体轨迹中的多次请求关联起来的稳定 ID。 |
+| harness | 智能体运行框架；协调模型调用与工具调用的软件。 |
+| session-linked traces | 会话关联追踪记录；将多次请求的性能信息连成完整轨迹。 |
+| request-level router | 请求级路由器；逐个请求决定由哪个工作节点处理。 |
+| working set | 工作集；运行中的会话可能再次使用的缓存上下文。 |
+| cache thrashing | 缓存抖动；有用缓存反复被驱逐，之后又不得不重新计算。 |
+| session-aware admission control | 会话感知准入控制；按会话状态和缓存容量决定何时让程序继续运行。 |
+| shared-pool index | 共享缓存池索引；记录外部存储中哪些 KV 数据可供复用。 |
+| KvHint | KV 缓存提示；由 Dynamo 向推理引擎表达缓存移动意图的软提示。 |
+| Session-Prefix Indexer | 会话前缀索引器；关联共享前缀、会话分支及 KV 块位置的结构。 |
+
+## 口语表达
+
+| Phrase | 释义 |
+|---|---|
+| Wait, so | 等等，也就是说；用于确认刚听到的要点。 |
+| That's a useful analogy. | 这个类比很贴切。 |
+| Let's make that concrete. | 我们说得具体一点。 |
+| What did the tests show? | 测试结果如何？ |
+| Here's the catch: | 问题在这里；用于提出一个关键难点。 |
+| What changed when more agents ran together? | 更多智能体同时运行时，情况有什么变化？ |
+| How do those two views work together? | 这两种视角如何配合？ |
+| Give me the three-point recap | 用三点帮我回顾一下。 |

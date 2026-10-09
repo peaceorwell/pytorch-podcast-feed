@@ -1,0 +1,219 @@
+[ti:Bringing PyTorch Monarch to AMD GPUs: Single-Controller Distributed Training on ROCm]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: Imagine a language-model training job that has been running for days, then one GPU crashes—and the whole cluster has to start over.
+[00:00.00]Ava：想象一个语言模型训练任务跑了好几天，突然一块 GPU 故障，整个集群都得从头开始。
+[00:09.49]That’s the reliability problem this PyTorch Monarch work tackles on AMD GPUs.
+[00:09.49]这正是 PyTorch Monarch 在 AMD GPU 上要解决的可靠性问题。
+[00:15.42]Brian: Exactly.
+[00:15.42]Brian：没错。
+[00:15.98]The article brings Monarch to AMD Instinct GPUs with ROCm, so healthy workers can keep training while a failed worker recovers and rejoins.
+[00:15.98]文章介绍了如何通过 ROCm 将 Monarch 引入 AMD Instinct GPU，让正常的工作进程继续训练，同时故障进程恢复并重新加入。
+[00:25.77]It’s a single-controller model for large distributed jobs, with fault tolerance built into the runtime.
+[00:25.77]它用单个控制器管理大型分布式任务，并在运行时内置容错能力。
+[00:33.36]Ava: Why isn’t ordinary checkpointing enough?
+[00:33.36]Ava：常规检查点为什么不够？
+[00:36.35]Large training systems already save checkpoints regularly.
+[00:36.35]大型训练系统本来就会定期保存检查点。
+[00:41.03]Brian: Checkpointing is simple, but expensive.
+[00:41.03]Brian：保存检查点很简单，但代价很高。
+[00:43.79]Writing hundreds of gigabytes takes time and I/O bandwidth.
+[00:43.79]写入数百 GB 数据需要时间，也占用 I/O 带宽。
+[00:47.96]If a failure happens, every update since the last checkpoint is lost.
+[00:47.96]一旦发生故障，上次检查点之后的所有更新都会丢失。
+[00:52.84]The whole cluster may sit idle while a node is replaced and the job restarts.
+[00:52.84]更换节点并重启任务时，整个集群可能都得闲置。
+[00:58.28]And as the cluster grows, the chance of failing during a checkpoint interval also grows.
+[00:58.28]而且集群越大，在两次检查点之间发生故障的概率也越高。
+[01:04.86]Ava: So the goal is to recover locally instead of resetting globally.
+[01:04.86]Ava：所以目标是局部恢复，而不是让整个集群重来。
+[01:09.81]Brian: Right. Monarch lets healthy nodes continue training while failed nodes recover.
+[01:09.81]Brian：对。Monarch 让正常节点继续训练，故障节点则自行恢复。
+[01:15.68]That reduces wasted computation and keeps GPU utilization higher.
+[01:15.68]这样能减少白费的计算，并提高 GPU 利用率。
+[01:20.50]The article frames this as a shift from raw scaling to resilient scaling.
+[01:20.50]文章把这称为从单纯扩展规模转向具备韧性的扩展。
+[01:26.27]Ava: Give me the mental model for Monarch. What does a developer actually program?
+[01:26.27]Ava：怎么理解 Monarch？开发者实际要编写什么？
+[01:31.75]Brian: You write one Python program that orchestrates an entire GPU cluster.
+[01:31.75]Brian：只需编写一个 Python 程序，就能协调整个 GPU 集群。
+[01:36.99]Monarch uses an actor-based runtime, a process mesh abstraction, and asynchronous execution.
+[01:36.99]Monarch 使用基于 actor 的运行时、进程网格抽象和异步执行。
+[01:43.96]An actor has private state, so if it crashes, the failure doesn’t automatically spread to every other actor.
+[01:43.96]每个 actor 都有独立状态，因此一个 actor 崩溃不会自动波及其他所有 actor。
+[01:52.50]Ava: Actor-based runtime can sound abstract. Is each actor basically a supervised worker?
+[01:52.50]Ava：基于 actor 的运行时听起来有点抽象。每个 actor 基本上就是一个受监管的工作进程吗？
+[01:59.69]Brian: That’s a useful way to think about it. The Python API is the top layer.
+[01:59.69]Brian：可以这么理解。Python API 是最上层。
+[02:05.88]The Monarch Runtime manages actors, meshes, supervision trees, and tensor sharding.
+[02:05.88]Monarch Runtime 管理 actor、网格、监管树和张量分片。
+[02:13.11]Under that sits a Rust runtime using Tokio for performance and memory safety.
+[02:13.11]底层是使用 Tokio 的 Rust 运行时，兼顾性能和内存安全。
+[02:19.81]Infrastructure connects it to RDMA, RCCL or NCCL, SLURM, Kubernetes, and SkyPilot.
+[02:19.81]基础设施层将其连接到 RDMA、RCCL 或 NCCL，以及 SLURM、Kubernetes 和 SkyPilot。
+[02:27.31]Ava: And the supervision tree is what gives the system hierarchy?
+[02:27.31]Ava：监管树为系统提供了层级结构？
+[02:31.91]Brian: Yes. Failures are isolated and handled at the lowest practical level.
+[02:31.91]Brian：对。故障会被隔离，并尽可能在最底层处理。
+[02:37.14]A local restart can take seconds. Escalation can take minutes.
+[02:37.14]本地重启可能只需几秒；升级处理则可能需要几分钟。
+[02:41.85]Monarch also separates two concerns: the parallelism strategy inside a training replica, and the fault-tolerance mechanism across replicas.
+[02:41.85]Monarch 还把两件事分开：训练副本内部的并行策略，以及副本之间的容错机制。
+[02:52.40]That separation makes the recovery model cleaner.
+[02:52.40]这样恢复模型就更清晰了。
+[02:56.47]Ava: Moving from CUDA to ROCm sounds like the hard engineering part. What had to change?
+[02:56.47]Ava：从 CUDA 迁移到 ROCm 听起来是工程上的难点。具体要改什么？
+[03:03.28]Brian: There were three main porting paths.
+[03:03.28]Brian：主要有三条移植路径。
+[03:06.13]First, collective communications: the team used hipify_torch to convert the C++ bridge from CUDA to HIP, then linked it with RCCL, whose API mirrors NCCL’s.
+[03:06.13]首先是集合通信：团队用 hipify_torch 将 C++ 桥接代码从 CUDA 转成 HIP，再链接到 API 与 NCCL 相近的 RCCL。
+[03:18.47]Second, GPU memory management: the build detects the platform and routes CUDA driver calls through HIP equivalents.
+[03:18.47]其次是 GPU 内存管理：构建系统会检测平台，将 CUDA 驱动调用转到对应的 HIP 调用。
+[03:27.92]Ava: What about networking? GPU-direct transfers often expose platform differences.
+[03:27.92]Ava：网络方面呢？GPU 直传经常会暴露平台差异。
+[03:34.46]Brian: For RDMA, setting GPU_PLATFORM to rocm keeps the libibverbs-based path intact.
+[03:34.46]Brian：对于 RDMA，将 GPU_PLATFORM 设为 rocm，就能保留基于 libibverbs 的传输路径。
+[03:41.36]Only the GPU-side bindings switch from CUDA to HIP.
+[03:41.36]只有 GPU 侧的绑定从 CUDA 切换到 HIP。
+[03:45.87]That preserves the RDMA route for GPU-direct transfers.
+[03:45.87]这样就保留了 GPU 直传的 RDMA 路径。
+[03:51.08]Ava: Were there awkward compatibility issues?
+[03:51.08]Ava：遇到棘手的兼容性问题了吗？
+[03:54.17]Brian: Two cross-cutting issues stood out.
+[03:54.17]Brian：有两个跨模块的问题比较突出。
+[03:57.09]NVIDIA provides a static CUDA runtime library, libcudart_static. a.
+[03:57.09]NVIDIA 提供静态 CUDA 运行时库 libcudart_static.a。
+[04:02.68]ROCm has no static equivalent for libamdhip64, so the ROCm build links amdhip64 dynamically.
+[04:02.68]ROCm 没有对应的 libamdhip64 静态库，因此 ROCm 构建会动态链接 amdhip64。
+[04:10.35]Both platforms still load GPU driver API functions dynamically, including memory-creation calls, so the runtime contract stays the same.
+[04:10.35]两个平台仍会动态加载 GPU 驱动 API 函数，包括创建内存的调用，因此运行时约定保持一致。
+[04:22.04]Ava: And Rust bindings? I’d expect HIP names to leak everywhere.
+[04:22.04]Ava：Rust 绑定呢？我猜 HIP 的名称会渗透到各处。
+[04:27.41]Brian: That was the risk.
+[04:27.41]Brian：这确实是个风险。
+[04:28.95]After hipify_torch rewrites headers, bindgen produces HIP types such as hipError_t, hipDeviceptr_t, and hipStream_t.
+[04:28.95]hipify_torch 改写头文件后，bindgen 会生成 hipError_t、hipDeviceptr_t 和 hipStream_t 等 HIP 类型。
+[04:38.88]Instead of adding conditional branches at every Rust call site, the team added a rocm_compat module in nccl-sys and rdmaxcel-sys.
+[04:38.88]团队没有在每处 Rust 调用点添加条件分支，而是在 nccl-sys 和 rdmaxcel-sys 中加入 rocm_compat 模块。
+[04:49.93]It re-exports HIP symbols under CUDA names.
+[04:49.93]它以 CUDA 名称重新导出 HIP 符号。
+[04:53.61]So the rest of the Rust code remains platform-agnostic.
+[04:53.61]这样其余 Rust 代码就不依赖具体平台了。
+[04:58.67]Ava: That sounds like a small shim with a big payoff.
+[04:58.67]Ava：这个适配层虽小，作用却很大。
+[05:02.62]Brian: Exactly.
+[05:02.62]Brian：没错。
+[05:03.17]The port introduced HIP type aliases in Rust, and all one thousand one hundred seventy-one tests passed.
+[05:03.17]这次移植在 Rust 中引入了 HIP 类型别名，1171 项测试全部通过。
+[05:10.23]The article says this supports ROCm seven point zero and later.
+[05:10.23]文章称其支持 ROCm 7.0 及更高版本。
+[05:14.50]The contributions were upstreamed in pull requests number two thousand three hundred ninety-three and two thousand eight hundred ninety-one.
+[05:14.50]相关贡献已通过第 2393 和 2891 号拉取请求合入上游。
+[05:24.36]Ava: What does the completed ROCm stack support today?
+[05:24.36]Ava：完整的 ROCm 技术栈目前支持什么？
+[05:28.26]Brian: It includes the Actor runtime, RDMA, Supervision, and Tensor sharding.
+[05:28.26]Brian：包括 Actor 运行时、RDMA、监督机制和张量分片。
+[05:33.37]It runs on SLURM for high-performance computing, Kubernetes for cloud-native deployments, and SkyPilot for multi-cloud setups.
+[05:33.37]它可运行于面向高性能计算的 SLURM、面向云原生部署的 Kubernetes，以及面向多云环境的 SkyPilot。
+[05:42.57]Downstream engines include TorchTitan for training and TorchFT for fault tolerance.
+[05:42.57]下游引擎包括用于训练的 TorchTitan 和用于容错的 TorchFT。
+[05:48.98]Ava: Let’s walk through the actual failure experiment.
+[05:48.98]Ava：我们来梳理一下实际的故障实验。
+[05:52.83]How do Monarch, TorchFT, and TorchTitan divide the work?
+[05:52.83]Monarch、TorchFT 和 TorchTitan 如何分工？
+[05:57.57]Brian: Monarch is the orchestrator.
+[05:57.57]Brian：Monarch 负责统筹。
+[05:59.69]It creates ReplicaActors and a Lighthouse service, then organizes GPUs into Process Meshes.
+[05:59.69]它创建 ReplicaActor 和 Lighthouse 服务，再将 GPU 组织成进程网格。
+[06:06.57]TorchFT handles fault tolerance at the training-step level.
+[06:06.57]TorchFT 负责训练步骤级的容错。
+[06:11.03]It contacts the Lighthouse for quorum coordination, performs Quorum AllReduce, and skips failed nodes.
+[06:11.03]它联系 Lighthouse 协调仲裁组，执行 Quorum AllReduce，并跳过故障节点。
+[06:18.75]TorchTitan runs the Forward step with FSDP—Fully Sharded Data Parallel—the Backward step, and the Optimizer step.
+[06:18.75]TorchTitan 执行采用 FSDP（全分片数据并行）的前向步骤，以及反向步骤和优化器步骤。
+[06:27.65]Ava: Okay, four replica groups, right? Start with normal training.
+[06:27.65]Ava：一共四个副本组，对吧？先从正常训练说起。
+[06:32.25]Brian: The OrchestrationManager starts four ReplicaActors and one Lighthouse.
+[06:32.25]Brian：OrchestrationManager 启动四个 ReplicaActor 和一个 Lighthouse。
+[06:37.54]Each ReplicaActor starts a Replica with eight GPU processes running TorchTitan trainers.
+[06:37.54]每个 ReplicaActor 启动一个 Replica，其中有八个 GPU 进程运行 TorchTitan 训练器。
+[06:44.20]All four replicas form quorum number one.
+[06:44.20]四个副本组成第 1 个仲裁组。
+[06:47.30]DiLoCo gradient synchronization happens every twenty steps.
+[06:47.30]DiLoCo 每 20 步同步一次梯度。
+[06:52.11]Ava: Then a process in Replica zero crashes.
+[06:52.11]Ava：然后副本 0 中的一个进程崩溃了。
+[06:55.85]Brian: The Monarch supervisor captures report_training_error with the full traceback before the process dies.
+[06:55.85]Brian：Monarch 监督器在进程退出前捕获 report_training_error 及完整的错误堆栈。
+[07:03.38]Replicas one, two, and three are marked unaffected, so they continue training.
+[07:03.38]副本 1、2、3 被标记为未受影响，因此继续训练。
+[07:09.15]ReplicaActor zero performs an in-place restart: it stops the old process mesh and spawns a new one.
+[07:09.15]ReplicaActor 0 原地重启：停止旧进程网格，再启动新网格。
+[07:16.81]Ava: While that happens, the other three don’t freeze completely?
+[07:16.81]Ava：这期间，其他三个不会完全停下来吗？
+[07:21.51]Brian: They keep syncing as quorum number two.
+[07:21.51]Brian：它们作为第 2 个仲裁组继续同步。
+[07:24.22]Then the Lighthouse chooses Replica one as the donor.
+[07:24.22]随后，Lighthouse 选定副本 1 作为状态提供方。
+[07:27.91]A peer checkpoint transfer sends the model, optimizer, scheduler, and trainer state to recovering Replica zero.
+[07:27.91]副本间通过检查点传输，将模型、优化器、调度器和训练器状态发送给恢复中的副本 0。
+[07:35.63]All replicas pause briefly at the quorum boundary while the new quorum forms.
+[07:35.63]所有副本在仲裁组切换点短暂停顿，等待新仲裁组形成。
+[07:41.34]Ava: And after the transfer?
+[07:41.34]Ava：传输完成后呢？
+[07:43.54]Brian: Replica zero is synchronized, quorum number three is established with all four replicas, and DiLoCo synchronization resumes.
+[07:43.54]Brian：副本 0 完成同步，四个副本组成第 3 个仲裁组，DiLoCo 同步恢复。
+[07:52.53]There’s no manual intervention and no reload from a full global checkpoint.
+[07:52.53]无需人工干预，也不用从完整的全局检查点重新加载。
+[07:57.97]The disruption to overall throughput is small.
+[07:57.97]对整体吞吐量的影响很小。
+[08:01.65]Ava: What did the larger tests show?
+[08:01.65]Ava：更大规模的测试结果如何？
+[08:04.16]Brian: On a sixteen-node SLURM cluster with one hundred twenty-eight MI300 GPUs, they trained Llama three eight B.
+[08:04.16]Brian：他们在拥有 128 块 MI300 GPU 的 16 节点 SLURM 集群上训练了 Llama 3 8B。
+[08:11.70]RCCL failures were injected every one hundred eighty seconds, with quorum synchronization every twenty steps.
+[08:11.70]每隔 180 秒注入一次 RCCL 故障，每 20 步进行一次仲裁组同步。
+[08:19.37]Active workers fluctuated between eight and sixteen, but training continued without a full restart.
+[08:19.37]活跃工作节点数在 8 到 16 个之间波动，但训练无需完全重启。
+[08:26.34]The loss curve converged steadily and closely matched the failure-free baseline.
+[08:26.34]损失曲线稳定收敛，与无故障基线非常接近。
+[08:32.33]Ava: That’s useful, because frequent failures are the real stress test.
+[08:32.33]Ava：这很有参考价值，因为频繁故障才是真正的压力测试。
+[08:37.43]Brian: The article also notes that no single replica was down for more than thirty minutes.
+[08:37.43]Brian：文章还指出，没有任何一个副本离线超过 30 分钟。
+[08:43.33]Different replicas were killed and recovered dynamically.
+[08:43.33]不同副本被动态终止并恢复。
+[08:47.33]So the system wasn’t hiding failures; it was handling them during training.
+[08:47.33]所以系统是在训练中处理故障，而非掩盖故障。
+[08:52.95]Ava: And Kubernetes?
+[08:52.95]Ava：那 Kubernetes 呢？
+[08:55.03]Brian: They scaled to a thirty-two-node Kubernetes cluster with two hundred fifty-six MI355 GPUs.
+[08:55.03]Brian：他们将规模扩展到拥有 256 块 MI355 GPU 的 32 节点 Kubernetes 集群。
+[09:01.59]Participants stayed fairly stable, fluctuating between thirty and thirty-two during recovery.
+[09:01.59]恢复期间，参与节点数相当稳定，在 30 到 32 个之间波动。
+[09:08.36]Global average loss decreased smoothly from twelve to about four.
+[09:08.36]全局平均损失从 12 平稳降至约 4。
+[09:13.10]That suggests the model works across both SLURM and Kubernetes at this scale.
+[09:13.10]这表明该方案在这一规模下适用于 SLURM 和 Kubernetes。
+[09:19.06]Ava: Are there limitations or open questions?
+[09:19.06]Ava：还有哪些局限或待解决的问题？
+[09:22.70]Brian: The article doesn’t claim the problem is finished.
+[09:22.70]Brian：文章并未声称问题已经彻底解决。
+[09:26.10]Next steps include broader NIC support and better runtime performance, more pre-training and reinforcement-learning frameworks on ROCm, lower rejoin reload latency, and overlapping recovery with computation.
+[09:26.10]接下来的工作包括支持更多 NIC、提升运行时性能、让更多预训练和强化学习框架适配 ROCm、缩短重新加入时的加载延迟，以及让恢复与计算并行。
+[09:40.17]They also plan continued open-source collaboration with the PyTorch community.
+[09:40.17]他们还计划继续与 PyTorch 社区开展开源合作。
+[09:45.83]Ava: Let’s close with the three points I should remember.
+[09:45.83]Ava：最后说说我该记住的三点吧。
+[09:49.44]Brian: First, Monarch brings a single Python controller, actors, process meshes, and supervision trees to AMD GPUs through ROCm.
+[09:49.44]Brian：第一，Monarch 通过 ROCm 将单个 Python 控制器、Actor、进程网格和监督树带到 AMD GPU 上。
+[09:58.93]Second, the ROCm port uses hipify_torch, RCCL, HIP-aware memory and RDMA paths, plus Rust compatibility aliases.
+[09:58.93]第二，ROCm 移植使用 hipify_torch、RCCL、支持 HIP 的内存和 RDMA 路径，以及 Rust 兼容别名。
+[10:07.71]Third, Monarch, TorchFT, and TorchTitan recover failed replicas through quorum coordination and peer checkpoint transfer, so healthy replicas keep training.
+[10:07.71]第三，Monarch、TorchFT 和 TorchTitan 通过多数派协调和对等节点间的检查点传输来恢复故障副本，让正常副本继续训练。
+[10:20.30]Ava: So the big idea is stable large-scale training, even when hardware failures are expected.
+[10:20.30]Ava：所以核心就是，即使硬件故障在所难免，也能保持大规模训练稳定运行。
+[10:26.84]Brian: Exactly. More useful computation, less cluster-wide disruption.
+[10:26.84]Brian：没错。有效计算更多，整个集群受到的干扰更少。
+[10:31.80]Thanks for listening, and we’ll see you in the next episode.
+[10:31.80]感谢收听，我们下期再见。

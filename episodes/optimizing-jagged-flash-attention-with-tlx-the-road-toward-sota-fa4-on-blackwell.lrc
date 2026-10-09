@@ -1,0 +1,239 @@
+[ti:Keeping Blackwell Busy: Jagged Flash Attention with TLX]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: What if your attention kernel is doing work for tokens that aren't even there?
+[00:00.00]Ava：如果注意力核函数还在为根本不存在的 token 做计算呢？
+[00:04.85]Today we're looking at variable-length sequences, wasted compute, and a faster way to handle them on Blackwell.
+[00:04.85]今天我们聊聊变长序列、浪费的算力，以及 Blackwell 上更快的处理方法。
+[00:12.11]Brian: And there's a development story too.
+[00:12.11]Brian：这里还有个开发方面的故事。
+[00:14.74]The article's kernel beats FlashAttention-4, or FA4, on the jagged workloads tested, while using roughly a third as many lines of code.
+[00:14.74]在测试的锯齿状序列任务中，文章中的核函数比 FlashAttention-4（FA4）更快，代码行数却只有大约三分之一。
+[00:24.94]Ava: Faster and shorter? All right, you've got my attention. What's the actual workload?
+[00:24.94]Ava：更快，代码还更短？我来兴趣了。具体是什么任务？
+[00:31.79]Brian: It's attention in Meta's Generative Ads Model, or GEM.
+[00:31.79]Brian：是 Meta 的生成式广告模型 GEM 中的注意力计算。
+[00:36.27]Users have histories of different lengths.
+[00:36.27]用户的历史记录长短不一。
+[00:39.74]Those sequences are jagged, meaning variable-length.
+[00:39.74]这些序列是锯齿状的，也就是长度不固定。
+[00:44.05]Attention is GEM's single slowest kernel.
+[00:44.05]注意力计算是 GEM 中最慢的核函数。
+[00:47.79]Ava: Why not pad every history to the same length? That makes the shapes easier.
+[00:47.79]Ava：为什么不把每段历史记录填充到同样长度？这样形状更规整。
+[00:54.14]Brian: It does, but the article says padding can waste up to fifty percent of compute.
+[00:54.14]Brian：是更规整，但文章说填充最多会浪费 50% 的计算量。
+[01:00.08]GEM packs sequences together instead.
+[01:00.08]GEM 改用把序列紧密拼接在一起的方式。
+[01:02.85]An offsets tensor records where each sequence starts and ends.
+[01:02.85]一个偏移量张量记录每条序列的起止位置。
+[01:07.86]Ava: Like putting different-length chapters in one book, with an index telling you where to look.
+[01:07.86]Ava：就像把长短不同的章节装订成一本书，再用目录标出位置。
+[01:14.04]Brian: Exactly.
+[01:14.04]Brian：没错。
+[01:14.71]Jagged Flash Attention, or JFA, applies the FlashAttention algorithm directly to those packed query, key, and value tensors.
+[01:14.71]锯齿状 Flash Attention（JFA）直接对紧密拼接的查询、键和值张量应用 FlashAttention 算法。
+[01:25.03]We'll call them Q, K, and V. There's no need to create padded tokens.
+[01:25.03]我们把它们叫作 Q、K、V，不需要生成填充 token。
+[01:31.12]Ava: So the representation already saves work. What's still holding the kernel back?
+[01:31.12]Ava：数据表示已经省了计算量，核函数还有什么瓶颈？
+[01:37.21]Brian: Scheduling.
+[01:37.21]Brian：调度。
+[01:38.08]The original Triton kernel leaves data movement and scheduling to the compiler.
+[01:38.08]原来的 Triton 核函数把数据搬运和调度交给编译器。
+[01:44.38]One warp group handles loads, softmax, and matrix multiplications.
+[01:44.38]一个 warp 组同时负责加载数据、计算 softmax 和矩阵乘法。
+[01:49.65]A warp is a group of GPU threads.
+[01:49.65]warp 是一组 GPU 线程。
+[01:52.63]Ava: And when that group handles softmax, the matrix hardware can sit waiting?
+[01:52.63]Ava：那这组线程计算 softmax 时，矩阵计算硬件可能就在等？
+[01:57.99]Brian: Right.
+[01:57.99]Brian：对。
+[01:58.49]Blackwell's tensor cores, its matrix-computation hardware, need a steady supply of work.
+[01:58.49]Blackwell 的张量核心，也就是矩阵计算硬件，需要持续有任务可做。
+[02:05.71]TLX, short for Triton Low-level Extensions, gives programmers explicit control over memory, synchronization, and overlapping operations.
+[02:05.71]TLX 是 Triton Low-level Extensions 的缩写，让程序员能明确控制内存、同步和操作重叠。
+[02:17.23]Ava: What's the first big change they make with that control?
+[02:17.23]Ava：有了这些控制能力，他们做的第一个重大改动是什么？
+[02:21.01]Brian: Warp specialization: different warps get different jobs.
+[02:21.01]Brian：warp 专业化，让不同的 warp 各司其职。
+[02:25.54]Some load data, some issue matrix operations, some handle softmax, and others write results.
+[02:25.54]有的加载数据，有的发起矩阵运算，有的计算 softmax，还有的写入结果。
+[02:32.98]Those jobs can overlap.
+[02:32.98]这些工作可以同时进行。
+[02:35.19]Ava: A kitchen with separate stations.
+[02:35.19]Ava：就像厨房里分了不同工位。
+[02:37.61]The person cooking doesn't also stop to wash every plate.
+[02:37.61]做菜的人不用每做一步就停下来洗盘子。
+[02:42.14]Brian: That's the idea.
+[02:42.14]Brian：就是这个意思。
+[02:43.49]They also manage shared memory, or SMEM, and tensor memory, or TMEM, explicitly.
+[02:43.49]他们还明确管理共享内存 SMEM 和张量内存 TMEM。
+[02:50.22]Buffers hold data between stages.
+[02:50.22]缓冲区在各阶段之间存放数据。
+[02:53.00]Barriers coordinate when producers and consumers can use it.
+[02:53.00]同步屏障协调生产者和消费者何时可以使用数据。
+[02:58.40]Ava: So the stations have storage and clear handoffs. How does the kernel keep finding work?
+[02:58.40]Ava：工位有了存放区，交接也清楚了。核函数怎么持续找到活干？
+[03:04.61]Brian: Through persistent execution. A cooperative thread array, or CTA, is a thread block.
+[03:04.61]Brian：靠持久化执行。协作线程阵列 CTA 就是一个线程块。
+[03:11.18]Each streaming multiprocessor, or SM, gets one CTA that loops over tiles, the chunks of work.
+[03:11.18]每个流式多处理器 SM 分配一个 CTA，由它循环处理各个图块，也就是一块块任务。
+[03:18.80]Ava: Let me check I've got this. Divide the jobs, overlap them, and keep the workers running.
+[03:18.80]Ava：我确认一下：分配不同工作，让它们并行，再让工作线程持续运行。
+[03:24.93]But different sequence lengths must make the assignments uneven.
+[03:24.93]但序列长短不同，任务分配肯定不均匀。
+[03:29.74]Brian: Very uneven. Some SMs finish while others process long sequences.
+[03:29.74]Brian：非常不均匀。有些 SM 已经做完了，另一些还在处理长序列。
+[03:35.11]In the forward pass, tile cost follows key length.
+[03:35.11]在前向计算中，图块的计算量取决于键序列的长度。
+[03:39.24]The team sorts tiles from longest workload to shortest.
+[03:39.24]团队按任务量从大到小给图块排序。
+[03:44.13]Ava: Then gives each worker a mix?
+[03:44.13]Ava：然后让每个工作线程都分到长短搭配的任务？
+[03:46.85]Brian: Yes, using a zigzag assignment: left to right, then right to left.
+[03:46.85]Brian：对，采用之字形分配：先从左到右，再从右到左。
+[03:51.80]It's cheap to prepare on the CPU.
+[03:51.80]这种分配方式在 CPU 上准备起来开销很小。
+[03:54.28]The article reports roughly a twenty percent forward improvement from this balancing.
+[03:54.28]文章称，这种负载均衡让前向计算速度提升了约 20%。
+[04:01.00]Ava: Does the backward pass use the same trick?
+[04:01.00]Ava：反向计算也用同样的方法吗？
+[04:04.26]Brian: No. Its tiles have roughly equal cost, but sequences produce different numbers of tiles.
+[04:04.26]Brian：不用。反向计算中每个图块的计算量大致相同，但不同序列产生的图块数量不同。
+[04:10.97]The host lists valid tiles and distributes them round-robin.
+[04:10.97]主机端列出有效计算块，再按轮询顺序分配。
+[04:15.55]Sorting by cost wouldn't help there.
+[04:15.55]按计算成本排序在这里也没用。
+[04:18.65]Ava: What happens when the planned assignments still don't finish together?
+[04:18.65]Ava：如果预先分配的任务还是不能同时完成呢？
+[04:23.25]Brian: Cluster Launch Control, or CLC, handles runtime variation.
+[04:23.25]Brian：集群启动控制（CLC）会处理运行时的差异。
+[04:27.83]It's a Blackwell feature that lets an SM request more work when it finishes.
+[04:27.83]这是 Blackwell 的一项功能，让 SM 完成任务后能请求更多工作。
+[04:33.83]They use it in both passes.
+[04:33.83]他们在两个阶段都用了它。
+[04:36.32]Ava: Wait, so why keep the software balancing if the hardware can hand out work?
+[04:36.32]Ava：等等，既然硬件能分配任务，为什么还要用软件做负载均衡？
+[04:42.26]Brian: Because CLC can't identify empty tiles.
+[04:42.26]Brian：因为 CLC 无法识别空计算块。
+[04:45.50]Preparing valid tiles on the host removes those first.
+[04:45.50]主机端先筛出有效计算块，就能排除空块。
+[04:50.00]Software avoids useless assignments; CLC handles the remaining variation.
+[04:50.00]软件避免分配无用任务，CLC 处理剩下的负载差异。
+[04:56.07]The two approaches work together.
+[04:56.07]两种方法相互配合。
+[04:59.17]Ava: Got it. Now, the backward improvement is especially large. Where was it getting stuck?
+[04:59.17]Ava：明白了。反向计算的提升尤其大，之前卡在哪里？
+[05:06.38]Brian: The production case uses broadcast-Q: one dense Q is shared across every sequence.
+[05:06.38]Brian：生产场景采用广播式 Q：所有序列共享同一个稠密 Q。
+[05:12.98]Its gradient, dQ, must therefore accumulate contributions from the entire batch.
+[05:12.98]因此，它的梯度 dQ 必须累加整个批次的贡献。
+[05:19.41]Many SMs update the same locations.
+[05:19.41]许多 SM 都要更新相同的位置。
+[05:22.57]Ava: Everybody's trying to write their total into the same spreadsheet cell.
+[05:22.57]Ava：就像所有人都想把自己的合计写进电子表格的同一个单元格。
+[05:27.31]That sounds crowded.
+[05:27.31]听起来很拥挤。
+[05:28.99]Brian: It is.
+[05:28.99]Brian：确实如此。
+[05:29.44]Profiling identified the dQ epilogue, the final accumulation and writeback stage, as the biggest backward bottleneck.
+[05:29.44]性能分析发现，dQ 的收尾阶段，也就是最后的累加和写回，是反向计算的最大瓶颈。
+[05:38.18]The existing high-level operation also processes column slices serially.
+[05:38.18]现有的高层算子还会串行处理各个列切片。
+[05:43.91]Ava: How do they overlap that work?
+[05:43.91]Ava：他们怎么让这些操作重叠执行？
+[05:46.64]Brian: With double-buffered shared-memory staging.
+[05:46.64]Brian：用双缓冲共享内存暂存。
+[05:49.82]While one slice is being accumulated into high-bandwidth memory, or HBM, the next slice moves out of tensor memory.
+[05:49.82]一个切片正被累加到高带宽内存（HBM）时，下一个切片就从张量内存移出。
+[05:58.31]Two staging buffers keep the process moving.
+[05:58.31]两个暂存缓冲区让流程持续运转。
+[06:01.92]Ava: But doesn't the next matrix operation still need that tensor-memory buffer?
+[06:01.92]Ava：但下一次矩阵运算不是还要用那个张量内存缓冲区吗？
+[06:07.02]Brian: Yes.
+[06:07.02]Brian：是的。
+[06:07.31]They copy the final one or two slices into registers, the threads' working storage, then release the tensor-memory buffer early.
+[06:07.31]他们把最后一两个切片复制到寄存器，也就是线程的工作存储区，然后提前释放张量内存缓冲区。
+[06:16.54]The next matrix operation starts while the previous writes finish.
+[06:16.54]前一次写回尚未结束，下一次矩阵运算就能开始。
+[06:21.65]Ava: Why stop at two slices? Why not move everything into registers?
+[06:21.65]Ava：为什么只搬一两个切片？为什么不全搬进寄存器？
+[06:27.23]Brian: Registers are limited.
+[06:27.23]Brian：寄存器容量有限。
+[06:28.85]Holding more data increases register pressure and can hurt performance.
+[06:28.85]存放更多数据会增加寄存器压力，可能拖慢性能。
+[06:34.08]They autotune between one and two slices.
+[06:34.08]他们通过自动调优，在搬运一个或两个切片之间选择。
+[06:37.11]The point is to release the buffer sooner without creating another bottleneck.
+[06:37.11]目的是更早释放缓冲区，同时避免制造新瓶颈。
+[06:43.20]Ava: That brings us to loop peeling. The name sounds like a kitchen task too.
+[06:43.20]Ava：接下来是循环剥离。这个名字也像厨房里的活儿。
+[06:48.33]Brian: Here it means separating complete tiles from the partial last tile.
+[06:48.33]Brian：这里指把完整计算块和最后一个不完整的计算块分开。
+[06:53.42]Only that final tile needs a mask to exclude invalid positions.
+[06:53.42]只有最后那个计算块需要掩码来排除无效位置。
+[06:58.21]Previously, a mask branch lived inside the repeated loop.
+[06:58.21]之前，处理掩码的分支放在反复执行的循环里。
+[07:02.89]Ava: Would a rarely needed branch really make that much difference?
+[07:02.89]Ava：一个很少用到的分支，影响真有这么大吗？
+[07:07.39]Brian: The issue is register allocation.
+[07:07.39]Brian：问题出在寄存器分配。
+[07:09.92]The compiler reserves registers for mask-related variables across the loop.
+[07:09.92]编译器会在整个循环中为掩码相关变量预留寄存器。
+[07:15.65]That pressure can cause register spills, where values generate local-memory traffic.
+[07:15.65]这可能导致寄存器溢出，让数据转而产生本地内存访问。
+[07:22.08]Separating the tail removes those variables from the bulk.
+[07:22.08]把末尾部分单独处理，就能让主体循环不再带着这些变量。
+[07:26.87]Ava: So a tiny edge case was making every normal iteration carry extra baggage.
+[07:26.87]Ava：也就是说，一个小小的边界情况，让每次正常迭代都背上了额外负担。
+[07:33.24]Brian: Exactly.
+[07:33.24]Brian：正是。
+[07:33.83]One more backward technique comes from FA4: two CTAs cooperate on a matrix multiplication.
+[07:33.83]Brian：还有一项反向计算技术来自 FA4：让两个 CTA 协同完成一次矩阵乘法。
+[07:40.40]For the production broadcast-Q case with head dimension one hundred twenty-eight, that adds about twelve percent throughput.
+[07:40.40]在头维度为 128 的生产级广播式 Q 场景中，这让吞吐量提高约 12%。
+[07:49.82]Ava: Let's put the results in context. What did they actually compare?
+[07:49.82]Ava：我们来看看结果是怎么比较的。他们具体比了什么？
+[07:54.39]Brian: They tested on NVIDIA B two hundred with bfloat16, a sixteen-bit floating-point format, against the May twenty twenty-six version of FA4.
+[07:54.39]Brian：他们在 NVIDIA B200 上使用 16 位浮点格式 bfloat16，与 2026 年 5 月版 FA4 进行比较。
+[08:04.35]On jagged shapes, average throughput gains were about thirteen percent forward and fifty percent backward.
+[08:04.35]在不规则形状下，正向吞吐量平均提高约 13%，反向提高约 50%。
+[08:12.40]Ava: Are those wins across the board?
+[08:12.40]Ava：这些提升在所有情况下都有吗？
+[08:15.18]Brian: Backward wins on every tested jagged shape.
+[08:15.18]Brian：在所有测试过的变长形状上，反向计算都更快。
+[08:18.39]Forward trails on the longest sequences at high density.
+[08:18.39]在高密度的最长序列上，前向计算则落后。
+[08:22.58]For equal-length dense inputs, forward reaches about eighty-seven percent of FA4's performance; backward is about seventeen percent faster.
+[08:22.58]对于等长的稠密输入，前向性能约为 FA4 的 87%；反向则快约 17%。
+[08:33.31]Ava: And we shouldn't add all the individual optimization percentages together.
+[08:33.31]Ava：但我们不能把各项优化的百分比直接相加。
+[08:38.41]Brian: Right. Those describe different comparisons and conditions.
+[08:38.41]Brian：对，它们对应不同的比较和条件。
+[08:42.65]The overall results are the useful endpoint.
+[08:42.65]最终的整体结果更有参考价值。
+[08:45.81]The implementation is also about three thousand two hundred lines, versus roughly ten thousand for the FA4 kernels.
+[08:45.81]这个实现约有 3200 行代码，而 FA4 内核约有 10000 行。
+[08:54.41]Ava: What does that structure buy them when the model changes?
+[08:54.41]Ava：模型变化时，这种结构有什么好处？
+[08:58.55]Brian: They reuse it for MXFP8, a microscaling eight-bit floating-point variant, and block-sparse attention, which visits selected blocks.
+[08:58.55]Brian：他们将它复用于 MXFP8（一种微缩放 8 位浮点格式）和块稀疏注意力；后者只访问选定的块。
+[09:07.81]At a selection ratio of zero point five, sparse forward is roughly one point three to one point five times faster than dense.
+[09:07.81]选择比例为 0.5 时，稀疏前向计算的速度约为稠密计算的 1.3 到 1.5 倍。
+[09:17.00]Ava: Any limits we should keep in mind before trying those variants?
+[09:17.00]Ava：尝试这些变体前，有什么局限需要注意？
+[09:21.17]Brian: The low-precision variant targets training that tolerates FP8.
+[09:21.17]Brian：低精度变体适用于能够容忍 FP8 精度的训练。
+[09:25.40]The article doesn't provide detailed model-quality results for these variants or a concrete future roadmap.
+[09:25.40]文章没有提供这些变体对模型质量影响的详细结果，也没有给出具体的后续路线图。
+[09:32.70]Its performance claims are tied to the workloads and hardware tested.
+[09:32.70]其性能结论仅适用于测试过的工作负载和硬件。
+[09:37.76]Ava: Let's finish with three points. First, packed jagged sequences avoid padding work.
+[09:37.76]Ava：最后总结三点。第一，紧凑存储的变长序列避免了填充带来的额外计算。
+[09:44.42]Second, explicit scheduling and memory control keep the hardware busier.
+[09:44.42]第二，显式调度和内存控制提高了硬件利用率。
+[09:50.26]Third, the measured gains come with a kernel structure that's reusable.
+[09:50.26]第三，实测性能提升来自一种可复用的内核结构。
+[09:56.38]Brian: Thanks for listening, and we'll see you next time.
+[09:56.38]Brian：感谢收听，我们下次见。

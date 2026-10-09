@@ -1,0 +1,574 @@
+1
+00:00:00,000 --> 00:00:07,636
+Ava: Okay so PyTorch just dropped 2. 14. Almost three thousand commits since 2. 13.
+Ava：好吧，PyTorch 刚发布了 2.14。自 2.13 以来，提交次数接近三千次。
+
+2
+00:00:07,636 --> 00:00:10,238
+That's a lot to unpack.
+这么多内容，得好好捋一捋。
+
+3
+00:00:10,238 --> 00:00:15,456
+Brian: Yeah, 2,995 commits, 487 contributors. It's a big one.
+Brian：没错，2,995 次提交，487 位贡献者。这次更新规模不小。
+
+4
+00:00:15,456 --> 00:00:21,604
+But there's a clear thread running through it if you squint.
+不过仔细看，会发现其中有一条清晰的主线。
+
+5
+00:00:21,604 --> 00:00:23,154
+Ava: Which is?
+Ava：是什么？
+
+6
+00:00:23,154 --> 00:00:31,044
+Brian: PyTorch trying to be one platform that works the same whether you're on NVIDIA, AMD, Intel, or a Mac.
+Brian：PyTorch 正努力成为一个统一的平台，让你无论使用 NVIDIA、AMD、Intel 还是 Mac，都能获得一致的体验。
+
+7
+00:00:31,044 --> 00:00:36,825
+Faster matmuls, a rewritten networking backend, native math on Apple GPUs.
+更快的矩阵乘法、重写的网络通信后端，以及 Apple GPU 上的原生数学运算。
+
+8
+00:00:36,825 --> 00:00:39,128
+Same story, three fronts.
+同一个方向，三条战线。
+
+9
+00:00:39,128 --> 00:00:43,990
+Ava: Let's start with the matmul thing. NVGEMM. What even is that?
+Ava：先说矩阵乘法吧。NVGEMM 到底是什么？
+
+10
+00:00:43,990 --> 00:00:52,593
+Brian: So, GEMM is just General Matrix Multiply — the operation that eats most of your GPU time in a transformer.
+Brian：GEMM 就是通用矩阵乘法——在 Transformer 中，它会消耗 GPU 大部分计算时间。
+
+11
+00:00:52,593 --> 00:00:58,380
+NVGEMM is a new backend for it inside Inductor, PyTorch's compiler.
+NVGEMM 是 PyTorch 编译器 Inductor 里的一个新后端，用来执行这项运算。
+
+12
+00:00:58,380 --> 00:01:01,466
+Ava: And it's built on CuTeDSL?
+Ava：它是基于 CuTeDSL 构建的？
+
+13
+00:01:01,466 --> 00:01:03,258
+Brian: Right, that landed in 2.
+Brian：对，这项技术在 2.13 中首次推出，
+
+14
+00:01:03,258 --> 00:01:11,096
+13 as a way to generate CUTLASS kernels — CUTLASS is NVIDIA's template library for writing fast GPU math.
+可以用来生成 CUTLASS 内核——CUTLASS 是 NVIDIA 编写高速 GPU 数学运算的模板库。
+
+15
+00:01:11,096 --> 00:01:14,977
+In 2. 13 it could only spit out a standalone kernel.
+在 2.13 中，它只能生成独立的内核。
+
+16
+00:01:14,977 --> 00:01:23,464
+Whatever came after, like a bias add, stayed in a separate kernel that had to re-read the result from memory.
+后续操作，比如加偏置，都得放在单独的内核里，还要从内存重新读取结果。
+
+17
+00:01:23,464 --> 00:01:25,878
+Ava: That sounds wasteful.
+Ava：听起来挺浪费的。
+
+18
+00:01:25,878 --> 00:01:30,250
+Brian: It is. So the big addition in 2. 14 is epilogue fusion.
+Brian：确实。所以 2.14 的一大新增功能就是尾处理融合。
+
+19
+00:01:30,250 --> 00:01:37,484
+Now the bias add, the activation, the rescale — they get folded right into the same kernel.
+现在，加偏置、激活、重新缩放等操作都能直接融合进同一个内核。
+
+20
+00:01:37,484 --> 00:01:39,980
+No extra memory round trip.
+不必再额外往返访问内存。
+
+21
+00:01:39,980 --> 00:01:44,194
+Ava: And this competes against what PyTorch already had?
+Ava：它是要和 PyTorch 现有的方案竞争吗？
+
+22
+00:01:44,194 --> 00:01:47,830
+Brian: Exactly, it's not a replacement, it's a third candidate.
+Brian：没错，它不是替代方案，而是第三个候选项。
+
+23
+00:01:47,830 --> 00:01:54,192
+Inductor autotunes NVGEMM alongside Triton and ATen and picks whichever is fastest for your shape.
+Inductor 会将 NVGEMM 与 Triton、ATen 一起进行自动调优，针对你的张量形状选出最快的方案。
+
+24
+00:01:54,192 --> 00:02:06,552
+It also reaches the low-precision paths now, so things like NVFP4 — a four-bit floating format — get their scaling folded into the kernel too, instead of paying for a separate multiply.
+它现在也支持低精度计算路径，所以像 NVFP4 这种四位浮点格式，也能把缩放操作融合进内核，不用再单独做一次乘法。
+
+25
+00:02:06,552 --> 00:02:08,198
+Ava: Any catch?
+Ava：有什么限制吗？
+
+26
+00:02:08,198 --> 00:02:12,306
+Brian: You have to opt in, add NVGEMM to the autotune backend list.
+Brian：你得主动启用它，把 NVGEMM 加到自动调优的后端列表里。
+
+27
+00:02:12,306 --> 00:02:15,250
+And NVFP4 support needs Blackwell hardware.
+而且 NVFP4 支持需要 Blackwell 硬件。
+
+28
+00:02:15,250 --> 00:02:22,516
+If an epilogue is too weird for it to express, it just falls back to Triton, so you're not worse off.
+如果某种尾处理操作太特殊，无法表达，它就会回退到 Triton，所以性能不会更差。
+
+29
+00:02:22,516 --> 00:02:29,058
+Ava: Okay, let's move to distributed training. This is the part I actually care about.
+Ava：好，我们来聊分布式训练。这才是我真正关心的部分。
+
+30
+00:02:29,058 --> 00:02:30,257
+Brian: Big one here too.
+Brian：这方面也有重磅更新。
+
+31
+00:02:30,257 --> 00:02:41,960
+There's a preview of a rewritten NCCL backend — NCCL being NVIDIA's Collective Communications Library, the thing that handles all-reduce and friends across GPUs.
+现在提供了一个重写版 NCCL 后端的预览版。NCCL 是 NVIDIA 集合通信库，负责处理 GPU 间的全归约等操作。
+
+32
+00:02:41,960 --> 00:02:43,750
+Ava: Rewritten how?
+Ava：具体怎么重写的？
+
+33
+00:02:43,750 --> 00:02:49,256
+Brian: It's ported from a project called torchcomms, which showed up in 2. 13.
+Brian：它移植自一个名为 torchcomms 的项目，该项目在 2.13 中首次出现。
+
+34
+00:02:49,256 --> 00:02:58,949
+Now it lands in-tree as basically a drop-in replacement, nicknamed nccl2, and it's slated to become the default backend in 2.
+现在它作为基本可直接替换的组件纳入了 PyTorch 源码树，昵称是 nccl2，并计划在 2.15 中成为默认后端。
+
+35
+00:02:58,949 --> 00:02:59,532
+15.
+2.15。
+
+36
+00:02:59,532 --> 00:03:02,642
+Ava: What does it actually buy you over the old one?
+Ava：相比旧版，它具体带来了什么？
+
+37
+00:03:02,642 --> 00:03:14,296
+Brian: Nonblocking communicators, one-sided memory access, and — this is the headline for me — fault tolerance built in as a first-class concept, not a hack bolted onto NCCL specifically.
+Brian：非阻塞通信器、单边内存访问——还有我认为最重要的一点：内置了故障容错，将其视为一等功能，而不是专门针对 NCCL 临时拼凑的补丁。
+
+38
+00:03:14,296 --> 00:03:18,601
+Ava: Wait, back up. What does fault tolerance mean in this context?
+Ava：等等，回头说说。在这里，故障容错具体是什么意思？
+
+39
+00:03:18,601 --> 00:03:22,422
+Isn't that usually a checkpoint-and-restart thing?
+这通常不就是检查点加重启吗？
+
+40
+00:03:22,422 --> 00:03:24,280
+Brian: That's exactly the pain point.
+Brian：这正是最棘手的问题。
+
+41
+00:03:24,280 --> 00:03:33,980
+Normally when one rank dies in a big job, you tear down the whole process group and restart it, which throws away warm state across the entire cluster.
+通常，大型作业中只要一个 rank 进程挂掉，就得拆掉整个进程组再重启，整个集群已经预热好的状态也会随之丢失。
+
+42
+00:03:33,980 --> 00:03:37,498
+Ava: Ouch. That's expensive at scale.
+Ava：哎，这种规模下代价可不小。
+
+43
+00:03:37,498 --> 00:03:37,893
+Brian: Very.
+Brian：非常大。
+
+44
+00:03:37,893 --> 00:03:48,404
+So now the Backend and ProcessGroup objects expose reconfiguration interfaces — a group can be rebuilt in place instead of destroyed.
+现在 Backend 和 ProcessGroup 对象都提供了重新配置接口，可以原地重建进程组，而不用销毁它。
+
+45
+00:03:48,404 --> 00:03:52,152
+And this isn't NCCL-only, Gloo gets it too.
+而且这不只适用于 NCCL，Gloo 也支持了。
+
+46
+00:03:52,152 --> 00:03:57,302
+Ava: You mentioned one-sided memory access. What's that, exactly?
+Ava：你提到单边内存访问。那具体是什么？
+
+47
+00:03:57,302 --> 00:03:59,666
+Brian: Think RMA, remote memory access.
+Brian：可以把它理解为 RMA，也就是远程内存访问。
+
+48
+00:03:59,666 --> 00:04:04,541
+Normally a collective needs both sides to show up and synchronize.
+通常，集体通信需要双方都参与并进行同步。
+
+49
+00:04:04,541 --> 00:04:13,828
+One-sided means one rank can just read or write another rank's memory directly, no matching call needed on the other end.
+单边访问则意味着一个 rank 可以直接读写另一个 rank 的内存，不需要对方同时发起匹配的调用。
+
+50
+00:04:13,828 --> 00:04:15,810
+Ava: When would you want that?
+Ava：什么情况下会用到它？
+
+51
+00:04:15,810 --> 00:04:17,776
+Brian: Irregular access patterns.
+Brian：不规则的访问模式。
+
+52
+00:04:17,776 --> 00:04:23,826
+Embedding lookups, weight transfer, expert routing in mixture-of-experts models.
+比如嵌入查找、权重传输，以及混合专家模型中的专家路由。
+
+53
+00:04:23,826 --> 00:04:28,184
+Anywhere the access pattern isn't a clean all-to-all.
+只要访问模式不是规整的全对全通信，都适用。
+
+54
+00:04:28,184 --> 00:04:31,294
+Ava: And there was something about a Flight Recorder?
+Ava：还有个叫 Flight Recorder 的东西？
+
+55
+00:04:31,294 --> 00:04:36,996
+Brian: Right, that's the trace buffer people use to debug hung or mismatched collectives.
+Brian：对，那是用来排查集合通信卡住或不匹配的追踪缓冲区。
+
+56
+00:04:36,996 --> 00:04:39,986
+It used to be wired specifically into NCCL.
+它以前专门接在 NCCL 上。
+
+57
+00:04:39,986 --> 00:04:46,522
+Now it hooks through ProcessGroup generically, so it works for Gloo or any custom backend too.
+现在它通过通用的 ProcessGroup 接入，所以 Gloo 和自定义后端也能用。
+
+58
+00:04:46,522 --> 00:04:52,644
+Debugging a hang doesn't mean giving up your trace just because you're not on NCCL.
+即使用的不是 NCCL，排查卡顿时也能保留追踪记录。
+
+59
+00:04:52,644 --> 00:04:58,437
+Ava: Makes sense. Let's switch gears — literally, since there's a feature called torch.
+Ava：明白。换个话题——还真有个功能叫 torch.
+
+60
+00:04:58,437 --> 00:04:59,282
+switch.
+switch，也就是 torch.switch。
+
+61
+00:04:59,282 --> 00:05:00,503
+Brian: Ha, yeah. So torch.
+Brian：哈哈，对。torch.
+
+62
+00:05:00,503 --> 00:05:06,091
+cond already existed for a two-way branch inside a compiled graph — if this, else that.
+cond，也就是 torch.cond，早就支持在编译图中做二选一分支。
+
+63
+00:05:06,091 --> 00:05:13,671
+But if you needed, say, eight-way branching, like picking one of eight experts in an MoE model, you had to nest torch.
+但如果需要八路分支，比如在 MoE 模型里从八个专家中选一个，就得层层嵌套 torch.
+
+64
+00:05:13,671 --> 00:05:14,728
+cond calls.
+cond 调用。
+
+65
+00:05:14,728 --> 00:05:17,238
+Ava: Which gets ugly fast.
+Ava：那很快就会变得很难看。
+
+66
+00:05:17,238 --> 00:05:22,922
+Brian: Right, it bloats the traced graph and hides what you're actually doing. torch.
+Brian：对，追踪图会膨胀，也看不清实际逻辑。而 torch.switch
+
+67
+00:05:22,922 --> 00:05:27,731
+switch does multi-way branching natively, dispatching on an index.
+可以按索引直接选择多个分支。
+
+68
+00:05:27,731 --> 00:05:31,724
+It's aimed squarely at mixture-of-experts routing.
+它主要就是为混合专家模型的路由设计的。
+
+69
+00:05:31,724 --> 00:05:35,986
+Ava: There's also something about while loops and CUDA graphs?
+Ava：while 循环和 CUDA 图也有新变化？
+
+70
+00:05:35,986 --> 00:05:39,983
+Brian: torch. while_loop can now be captured inside a CUDA graph.
+Brian：现在 torch.while_loop 可以被捕获进 CUDA 图。
+
+71
+00:05:39,983 --> 00:05:51,840
+Normally a data-dependent loop count forces a device-to-host copy to decide how many iterations to run, and that breaks graph capture right where you'd want it intact.
+通常，循环次数如果取决于数据，就得把数据从设备传回主机来决定迭代次数，这会打断图捕获。
+
+72
+00:05:51,840 --> 00:05:56,894
+Ava: So now the loop count can vary at replay time without breaking capture?
+Ava：所以现在重放时循环次数可以变化，也不会破坏图捕获？
+
+73
+00:05:56,894 --> 00:05:57,432
+Brian: Exactly.
+Brian：没错。
+
+74
+00:05:57,432 --> 00:06:04,634
+The condition gets re-evaluated on GPU at the end of each iteration using CUDA's native while-node support.
+借助 CUDA 原生的 while 节点，每次迭代结束时都会在 GPU 上重新判断条件。
+
+75
+00:06:04,634 --> 00:06:12,724
+It's not a speed win by itself, it just means a variable-length loop no longer kicks you out of the graph entirely.
+这本身不会提速，但变长循环终于可以留在图里了。
+
+76
+00:06:12,724 --> 00:06:16,658
+Ava: Okay, now the one I've been waiting for — Apple Silicon.
+Ava：好，终于说到我期待的 Apple Silicon 了。
+
+77
+00:06:16,658 --> 00:06:19,818
+My Mac finally gets real linear algebra?
+我的 Mac 终于能好好做线性代数运算了？
+
+78
+00:06:19,818 --> 00:06:22,592
+Brian: Yes! This was a genuine gap before.
+Brian：是的！以前这确实是个短板。
+
+79
+00:06:22,592 --> 00:06:29,250
+SVD, eigh — that's the eigendecomposition for Hermitian matrices — QR, and Cholesky.
+SVD、eigh——也就是厄米矩阵的特征分解——还有 QR 和 Cholesky。
+
+80
+00:06:29,250 --> 00:06:35,624
+All were leaning on Apple's MPSGraph framework, or just falling back to CPU.
+这些运算以前要么依赖苹果的 MPSGraph 框架，要么回退到 CPU。
+
+81
+00:06:35,624 --> 00:06:39,838
+Ava: Which kills performance if you're doing anything numerical.
+Ava：做数值计算时，这会严重拖慢速度。
+
+82
+00:06:39,838 --> 00:06:47,815
+Brian: Right, mixed CPU and MPS round trips are exactly the kind of thing that quietly tanks your throughput.
+Brian：对，在 CPU 和 MPS 之间来回传数据，会悄悄拉低吞吐量。
+
+83
+00:06:47,815 --> 00:06:53,992
+Now SVD, eigh, and lstsq run via native Jacobi-style Metal kernels for float32.
+现在，float32 的 SVD、eigh 和 lstsq 都由原生的 Jacobi 式 Metal 内核执行。
+
+84
+00:06:53,992 --> 00:07:00,405
+Cholesky got a faster panel-factorization algorithm too, something like 1. 2 to 2.
+Cholesky 也换用了更快的面板分解算法，提速约 1.2 倍到
+
+85
+00:07:00,405 --> 00:07:03,492
+8x faster depending on matrix size.
+2.8 倍，具体取决于矩阵大小。
+
+86
+00:07:03,492 --> 00:07:05,234
+Ava: Any limits?
+Ava：有什么限制吗？
+
+87
+00:07:05,234 --> 00:07:11,138
+Brian: float64 still falls back to CPU, because Metal simply has no double-precision type.
+Brian：float64 仍会回退到 CPU，因为 Metal 没有双精度类型。
+
+88
+00:07:11,138 --> 00:07:23,224
+And there's a whole separate five-part rewrite of reduction kernels — full reductions, strided ones, argmax and argmin — moving off MPSGraph onto hand-written Metal.
+另外，归约内核也分五部分重写了，包括全量归约、跨步归约、argmax 和 argmin，从 MPSGraph 改用手写 Metal 内核。
+
+89
+00:07:23,224 --> 00:07:27,918
+Ava: I saw something about an 8. 5x slowdown fix too.
+Ava：我还看到修复了一个导致速度慢 8.5 倍的问题。
+
+90
+00:07:27,918 --> 00:07:32,641
+Brian: Yeah, that one's specific but important if you run models locally.
+Brian：对，这个问题很具体，但对本地运行模型的人很重要。
+
+91
+00:07:32,641 --> 00:07:41,228
+Single-token decode — the shape you get when you're generating one token at a time — was falling off the fast path in F.
+单 token 解码，也就是每次生成一个 token 时，会错过 F.linear
+
+92
+00:07:41,228 --> 00:07:47,732
+linear on MPS. Eight point five times slower than it should've been, on bf16 and fp16.
+在 MPS 上的快速路径；用 bf16 和 fp16 时，速度比应有水平慢了 8.5 倍。
+
+93
+00:07:47,732 --> 00:07:51,874
+Ava: That's huge for anyone doing local inference on a Mac.
+Ava：对在 Mac 上做本地推理的人来说，这影响太大了。
+
+94
+00:07:51,874 --> 00:08:01,248
+Brian: Exactly, it's one of the bigger remaining gaps between MPS and CUDA for autoregressive generation, and this closes a good chunk of it.
+Brian：没错，这是自回归生成时 MPS 与 CUDA 之间较大的性能差距之一；这次缩小了不少。
+
+95
+00:08:01,248 --> 00:08:05,366
+Ava: Quick one — what's @dynamic_spec?
+Ava：快速问一句，@dynamic_spec 是什么？
+
+96
+00:08:05,366 --> 00:08:08,375
+Brian: It's a cleanup, not a new capability exactly.
+Brian：主要是整理现有机制，严格说不算新功能。
+
+97
+00:08:08,375 --> 00:08:18,002
+Before this, declaring which dimensions of your input can vary at runtime meant a different mechanism depending on whether you were using torch.
+以前，要声明输入的哪些维度能在运行时变化，得看你用的是 torch.compile、
+
+98
+00:08:18,002 --> 00:08:20,692
+compile, torch. export, or make_fx.
+torch.export 还是 make_fx：各有一套机制。
+
+99
+00:08:20,692 --> 00:08:24,114
+Ava: So three different ways to say the same thing.
+Ava：也就是同一件事有三种写法。
+
+100
+00:08:24,114 --> 00:08:28,786
+Brian: Right, and the declaration usually lived far away from the model code.
+Brian：对，而且这些声明通常离模型代码很远。
+
+101
+00:08:28,786 --> 00:08:37,880
+Now you define a shape spec once, attach it to your function with a decorator, and all three entry points pick it up automatically.
+现在只需定义一次形状规范，用装饰器挂到函数上，三个入口就会自动识别。
+
+102
+00:08:37,880 --> 00:08:42,982
+Ava: And platform support — I saw ROCm and Rubin mentioned.
+Ava：平台支持方面，我看到提到了 ROCm 和 Rubin。
+
+103
+00:08:42,982 --> 00:08:51,313
+Brian: ROCm 7. 14 wheels now build from AMD's TheRock SDK. Intel XPU gets native graph capture.
+Brian：ROCm 7.14 的 wheel 包现在由 AMD 的 TheRock SDK 构建。Intel XPU 也支持原生计算图捕获了。
+
+104
+00:08:51,313 --> 00:08:58,764
+And Inductor now targets Rubin, NVIDIA's next architecture after Blackwell.
+Inductor 现在也支持 NVIDIA 继 Blackwell 之后的新架构 Rubin。
+
+105
+00:08:58,764 --> 00:09:02,570
+Ava: Anything we should flag as not fully baked yet?
+Ava：有什么功能还不够成熟，需要提醒大家吗？
+
+106
+00:09:02,570 --> 00:09:08,367
+Brian: Almost everything in this release is tagged API Unstable, so expect some churn.
+Brian：这次发布的功能几乎都标为 API Unstable，后续可能会有调整。
+
+107
+00:09:08,367 --> 00:09:10,715
+Complex-tensor support in torch.
+torch.compile 对复数张量的支持
+
+108
+00:09:10,715 --> 00:09:16,585
+compile is explicitly experimental — not every complex operation is covered yet.
+仍明确处于实验阶段，尚未覆盖所有复数运算。
+
+109
+00:09:16,585 --> 00:09:22,601
+And Python 3. 15 support landed, but it's eager-mode only for now — calling torch.
+Python 3.15 已获支持，但目前仅限即时执行模式；调用 torch.compile
+
+110
+00:09:22,601 --> 00:09:28,528
+compile under 3. 15 just raises an error rather than quietly running slower.
+在 Python 3.15 下会直接报错，而不会悄悄地以较慢速度运行。
+
+111
+00:09:28,528 --> 00:09:34,974
+Ava: Good to know before someone upgrades blind. So, wrapping up — three things to remember?
+Ava：这得提醒准备升级的人。最后，有哪三点值得记住？
+
+112
+00:09:34,974 --> 00:09:42,380
+Brian: One: NVGEMM brings epilogue fusion and low-precision support to PyTorch's fastest matmul path.
+Brian：第一，NVGEMM 为 PyTorch 最快的矩阵乘法路径带来了尾声融合和低精度支持。
+
+113
+00:09:42,380 --> 00:09:50,573
+Two: fault tolerance and one-sided memory access are now built into distributed training, not bolted on.
+第二，容错和单边内存访问现已内置于分布式训练，而不是后加的功能。
+
+114
+00:09:50,573 --> 00:09:57,620
+Three: Apple Silicon finally gets native linear algebra and a major decode-speed fix.
+第三，Apple Silicon 终于获得原生线性代数支持，还有一项显著提升解码速度的修复。
+
+115
+00:09:57,620 --> 00:10:04,234
+Ava: That's PyTorch 2. 14. Thanks for listening, and we'll catch you next release.
+Ava：以上就是 PyTorch 2.14。感谢收听，下个版本再见。

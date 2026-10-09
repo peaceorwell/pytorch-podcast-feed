@@ -1,0 +1,231 @@
+[ti:One Kernel, More Choices: Helion Meets vLLM]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: What if your model server could get more throughput without someone writing a separate kernel for every awkward matrix shape?
+[00:00.00]Ava：如果不用为每种棘手的矩阵形状单独写内核，模型服务器也能提高吞吐量呢？
+[00:07.43]That's the promise we're exploring today.
+[00:07.43]这就是我们今天要探讨的可能性。
+[00:10.21]Brian: And there's a practical result behind it.
+[00:10.21]Brian：而且已有实际成果。
+[00:12.92]This article reports more than ten percent higher throughput for some workloads by adding Helion to vLLM's linear backend.
+[00:12.92]这篇文章称，在一些工作负载中，将 Helion 加入 vLLM 的线性后端后，吞吐量提高了 10% 以上。
+[00:21.32]Ava: Some workloads. I'll keep that word close.
+[00:21.32]Ava：是“一些”工作负载，这个限定我记住了。
+[00:24.52]Before we get to the numbers, what's changing inside the server?
+[00:24.52]谈数字之前，先说说服务器内部有什么变化？
+[00:29.75]Brian: vLLM is an inference and serving framework for large language models, or LLMs.
+[00:29.75]Brian：vLLM 是面向大语言模型（LLM）的推理和服务框架。
+[00:35.50]Its linear backends connect quantized linear layers to optimized kernels from libraries like CUTLASS and DeepGEMM.
+[00:35.50]它的线性后端将量化线性层接入 CUTLASS、DeepGEMM 等库的优化内核。
+[00:44.24]Ava: Quantized layers use lower precision representations.
+[00:44.24]Ava：量化层使用较低精度的表示。
+[00:48.16]So there's already serious optimization here. What's Helion bringing to the table?
+[00:48.16]看来这里已经做了不少优化。Helion 又带来了什么？
+[00:54.57]Brian: Helion is a PyTorch-native domain-specific language, or DSL, for kernels.
+[00:54.57]Brian：Helion 是一种基于 PyTorch、用于编写内核的领域专用语言（DSL）。
+[01:00.45]Developers write Python-like code using tiles, which are blocks of data.
+[01:00.45]开发者用类似 Python 的代码编程，处理的数据块称为 tile。
+[01:06.24]Helion generates specialized code and searches for good configurations.
+[01:06.24]Helion 会生成专门优化的代码，并搜索合适的配置。
+[01:12.30]Ava: So I describe the computation, and Helion explores how to run it efficiently.
+[01:12.30]Ava：也就是说，我描述计算过程，Helion 探索怎样高效运行。
+[01:17.60]Does that search happen while users are waiting for answers?
+[01:17.60]这种搜索会在用户等答案时进行吗？
+[01:22.08]Brian: The tuning is ahead of time, or AOT, before deployment.
+[01:22.08]Brian：调优在部署前提前完成，也就是 AOT。
+[01:26.03]It explores choices ranging from memory layout and scheduling to the algorithm itself.
+[01:26.03]它会探索内存布局、调度方式，甚至算法本身。
+[01:32.20]Fine-grained tuning can still take hours.
+[01:32.20]细粒度调优仍可能耗时数小时。
+[01:35.49]Ava: Hours upfront, with the hope of faster serving afterward.
+[01:35.49]Ava：先花几个小时，期望之后提供服务时更快。
+[01:39.39]Why does the algorithm need to change with the input shape?
+[01:39.39]为什么算法要随输入形状变化？
+[01:43.78]Brian: Let's take general matrix multiplication, or GEMM. Matrix A has dimensions M by K.
+[01:43.78]Brian：以通用矩阵乘法（GEMM）为例。矩阵 A 的维度是 M×K。
+[01:51.99]Matrix B has dimensions K by N. The output is M by N.
+[01:51.99]矩阵 B 的维度是 K×N，输出维度是 M×N。
+[01:57.64]Ava: And K is the dimension we're reducing over. What's the problem when M or N is small?
+[01:57.64]Ava：K 是进行归约的维度。M 或 N 较小时会有什么问题？
+[02:04.67]Brian: There may not be enough parallel work.
+[02:04.67]Brian：可并行的工作可能不够多。
+[02:07.45]Think of a large kitchen with only a few dishes to prepare.
+[02:07.45]就像大厨房里只有几道菜要做。
+[02:11.77]Many cooks could be standing around.
+[02:11.77]很多厨师可能闲着。
+[02:14.76]Ava: An expensive kitchen, too. How does Split-K help?
+[02:14.76]Ava：厨房还很贵。Split-K 怎么帮忙？
+[02:19.09]Brian: Split-K divides the K dimension across multiple thread blocks, which are groups of GPU threads.
+[02:19.09]Brian：Split-K 将 K 维分给多个线程块，也就是多组 GPU 线程。
+[02:26.11]More blocks can work in parallel when M or N is too small.
+[02:26.11]当 M 或 N 太小时，更多线程块就能并行工作。
+[02:30.75]Ava: So several groups contribute to the same output.
+[02:30.75]Ava：这样，多组线程会共同计算同一个输出。
+[02:34.05]How does this example combine their work?
+[02:34.05]这个例子怎样合并它们的结果？
+[02:37.22]Brian: It clears the output first, then uses atomic additions to combine partial results safely.
+[02:37.22]Brian：它先清零输出，再用原子加法安全地合并部分结果。
+[02:43.96]With no split, it writes each output tile directly.
+[02:43.96]不拆分时，每个输出数据块会直接写入。
+[02:48.18]Ava: Got it. Split the reduction work, then combine it. What's the other option, Swap-AB?
+[02:48.18]Ava：明白了，拆分归约任务，再合并结果。另一个选项 Swap-AB 呢？
+[02:55.41]Brian: It reverses the multiplication order using transposes, which exchange rows and columns.
+[02:55.41]Brian：它通过转置来颠倒乘法顺序；转置就是交换行和列。
+[03:02.34]Multiply transposed B by transposed A, then transpose the result back.
+[03:02.34]先用转置后的 B 乘以转置后的 A，再把结果转置回来。
+[03:07.90]That can improve tiling when M is small.
+[03:07.90]M 较小时，这样能改善分块效果。
+[03:11.44]Ava: Same mathematical result, different arrangement of the work.
+[03:11.44]Ava：数学结果一样，只是安排计算的方式不同。
+[03:15.59]Like turning a tray so it fits the oven better?
+[03:15.59]就像转一下烤盘，让它更适合放进烤箱？
+[03:19.20]Brian: Exactly. Traditionally, authors implement variants separately and write dispatch rules.
+[03:19.20]Brian：没错。传统做法是分别实现各个变体，再编写选择规则。
+[03:26.71]The article gives one example: vLLM's current Block_FP8 backend chooses Swap-AB below an M of thirty-two on Hopper.
+[03:26.71]文章举了个例子：vLLM 当前的 Block_FP8 后端在 Hopper 上遇到 M 小于 32 时，会选择 Swap-AB。
+[03:36.98]Ava: That's a useful rule, but it doesn't necessarily pick the winner for every shape.
+[03:36.98]Ava：这条规则有用，但未必对每种形状都能选出最快的方案。
+[03:42.94]Brian: Right. Helion puts Standard GEMM, Split-K, and Swap-AB into one implementation.
+[03:42.94]Brian：对。Helion 把标准 GEMM、Split-K 和 Swap-AB 放进同一个实现中。
+[03:49.60]The split count and whether to swap become tunable choices, alongside lower-level configuration choices.
+[03:49.60]拆分次数和是否交换都成了可调选项，底层配置也一样。
+[03:58.72]Ava: How wide is that search in the example?
+[03:58.72]Ava：这个例子的搜索范围有多大？
+[04:02.34]Brian: The split count takes powers of two from one through two hundred fifty-six.
+[04:02.34]Brian：拆分次数取 1 到 256 之间的 2 的幂。
+[04:07.72]Swapping is either on or off.
+[04:07.72]交换则只有开启和关闭两种选择。
+[04:09.80]The autotuner benchmarks combinations and selects a configuration for each workload.
+[04:09.80]自动调优器会测试各种组合，为每种工作负载选出配置。
+[04:16.18]Ava: So the key idea is one implementation with several algorithmic choices.
+[04:16.18]Ava：所以核心是用一个实现涵盖多种算法选择。
+[04:21.16]We're moving the selection work into tuning.
+[04:21.16]我们把选择方案的工作交给了调优过程。
+[04:24.25]What hardware and formats did they actually test?
+[04:24.25]他们实际测试了哪些硬件和格式？
+[04:28.05]Brian: The focus is NVIDIA Hopper, using Helion's Triton backend. They target three formats.
+[04:28.05]Brian：重点是 NVIDIA Hopper，使用 Helion 的 Triton 后端，测试三种格式。
+[04:34.77]FP8_Dynamic uses eight-bit floating point, with per-token activation scaling and per-channel weight scaling.
+[04:34.77]FP8_Dynamic 使用 8 位浮点数，激活值按 token 缩放，权重按通道缩放。
+[04:43.66]Ava: Scaling determines how those low precision values are interpreted.
+[04:43.66]Ava：缩放决定了如何解读这些低精度数值。
+[04:48.31]What's the integer version?
+[04:48.31]整数版本是什么？
+[04:50.56]Brian: W8A8_INT8 uses eight-bit integer weights and activations, with the same scaling granularity.
+[04:50.56]Brian：W8A8_INT8 的权重和激活值都使用 8 位整数，缩放粒度相同。
+[04:57.16]Block_FP8 uses floating point with activation scaling over one by one hundred twenty-eight blocks and weight scaling over one hundred twenty-eight by one hundred twenty-eight blocks.
+[04:57.16]Block_FP8 使用浮点数，激活值按 1×128 的块缩放，权重按 128×128 的块缩放。
+[05:10.57]Ava: Now, a faster kernel doesn't automatically mean a faster server.
+[05:10.57]Ava：内核更快，不代表服务器一定更快。
+[05:15.74]Where can the benefit disappear?
+[05:15.74]收益会在哪儿被抵消？
+[05:18.67]Brian: CPU overhead from dispatching and launching Helion kernels can offset the gains.
+[05:18.67]Brian：调度和启动 Helion 内核的 CPU 开销可能抵消性能收益。
+[05:24.70]That's why this integration uses CUDA Graphs, which let it replay captured GPU work.
+[05:24.70]因此，这项集成使用 CUDA Graphs，重放已捕获的 GPU 工作。
+[05:31.38]Ava: Wait, so they don't send every linear operation through Helion?
+[05:31.38]Ava：等等，所以他们没有让每个线性运算都走 Helion？
+[05:36.34]Brian: Correct. They use hybrid dispatch. Small shapes run Helion under CUDA Graph replay.
+[05:36.34]Brian：对。他们采用混合调度：小规模运算在 CUDA Graph 重放时使用 Helion。
+[05:43.01]Larger shapes fall back to the default kernels.
+[05:43.01]较大规模的运算则回退到默认内核。
+[05:46.79]The threshold in this work is thirty-two tokens.
+[05:46.79]这项工作设定的阈值是 32 个 token。
+[05:50.99]Ava: And the small token counts matter because they dominate decoding workloads.
+[05:50.99]Ava：少量 token 很重要，因为解码工作负载主要由这类情况构成。
+[05:56.30]Which counts did they tune?
+[05:56.30]他们调优了哪些 token 数量？
+[05:58.57]Brian: One, two, four, eight, sixteen, twenty-four, and thirty-two.
+[05:58.57]Brian：1、2、4、8、16、24 和 32。
+[06:03.88]Each count is tuned for the model's corresponding GEMM shapes.
+[06:03.88]每种数量都针对模型中相应的 GEMM 形状调优。
+[06:09.38]They also benchmark under CUDA Graphs to match inference execution more closely.
+[06:09.38]他们还在 CUDA Graphs 下做基准测试，以更贴近实际推理过程。
+[06:16.82]Ava: That narrows the job. Fewer shapes to tune, and fewer configurations to keep around.
+[06:16.82]Ava：这样范围就缩小了：要调优的形状更少，要保留的配置也更少。
+[06:23.43]Brian: Yes.
+[06:23.43]Brian：没错。
+[06:23.74]It also avoids Helion's extra runtime dispatch and launch overhead through graph replay.
+[06:23.74]图重放还能避开 Helion 额外的运行时调度和启动开销。
+[06:30.42]But startup has another cost: graph capture triggers just-in-time compilation, or JIT compilation.
+[06:30.42]但启动还有另一项开销：图捕获会触发即时编译，也就是 JIT 编译。
+[06:38.21]Ava: So a cold start can still be slower?
+[06:38.21]Ava：所以冷启动仍可能比较慢？
+[06:41.32]Brian: Yes. Caching compiled artifacts can largely remove that overhead on warm starts.
+[06:41.32]Brian：对。缓存编译产物后，热启动时基本可以消除这项开销。
+[06:47.55]The runtime strategy doesn't make every cost disappear.
+[06:47.55]这种运行时策略并不能消除所有开销。
+[06:52.18]Ava: The article also mentions an LLM helping with tuning. Is it writing new kernels?
+[06:52.18]Ava：文章还提到用大语言模型辅助调优。它是在编写新内核吗？
+[06:58.63]Brian: Here, it identifies promising configuration candidates to seed the search.
+[06:58.63]Brian：这里，它负责找出有潜力的配置，作为搜索的起点。
+[07:03.99]The article uses Claude Opus four point eight.
+[07:03.99]文章使用的是 Claude Opus 4.8。
+[07:07.32]Better starting candidates help find better configurations and may reduce tuning time.
+[07:07.32]更好的初始候选配置有助于找到更优配置，也可能缩短调优时间。
+[07:13.90]Ava: May reduce it. We don't get a measured tuning-time reduction here.
+[07:13.90]Ava：只是可能缩短；这里没有给出调优时间减少了多少的实测数据。
+[07:18.27]Let's get to the performance numbers they do report.
+[07:18.27]来看看他们实际报告的性能数据。
+[07:22.05]Brian: All benchmarks used an NVIDIA H one hundred GPU with eighty gigabytes of memory.
+[07:22.05]Brian：所有基准测试都使用一块配备 80 GB 显存的 NVIDIA H100 GPU。
+[07:27.34]They evaluated dense Qwen models ranging from one point seven billion to thirty-two billion parameters, plus Qwen three point eight, twenty-seven billion.
+[07:27.34]他们评估了参数量从 17 亿到 320 亿的稠密 Qwen 模型，以及 270 亿参数的 Qwen 3.8。
+[07:37.86]Ava: First, the kernels on their own. How much faster were they?
+[07:37.86]Ava：先看内核本身。它们快了多少？
+[07:42.70]Brian: The geometric mean speedups were one point one one zero times for FP8_Dynamic and one point one seven eight times for W8A8_INT8, both against CUTLASS.
+[07:42.70]Brian：相较于 CUTLASS，FP8_Dynamic 的几何平均加速比为 1.110 倍，W8A8_INT8 为 1.178 倍。
+[07:55.02]That's a summary across shapes, not a guarantee for each shape.
+[07:55.02]这是汇总多个形状的结果，并不意味着每个形状都能达到这个加速比。
+[08:00.54]Ava: And Block_FP8 had two comparisons, right?
+[08:00.54]Ava：Block_FP8 做了两组对比，对吧？
+[08:05.14]Brian: Right.
+[08:05.14]Brian：对。
+[08:05.62]One point one four nine times against FlashInfer, and one point one seven seven times against DeepGEMM.
+[08:05.62]相较于 FlashInfer，速度是 1.149 倍；相较于 DeepGEMM，是 1.177 倍。
+[08:13.81]Performance varies by shape, which supports the case for individual tuning.
+[08:13.81]不同形状的性能各异，因此值得分别调优。
+[08:20.13]Ava: What happened when they tested the whole serving system?
+[08:20.13]Ava：测试整个服务系统时，结果怎样？
+[08:23.72]Brian: They used ShareGPT workloads, focused on batch sizes up to thirty-two, and disabled prefix caching to avoid its effect on results.
+[08:23.72]Brian：他们使用 ShareGPT 工作负载，重点测试不超过 32 的批量大小，并关闭前缀缓存，以免影响结果。
+[08:33.54]They report consistent gains across the evaluated models and formats.
+[08:33.54]他们报告称，在评估的模型和格式中，性能均有提升。
+[08:39.10]Ava: Including more than ten percent higher throughput for some workloads.
+[08:39.10]Ava：其中一些工作负载的吞吐量提升超过 10%。
+[08:43.57]We shouldn't stretch that into a promise about every deployment.
+[08:43.57]但不能据此保证每种部署都有这样的提升。
+[08:48.06]Brian: Exactly. The evaluation is focused.
+[08:48.06]Brian：正是如此。评估范围是有限的。
+[08:50.78]And adoption has a three-way tradeoff: performance, usability, and maintainability.
+[08:50.78]采用这套方案还要权衡三方面：性能、易用性和可维护性。
+[08:57.22]Detailed tuning improves performance, but someone must pay the tuning or configuration maintenance cost.
+[08:57.22]细致调优能提升性能，但调优和维护配置都需要付出成本。
+[09:05.64]Ava: Who's paying it today, and what might change?
+[09:05.64]Ava：现在由谁承担这些成本？未来可能有什么变化？
+[09:09.09]Brian: Their vLLM fork ships pre-tuned configurations.
+[09:09.09]Brian：他们的 vLLM 分支自带预调优配置。
+[09:12.46]For upstream adoption, they're exploring shared kernels with a default configuration for testing, while users tune for their own deployments.
+[09:12.46]为了推动上游采用，他们正考虑共享内核，并提供默认配置用于测试；用户则根据自己的部署环境调优。
+[09:22.59]That makes initial setup less convenient.
+[09:22.59]这让初始配置没那么方便。
+[09:25.88]Ava: Does every kernel need that much individual attention?
+[09:25.88]Ava：每个内核都需要这么仔细地单独调优吗？
+[09:29.90]Brian: Apparently not.
+[09:29.90]Brian：看来不用。
+[09:31.00]Initial experiments with smaller auxiliary kernels show meaningful gains with as few as six configurations.
+[09:31.00]对较小辅助内核的初步实验显示，只用六种配置就能取得明显收益。
+[09:38.80]Future work includes more hardware and a mixture-of-experts, or MoE, backend, where optimization targets differ.
+[09:38.80]后续工作还包括支持更多硬件，以及优化目标不同的混合专家（MoE）后端。
+[09:47.32]Ava: Let's finish with three points.
+[09:47.32]Ava：最后总结三点。
+[09:49.82]First, one Helion implementation exposes multiple GEMM strategies.
+[09:49.82]第一，一套 Helion 实现支持多种 GEMM 策略。
+[09:55.15]Second, per-shape tuning and graph-based hybrid dispatch turn kernel gains into serving gains.
+[09:55.15]第二，按形状调优和基于计算图的混合分派，把内核性能提升转化为推理服务性能提升。
+[10:03.10]Brian: Third, those gains come with offline tuning, startup, and maintenance costs.
+[10:03.10]Brian：第三，这些收益也伴随着离线调优、启动和维护成本。
+[10:08.42]The practical balance depends on the deployment.
+[10:08.42]具体怎么权衡，要看部署场景。
+[10:12.14]Ava: Thanks for listening. We'll see you next time.
+[10:12.14]Ava：感谢收听，我们下次见。
