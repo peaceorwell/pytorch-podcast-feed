@@ -1,0 +1,304 @@
+# Monarch: An API to Your Supercomputer
+
+原文：[Monarch: an API to your supercomputer](https://pytorch.org/blog/monarch-an-api-to-your-supercomputer/)
+
+## 摘要
+
+本期介绍 PyTorch Monarch，一个用简单 Python API 把超算集群变成可编程整体的分布式框架。它通过 RDMA 文件系统、分布式 SQL Telemetry 和 Jobs API，加速代码同步、资源管理与调试，让大规模训练更像本地开发。文章还总结了 Monarch 自 2025 年发布以来在 Kubernetes、RDMA、可观测性、安装体验和 AMD ROCm 支持上的改进。Monarch 已与 SkyPilot、VeRL 和 AMD 等项目合作，但在 Ray 依赖较深的框架中替换后端仍然比较复杂。
+
+## 对话
+
+Ava: What if your laptop could control a thousand GPUs as easily as it runs a Python script? That’s the promise behind Monarch, and it matters because distributed training can become painfully slow to develop and debug.
+
+Ava：如果你的笔记本电脑能像运行 Python 脚本一样轻松地控制一千块 GPU，会怎么样？这正是 Monarch 的愿景。它很重要，因为分布式训练的开发和调试可能慢得让人难受。
+
+Brian: Exactly. Monarch is a distributed programming framework for PyTorch. Its goal is to make a huge cluster feel like one coherent, directly controllable system, almost as if your laptop had thousands of GPUs attached.
+
+Brian：没错。Monarch 是一个面向 PyTorch 的分布式编程框架。它的目标是让庞大的集群用起来像一个统一、可直接控制的系统，几乎就像你的笔记本电脑接上了数千块 GPU。
+
+Ava: So this is bigger than a job launcher?
+
+Ava：所以它远不止是一个作业启动器？
+
+Brian: Much bigger. A complete training system can live in one Python program. Monarch exposes simple primitives for hosts, procs, and actors. Then higher-level features, such as fault tolerance and orchestration, can be built as reusable libraries.
+
+Brian：远不止。一个完整的训练系统可以放在同一个 Python 程序里。Monarch 提供了 hosts、procs 和 actors 这些简单的基本组件。在此基础上，容错和编排等更高层的功能可以做成可复用的库。
+
+Ava: That sounds especially useful for distributed reinforcement learning, where many moving parts have to work together.
+
+Ava：这对分布式强化学习似乎特别有用，因为其中有很多环节需要协同工作。
+
+Brian: Right. The article starts with that pain. Huge clusters are hard to use, and distributed reinforcement learning makes the setup more complex. When you change something, the turnaround time can be very slow. Debugging is frustrating because the system is spread across many processes and machines.
+
+Brian：对。文章开头讲的就是这个难题。庞大的集群很难用，而分布式强化学习又让配置更加复杂。改动一处之后，等到看到结果可能要很久。调试也让人头疼，因为整个系统分布在许多进程和机器上。
+
+Ava: Monarch tries to make that feel local?
+
+Ava：Monarch 想让这一切用起来像在本地运行一样？
+
+Brian: Yes. The central idea is that the distributed system should feel local. Monarch is also designed for agentic usage. An agent can run development tasks on a dev machine, and Monarch can turn that dev machine into a supercomputer with consistent infrastructure abstractions.
+
+Brian：是的。核心想法是让分布式系统用起来像本地系统。Monarch 也面向智能体使用场景而设计。智能体可以在开发机器上运行开发任务，而 Monarch 能通过一致的基础设施抽象，让这台开发机器获得超级计算机般的能力。
+
+Ava: When you say agentic usage, what can the agent actually do?
+
+Ava：你说的智能体使用场景里，智能体具体能做什么？
+
+Brian: It can manage and debug running code, sync dependencies and data, launch new code, and provision more hosts, procs, and actors. The same model works across different deployment environments.
+
+Brian：它可以管理和调试正在运行的代码，同步依赖项和数据，启动新代码，并配置更多 hosts、procs 和 actors。同一套模型适用于不同的部署环境。
+
+Ava: Let’s start with the file system. The article mentions an RDMA-Powered Remote File System.
+
+Ava：先从文件系统说起。文章提到了 RDMA-Powered Remote File System。
+
+Brian: The client exposes a read-only mounted filesystem. Monarch distributes those files to every host in the job through RDMA, or Remote Direct Memory Access. That makes it much faster to sync code, dependencies, and containers while you iterate.
+
+Brian：客户端提供一个已挂载的只读文件系统。Monarch 通过 RDMA，也就是 Remote Direct Memory Access，把这些文件分发到作业中的每一台主机。这样在迭代开发时，同步代码、依赖项和容器会快得多。
+
+Ava: So instead of repeatedly copying files through a slower path, the cluster sees a shared read-only view?
+
+Ava：所以集群看到的是一个共享的只读视图，不用再反复通过较慢的路径复制文件？
+
+Brian: That’s the basic idea. The RDMA filesystem is built on Monarch RDMA buffers and PyFuse. The practical benefit is quick iteration: update your code or dependencies, and get them across the job quickly.
+
+Brian：基本就是这样。这个 RDMA 文件系统基于 Monarch RDMA buffers 和 PyFuse 构建。实际好处是迭代速度快：更新代码或依赖项后，就能迅速把它们分发到整个作业。
+
+Ava: The second feature is Distributed SQL Telemetry. Why SQL?
+
+Ava：第二项功能是 Distributed SQL Telemetry。为什么用 SQL？
+
+Brian: Because SQL is a familiar way to inspect structured state, and agents already work well with SQL-based APIs. Monarch includes a lightweight distributed SQL engine. It collects live state information, pyspy traces, and logs from distributed processes and actors.
+
+Brian：因为 SQL 是查看结构化状态的一种熟悉方式，而且智能体已经很擅长使用基于 SQL 的 API。Monarch 内置了一个轻量级分布式 SQL 引擎，用来收集分布式进程和 actors 的实时状态信息、pyspy 跟踪数据和日志。
+
+Ava: Does Monarch just collect the data, or can it query the running system directly?
+
+Ava：Monarch 只是收集数据，还是也能直接查询正在运行的系统？
+
+Brian: It can query it directly. The team ran a DataFusion distributed SQL query engine in situ, meaning inside the running distributed environment. Each node writes live state into tables, and an agent can query those tables efficiently while debugging.
+
+Brian：它能直接查询。团队在原位运行了一个 DataFusion 分布式 SQL 查询引擎，也就是说，引擎就在正在运行的分布式环境内部。每个节点都会把实时状态写入表中，智能体调试时可以高效查询这些表。
+
+Ava: That sounds much easier than opening logs from dozens of machines.
+
+Ava：这听起来比逐台打开几十台机器上的日志轻松多了。
+
+Brian: Exactly. You can explore the state from a central point. The article presents this as a way to reduce debugging time, because the information is accessible through one client-facing SQL endpoint.
+
+Brian：没错。你可以从一个中心入口查看系统状态。文章认为，这能缩短调试时间，因为通过一个面向客户端的 SQL 端点就能获取这些信息。
+
+Ava: Then there’s the Jobs API. What problem does that solve?
+
+Ava：接下来是 Jobs API。它解决什么问题？
+
+Brian: It lets you provision resources, such as hosts, once, and run many jobs on them. You avoid paying the repeated allocation penalty every time a job restarts. Monarch supports Kubernetes and SLURM, and other schedulers can be connected by implementing a Monarch Job.
+
+Brian：它让你只需配置一次 hosts 等资源，就能在上面运行多个作业。这样每次重启作业时，就不用重复承担资源分配的时间开销。Monarch 支持 Kubernetes 和 SLURM；其他调度器也可以通过实现 Monarch Job 来接入。
+
+Ava: So the three pieces work together: sync quickly, inspect quickly, and restart quickly.
+
+Ava：所以这三部分配合起来，就是快速同步、快速查看状态、快速重启。
+
+Brian: That’s a good recap. Monarch’s toolbox helps agents restart jobs fast, sync new code and data fast, and debug fast. The system feels local even though the work is distributed.
+
+Brian：总结得很好。Monarch 的工具集帮助智能体快速重启作业、快速同步新代码和数据，也能快速调试。即使工作分布在多台机器上，整个系统用起来仍像在本地一样。
+
+Ava: The article says Monarch launched at the PyTorch conference in October twenty twenty-five. What changed since then?
+
+Ava：文章说 Monarch 于2025年10月在 PyTorch 大会上发布。此后发生了哪些变化？
+
+Brian: Kubernetes support became first-class. There’s now a dedicated open-source repository called monarch-kubernetes. It includes a MonarchMesh Custom Resource Definition, a reference KubeBuilder operator, and a hello-world demo.
+
+Brian：Kubernetes 获得了一等支持。现在有一个名为 monarch-kubernetes 的专用开源仓库，其中包含 MonarchMesh Custom Resource Definition、一个参考实现的 KubeBuilder operator，以及一个 hello-world 演示。
+
+Ava: What does just-in-time pod provisioning mean here?
+
+Ava：这里说的按需配置 pod 是什么意思？
+
+Brian: Pods are allocated when they’re needed instead of being reserved upfront. That can improve cluster utilization. Monarch also added an external gateway, so out-of-cluster clients can connect to meshes running inside Kubernetes. That feature is landing in zero point five.
+
+Brian：Pod 现在会在需要时才分配，而不是预先预留。这有助于提高集群利用率。Monarch 还新增了外部网关，让集群外的客户端能够连接到 Kubernetes 内运行的 mesh。这项功能将在 0.5 版本中推出。
+
+Ava: And there are versioned and nightly Docker containers?
+
+Ava：而且还有按版本发布和每夜构建的 Docker 容器？
+
+Brian: Yes. They’re published to GHCR, the GitHub Container Registry, to support reproducible deployments. MonarchMesh labels can also enable scheduling through Kueue.
+
+Brian：是的。它们发布在 GHCR，也就是 GitHub Container Registry，以支持可复现的部署。MonarchMesh labels 还可以启用通过 Kueue 进行的调度。
+
+Ava: Let’s move to networking. RDMA appears everywhere in this project.
+
+Ava：再聊聊网络。这个项目里到处都有 RDMA。
+
+Brian: Monarch added several RDMA backends and a higher-level API. AWS EFA, or Elastic Fabric Adapter, is now supported by Monarch’s RDMABuffer. The article says it was validated at sixteen gigabits per second, ten times faster than TCP, with fourteen point five gigabytes transferred in seven point six seconds.
+
+Brian：Monarch 新增了几个 RDMA 后端和一个更高层的 API。Monarch 的 RDMABuffer 现在支持 AWS EFA，即 Elastic Fabric Adapter。文章称，验证结果显示其速度达到每秒16吉比特，比 TCP 快10倍，并在7.6秒内传输了14.5吉字节的数据。
+
+Ava: That’s a concrete result. Is the API tied to AWS hardware?
+
+Ava：这是个很具体的结果。这个 API 依赖 AWS 硬件吗？
+
+Brian: No. The Unified RDMA API is designed to be hardware-portable. It works across InfiniBand with mlx5, AWS EFA, and ROCm. You can write once and run on different fabrics, or fall back to Monarch actor messaging when RDMA isn’t available.
+
+Brian：不依赖。Unified RDMA API 的设计目标是跨硬件移植。它适用于使用 mlx5 的 InfiniBand、AWS EFA 和 ROCm。你可以编写一次代码，在不同的网络互连上运行；如果 RDMA 不可用，还可以回退到 Monarch actor messaging。
+
+Ava: ROCm brings AMD GPUs into the picture.
+
+Ava：ROCm 也把 AMD GPU 带进来了。
+
+Brian: Right. GPU-direct RDMA and RCCL collective communication now work on AMD GPUs through ROCm with Mellanox interfaces. AMD also validated Monarch on ROCm for MI300, MI325, and MI355 clusters, with SLURM-based orchestration.
+
+Brian：对。通过搭配 Mellanox 接口的 ROCm，AMD GPU 现在可以使用 GPU-direct RDMA 和 RCCL 集合通信。AMD 还验证了 Monarch 在 MI300、MI325 和 MI355 集群上的 ROCm 运行情况，采用基于 SLURM 的编排。
+
+Ava: That’s useful for teams that don’t run NVIDIA hardware.
+
+Ava：这对不使用 NVIDIA 硬件的团队很有用。
+
+Brian: Yes, and the article points out that AMD clusters with Mellanox network interfaces can use RDMA for fast GPU-to-GPU communication. That combination is available from major cloud providers such as Azure and Oracle.
+
+Brian：是的，文章还指出，配有 Mellanox 网络接口的 AMD 集群可以利用 RDMA 实现快速的 GPU 到 GPU 通信。Azure 和 Oracle 等主要云提供商都提供这种组合。
+
+Ava: What about observability? The article seems to treat it as a major feature, not an afterthought.
+
+Ava：可观测性方面呢？文章似乎把它当作一项重要功能，而不是后来才补上的东西。
+
+Brian: That’s fair. Monarch has a client-accessible Distributed SQL Telemetry endpoint, an Admin API, and a Terminal UI for inspecting and managing live jobs. It also supports OpenTelemetry for metrics, logs, and visualization on Kubernetes.
+
+Brian：这么说很贴切。Monarch 提供客户端可访问的 Distributed SQL Telemetry 端点、Admin API 和 Terminal UI，用于检查和管理正在运行的作业。它还支持 OpenTelemetry，可在 Kubernetes 上处理指标、日志和可视化。
+
+Ava: Can it fit into existing DevOps tools?
+
+Ava：它能接入现有的 DevOps 工具吗？
+
+Brian: Yes. The OpenTelemetry integration can connect with Prometheus, Loki, Grafana, and other common open-source tooling. There’s also a per-job open-source dashboard in beta for visualizing and debugging distributed jobs without external tools.
+
+Brian：能。OpenTelemetry 集成可以连接 Prometheus、Loki、Grafana 和其他常见的开源工具。另外，还有一个处于 beta 阶段的开源仪表板，可按作业查看和调试分布式作业，无需外部工具。
+
+Ava: The installation story changed too, right?
+
+Ava：安装方面也有变化，对吧？
+
+Brian: A lot. The pip wheel became one hundred times smaller, and startup became eight times faster. The project removed libpython linking requirements. As of version zero point two, torchmonarch no longer pulls in torch as a pip dependency, which avoids version conflicts.
+
+Brian：变化很多。pip wheel 包的体积缩小了100倍，启动速度提高了8倍。项目移除了对 libpython 的链接要求。从 0.2 版本起，torchmonarch 不再将 torch 列为 pip 依赖，从而避免版本冲突。
+
+Ava: And uv support is built in?
+
+Ava：还内置了对 uv 的支持？
+
+Brian: Yes. Monarch works out of the box with uv, the fast Python package manager. The example flow is simple: clone the repository, change into the directory, and run the example with uv. Packaging was consolidated under one torchmonarch name, with PEP four forty pre-release versions for nightlies. ARM sixty-four Linux builds were added in version zero point four.
+
+Brian：是的。Monarch 可以直接配合快速 Python 包管理器 uv 使用。示例流程很简单：克隆代码仓库，进入该目录，然后用 uv 运行示例。打包统一使用 torchmonarch 这一个名称，每夜构建采用符合 PEP 440 的预发布版本号。0.4 版本新增了 ARM64 Linux 构建。
+
+Ava: That sounds much friendlier for interactive work too.
+
+Ava：这样做交互式开发也方便多了。
+
+Brian: The article mentions improved interactive SPMD support. SPMD means Single Program, Multiple Data. The goal is to make notebook-style development more practical for these jobs. The RDMA File System also helps with convenient file syncing across hosts.
+
+Brian：文章提到了对交互式 SPMD 的改进。SPMD 指 Single Program, Multiple Data。目标是让这类作业更适合采用 notebook 风格进行开发。RDMA File System 也让跨主机同步文件更方便。
+
+Ava: The collaborations section is interesting. What did SkyPilot add?
+
+Ava：合作部分很有意思。SkyPilot 带来了什么？
+
+Brian: The SkyPilot integration lets users run Monarch workloads on any Kubernetes cluster or cloud with one command, without changing their Monarch code. SkyPilot handles node provisioning, networking, and gang scheduling, so teams can focus on training logic.
+
+Brian：通过 SkyPilot 集成，用户无需修改 Monarch 代码，只用一条命令就能在任何 Kubernetes 集群或云上运行 Monarch 工作负载。SkyPilot 负责节点配置、网络和 gang scheduling，让团队能够专注于训练逻辑。
+
+Ava: And it connects through Monarch’s JobTraits API?
+
+Ava：它是通过 Monarch 的 JobTraits API 连接的吗？
+
+Brian: Yes. That API lets SkyPilot plug in as the job backend, without requiring separate operators on Kubernetes clusters.
+
+Brian：是的。这个 API 让 SkyPilot 可以接入并充当作业后端，无需在 Kubernetes 集群上部署单独的 operator。
+
+Ava: What about VeRL? That seems closer to distributed RL.
+
+Ava：那 VeRL 呢？它似乎更接近分布式 RL。
+
+Brian: VeRL is an open-source framework for distributed RLHF post-training. The teams built a Monarch backend for VeRL’s single-controller architecture. It includes resource pool abstractions based on the Monarch Jobs API, colocated multi-role workers, an RDMA transport for VeRL’s DataProto exchange pattern, and a vLLM server integration.
+
+Brian：VeRL 是一个用于分布式 RLHF 后训练的开源框架。团队为 VeRL 的单控制器架构构建了 Monarch 后端。它包括基于 Monarch Jobs API 的资源池抽象、协同部署的多角色工作进程、用于 VeRL 的 DataProto 交换模式的 RDMA 传输机制，以及 vLLM 服务器集成。
+
+Ava: Did the training results match?
+
+Ava：训练结果一致吗？
+
+Brian: The article says VeRL’s PPO and GRPO training loops ran on Monarch through this backend, using hybrid-engine training mode. The results were numerically identical, with no performance regression.
+
+Brian：文章说，VeRL 的 PPO 和 GRPO 训练循环通过这个后端在 Monarch 上运行，采用的是混合引擎训练模式。结果在数值上完全一致，而且没有性能下降。
+
+Ava: That sounds almost effortless. Was it?
+
+Ava：听起来几乎不费什么力气。真是这样吗？
+
+Brian: Not quite. One important finding was that VeRL’s single-controller interface is cleanly abstracted, but Ray API usage appears throughout the broader codebase. So replacing the backend was more involved than the interface alone suggested. The article says this is common in frameworks built on Ray, and the communities can keep collaborating on it.
+
+Brian：也不完全是。一个重要发现是，VeRL 的单控制器接口虽然抽象得很清晰，但 Ray API 的使用遍布更广泛的代码库。因此，替换后端比单看接口时预想的更复杂。文章说，这种情况在基于 Ray 构建的框架中很常见，相关社区可以继续合作解决。
+
+Ava: So Monarch improves the infrastructure layer, but existing framework assumptions can still make migration complicated.
+
+Ava：所以 Monarch 改善了基础设施层，但现有框架中的一些既定假设仍可能让迁移变得复杂。
+
+Brian: Exactly. That’s one of the limitations the article reveals. Monarch provides a coherent system and strong tools, but integrating it into a mature stack may require work beyond swapping one interface.
+
+Brian：正是如此。这是文章揭示的局限之一。Monarch 提供了一个连贯的系统和强大的工具，但要把它集成进成熟的技术栈，可能需要做的不只是替换一个接口。
+
+Ava: Let’s close with the main takeaways. Give me the three-point version.
+
+Ava：最后总结一下主要收获吧。请用三点概括。
+
+Brian: First, Monarch turns a supercomputer into a programmable Python system, so distributed development feels more like local development. Second, RDMA file syncing, Distributed SQL Telemetry, the Jobs API, and the admin tools reduce iteration time. Third, since its launch, Monarch has expanded Kubernetes, networking, observability, installation, AMD support, and integrations with SkyPilot and VeRL.
+
+Brian：第一，Monarch 把超级计算机变成一个可用 Python 编程的系统，让分布式开发更像本地开发。第二，RDMA 文件同步、Distributed SQL Telemetry、Jobs API 和管理工具缩短了迭代时间。第三，自推出以来，Monarch 在 Kubernetes、网络、可观测性、安装、AMD 支持以及与 SkyPilot 和 VeRL 的集成方面都有了扩展。
+
+Ava: And the bigger direction is speed and simplicity for both people and agents.
+
+Ava：更大的方向则是让人和智能体都能更快速、更轻松地工作。
+
+Brian: Right. Monarch is presented as an API for your supercomputer. If you work on large-scale PyTorch training, it’s worth watching how this ecosystem develops.
+
+Brian：没错。Monarch 被定位为超级计算机的 API。如果你从事大规模 PyTorch 训练，值得关注这个生态系统接下来的发展。
+
+Ava: That’s our episode. Thanks for listening, and we’ll talk to you next time.
+
+Ava：本期节目就到这里。感谢收听，我们下次再聊。
+
+## 术语
+
+| Term | 释义 |
+|---|---|
+| Monarch | 面向 PyTorch 的分布式编程框架，用 Python API 控制大型集群 |
+| RDMA | Remote Direct Memory Access，远程直接内存访问 |
+| RDMA-Powered Remote File System | 通过 RDMA 向作业中所有主机分发文件的只读文件系统 |
+| Distributed SQL Telemetry | 用分布式 SQL 引擎收集并查询运行时状态、日志和追踪信息 |
+| Jobs API | 用于申请主机等资源并在其上运行多个作业的 API |
+| Kubernetes | 用于部署和管理容器化工作负载的平台 |
+| SLURM | 常用于 HPC 集群资源调度和作业管理的系统 |
+| AWS EFA | Amazon Elastic Fabric Adapter，高性能网络适配器 |
+| Unified RDMA API | 跨 InfiniBand、AWS EFA 和 ROCm 网络的硬件可移植 RDMA 接口 |
+| ROCm | AMD GPU 的软件平台 |
+| OpenTelemetry | 用于指标、日志和可视化的开放式可观测性标准 |
+| SPMD | Single Program, Multiple Data，单程序多数据 |
+| RLHF | Reinforcement Learning from Human Feedback，基于人类反馈的强化学习 |
+| PPO | Proximal Policy Optimization，一种强化学习算法 |
+| GRPO | VeRL 使用的另一种强化学习训练方法，文章未展开其全称 |
+
+## 口语表达
+
+| Phrase | 释义 |
+|---|---|
+| What if your laptop could control a thousand GPUs? | 如果你的笔记本能控制一千块 GPU 呢？ |
+| That’s the basic idea. | 这就是基本思路。 |
+| Let’s move to networking. | 我们继续看网络部分。 |
+| That’s a good recap. | 这个总结得很好。 |
+| What problem does that solve? | 它解决的是什么问题？ |
+| It can query it directly. | 它可以直接查询它。 |
+| That sounds much easier than... | 这听起来比……容易多了。 |
+| Not quite. | 也不完全是。 |
+| One important finding was that... | 一个重要发现是…… |
+| Let’s close with the main takeaways. | 我们用主要要点来收尾。 |

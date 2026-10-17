@@ -1,0 +1,739 @@
+1
+00:00:00,000 --> 00:00:07,645
+Ava: What if the PyTorch model you trained could reach a tiny, always-on device without a detour through another framework?
+Ava：如果你训练的 PyTorch 模型不用转到其他框架，就能部署到微型常开设备上呢？
+
+2
+00:00:07,645 --> 00:00:10,262
+That could save a lot of debugging.
+那能省下不少调试工夫。
+
+3
+00:00:10,262 --> 00:00:12,217
+Brian: That's the promise here.
+Brian：这正是它的目标。
+
+4
+00:00:12,217 --> 00:00:17,676
+ExecuTorch now has a Cortex-M backend for Arm microcontroller CPUs.
+ExecuTorch 现在为 Arm 微控制器 CPU 提供了 Cortex-M 后端。
+
+5
+00:00:17,676 --> 00:00:22,588
+It keeps export and deployment in the PyTorch ecosystem.
+模型导出和部署都能留在 PyTorch 生态中。
+
+6
+00:00:22,588 --> 00:00:25,788
+Ava: Tiny devices sound like a tough place for a model.
+Ava：微型设备运行模型，听起来很有挑战。
+
+7
+00:00:25,788 --> 00:00:28,890
+What kind of hardware are we talking about?
+具体是什么硬件？
+
+8
+00:00:28,890 --> 00:00:35,202
+Brian: Microcontroller units, or MCUs, in things like wearables, sensors, and voice interfaces.
+Brian：是可穿戴设备、传感器和语音接口中的微控制器，也叫 MCU。
+
+9
+00:00:35,202 --> 00:00:41,864
+They often have less than one megabyte of working memory and very limited flash storage.
+它们的运行内存通常不到 1 MB，闪存空间也很有限。
+
+10
+00:00:41,864 --> 00:00:48,310
+Ava: So the old workflow was to train in PyTorch, then convert the model for deployment?
+Ava：以前是先用 PyTorch 训练，再转换模型以便部署？
+
+11
+00:00:48,310 --> 00:00:51,827
+Brian: Right. That meant another format and another toolchain.
+Brian：对，这就多了一种格式和一套工具链。
+
+12
+00:00:51,827 --> 00:00:58,380
+If the converted model gave different numbers, you had to track down where the mismatch appeared.
+如果转换后的模型算出不同的数值，你就得查清差异从哪一步出现。
+
+13
+00:00:58,380 --> 00:01:06,482
+Ava: When you say it runs directly on Cortex-M, you don't mean running ordinary PyTorch Python code on the chip, do you?
+Ava：你说直接在 Cortex-M 上运行，不是指在芯片上跑普通的 PyTorch Python 代码吧？
+
+14
+00:01:06,482 --> 00:01:12,180
+Brian: No. You export the PyTorch model, quantize it, and compile it for the target.
+Brian：不是。你要导出 PyTorch 模型、进行量化，再针对目标芯片编译。
+
+15
+00:01:12,180 --> 00:01:17,488
+The device runs that prepared graph through the ExecuTorch runtime.
+设备通过 ExecuTorch 运行时执行这个处理好的计算图。
+
+16
+00:01:17,488 --> 00:01:22,422
+Ava: Good distinction. What does the new backend actually change?
+Ava：这个区别很重要。新后端具体改变了什么？
+
+17
+00:01:22,422 --> 00:01:28,823
+Brian: It replaces supported operators during compilation with versions backed by CMSIS-NN.
+Brian：编译时，它会把受支持的算子替换成基于 CMSIS-NN 的实现。
+
+18
+00:01:28,823 --> 00:01:36,260
+That's Arm's open-source library of optimized neural network kernels for Cortex-M processors.
+CMSIS-NN 是 Arm 面向 Cortex-M 处理器的开源优化神经网络算子库。
+
+19
+00:01:36,260 --> 00:01:44,650
+Ava: So if my graph has a convolution, the backend can choose a Cortex-M-friendly implementation before the device ever sees it?
+Ava：如果计算图里有卷积，后端能在部署前选好适合 Cortex-M 的实现？
+
+20
+00:01:44,650 --> 00:01:45,337
+Brian: Exactly.
+Brian：没错。
+
+21
+00:01:45,337 --> 00:01:55,557
+The article mentions operations such as convolution, linear layers, addition, multiplication, softmax, and activations.
+文章提到了卷积、线性层、加法、乘法、softmax 和激活函数等运算。
+
+22
+00:01:55,557 --> 00:02:00,888
+The replacements happen ahead of time, during compilation.
+这些替换会在编译时提前完成。
+
+23
+00:02:00,888 --> 00:02:03,586
+Ava: And quantization is part of that path.
+Ava：量化也是这个流程的一部分。
+
+24
+00:02:03,586 --> 00:02:08,054
+Could you unpack it for someone listening while commuting?
+能给通勤路上的听众简单解释一下吗？
+
+25
+00:02:08,054 --> 00:02:15,517
+Brian: Here it means preparing an INT8 graph, using eight-bit integers for the quantized operations.
+Brian：这里是指准备 INT8 计算图，让量化运算使用 8 位整数。
+
+26
+00:02:15,517 --> 00:02:24,052
+The CortexMQuantizer uses PyTorch's PT2E quantization framework to produce layouts the kernels expect.
+CortexMQuantizer 使用 PyTorch 的 PT2E 量化框架，生成符合算子要求的数据布局。
+
+27
+00:02:24,052 --> 00:02:31,986
+Ava: Does one build work across every Cortex-M chip, or do developers have to describe their exact target?
+Ava：一次构建就能适配所有 Cortex-M 芯片，还是得指定目标芯片？
+
+28
+00:02:31,986 --> 00:02:37,342
+Brian: They specify the CPU and its instruction set capabilities at compile time.
+Brian：开发者要在编译时指定 CPU 及其支持的指令集。
+
+29
+00:02:37,342 --> 00:02:41,177
+The backend then selects the matching implementation.
+后端再选择匹配的实现。
+
+30
+00:02:41,177 --> 00:02:46,304
+There's no need to decide between those variants during inference.
+推理时就不用再从这些实现中做选择了。
+
+31
+00:02:46,304 --> 00:02:50,323
+Ava: The article divides those capabilities into three tiers.
+Ava：文章把这些能力分成三个档次。
+
+32
+00:02:50,323 --> 00:02:54,046
+Can we translate that table into normal speech?
+能用通俗的话讲讲那张表吗？
+
+33
+00:02:54,046 --> 00:03:01,002
+Brian: Sure. Scalar covers cores such as M0 and M3, using standard Arm instructions.
+Brian：当然。Scalar 档涵盖 M0、M3 等内核，使用标准 Arm 指令。
+
+34
+00:03:01,002 --> 00:03:05,609
+DSP adds instructions useful for signal processing.
+DSP 档增加了适合信号处理的指令。
+
+35
+00:03:05,609 --> 00:03:10,476
+MVE, also called Helium, brings vector operations.
+MVE 也叫 Helium，支持向量运算。
+
+36
+00:03:10,476 --> 00:03:15,458
+Ava: And the M55 in the measurements is in that Helium tier?
+Ava：测试中用的 M55 属于 Helium 档吗？
+
+37
+00:03:15,458 --> 00:03:19,009
+Brian: Yes. The M55 and M85 are the MVE examples.
+Brian：对，M55 和 M85 都是支持 MVE 的例子。
+
+38
+00:03:19,009 --> 00:03:30,520
+CMSIS-NN can use Helium's execution model to move data and compute efficiently, especially for depthwise and pointwise convolutions.
+CMSIS-NN 能利用 Helium 的执行方式高效搬运数据和计算，尤其适合深度卷积和逐点卷积。
+
+39
+00:03:30,520 --> 00:03:35,118
+Ava: But the same developer workflow still targets the smaller cores?
+Ava：同一套开发流程也能用于更小的内核？
+
+40
+00:03:35,118 --> 00:03:41,401
+Brian: That's the idea. You keep the workflow and change the target configuration.
+Brian：没错。流程不变，只需更改目标配置。
+
+41
+00:03:41,401 --> 00:03:48,956
+The selected kernels reflect whether that target has Scalar, DSP, or MVE capabilities.
+选用的算子实现取决于目标支持 Scalar、DSP 还是 MVE。
+
+42
+00:03:48,956 --> 00:03:50,224
+Ava: Let's pause there.
+Ava：我们在这里停一下。
+
+43
+00:03:50,224 --> 00:03:57,898
+The graph is prepared once for a known chip, instead of asking the chip to make those choices each time.
+也就是说，针对已知芯片提前准备好计算图，不必让芯片每次运行时再做选择。
+
+44
+00:03:57,898 --> 00:03:58,545
+Brian: Exactly.
+Brian：没错。
+
+45
+00:03:58,545 --> 00:04:06,309
+Embedded developers usually know the CPU, memory regions, and available instructions in advance.
+嵌入式开发者通常事先就知道 CPU、内存区域和可用指令。
+
+46
+00:04:06,309 --> 00:04:11,592
+ExecuTorch uses that information while it compiles the model.
+ExecuTorch 会在编译模型时利用这些信息。
+
+47
+00:04:11,592 --> 00:04:14,606
+Ava: What work can it move out of inference?
+Ava：哪些工作可以提前做，不留到推理时？
+
+48
+00:04:14,606 --> 00:04:20,065
+Brian: For one thing, it removes redundant conversions and transposes from the graph.
+Brian：比如从计算图中去掉多余的格式转换和转置。
+
+49
+00:04:20,065 --> 00:04:26,644
+Think of it as clearing unnecessary turns from a delivery route before the driver leaves.
+就像司机出发前，先删掉配送路线中不必要的绕路。
+
+50
+00:04:26,644 --> 00:04:32,658
+Ava: The article also mentions folding quantization parameters. What's being folded?
+Ava：文章还提到折叠量化参数。折叠的是什么？
+
+51
+00:04:32,658 --> 00:04:39,170
+Brian: Scale and zero-point arithmetic is prepared as integer multipliers and shifts during export.
+Brian：缩放因子和零点的运算在导出时预先转换为整数乘数和移位量。
+
+52
+00:04:39,170 --> 00:04:45,608
+That lets those quantized kernels stay in fixed-point arithmetic while inference runs.
+这样，量化内核在推理时就能一直使用定点运算。
+
+53
+00:04:45,608 --> 00:04:48,646
+Ava: And there's a weight layout change too, right?
+Ava：权重的排列方式也要改，对吧？
+
+54
+00:04:48,646 --> 00:04:54,472
+Brian: Yes. PyTorch and CMSIS-NN expect convolution weights in different orders.
+Brian：对。PyTorch 和 CMSIS-NN 要求卷积权重按不同顺序排列。
+
+55
+00:04:54,472 --> 00:05:02,484
+The compiler transposes those weights once during export, so the device doesn't repeat the work.
+编译器在导出时只转置一次权重，设备就不用重复处理。
+
+56
+00:05:02,484 --> 00:05:08,426
+Ava: Memory feels like the other big constraint. How does the runtime avoid surprises there?
+Ava：内存似乎是另一个大限制。运行时怎么避免意外超出内存？
+
+57
+00:05:08,426 --> 00:05:12,838
+Brian: It plans tensor and scratch-buffer locations ahead of time.
+Brian：它会提前规划张量和临时缓冲区的位置。
+
+58
+00:05:12,838 --> 00:05:19,418
+It can place them across memory regions, including fast tightly coupled memory and SRAM.
+它可以把这些数据放在不同内存区域，包括高速紧耦合内存和 SRAM。
+
+59
+00:05:19,418 --> 00:05:23,656
+Developers can customize where important buffers go.
+开发者也能指定重要缓冲区的位置。
+
+60
+00:05:23,656 --> 00:05:27,270
+Ava: So it already knows where the working space will be?
+Ava：也就是说，工作空间的位置事先就定好了？
+
+61
+00:05:27,270 --> 00:05:31,449
+Brian: Right. Tensor inference doesn't need dynamic allocation.
+Brian：对。张量推理不需要动态分配内存。
+
+62
+00:05:31,449 --> 00:05:37,844
+That gives bounded memory use and avoids heap fragmentation during repeated runs.
+这样内存用量就有上限，反复运行时也不会出现堆碎片。
+
+63
+00:05:37,844 --> 00:05:41,890
+Ava: Walk me through the workflow without reading Python aloud.
+Ava：别照着 Python 代码念，讲讲整个流程吧。
+
+64
+00:05:41,890 --> 00:05:45,584
+Brian: Start with an evaluation model and example inputs.
+Brian：先准备处于评估模式的模型和示例输入。
+
+65
+00:05:45,584 --> 00:05:54,504
+Export it, prepare it for quantization, run calibration samples, convert it, and export the quantized version again.
+导出模型，做好量化准备，用样本校准，完成量化转换，再次导出量化模型。
+
+66
+00:05:54,504 --> 00:05:59,102
+Ava: Then you tell the compiler which Cortex-M chip it's aiming for?
+Ava：然后告诉编译器目标是哪款 Cortex-M 芯片？
+
+67
+00:05:59,102 --> 00:05:59,404
+Brian: Yes.
+Brian：对。
+
+68
+00:05:59,404 --> 00:06:06,576
+You lower the exported graph to ExecuTorch's edge representation and apply the Cortex-M passes.
+把导出的计算图转换为 ExecuTorch 的边缘表示，再应用 Cortex-M 编译变换。
+
+69
+00:06:06,576 --> 00:06:10,852
+Finally, you serialize the program for the firmware.
+最后，将程序序列化，供固件使用。
+
+70
+00:06:10,852 --> 00:06:13,746
+Ava: Where does that serialized program go?
+Ava：序列化后的程序放在哪里？
+
+71
+00:06:13,746 --> 00:06:24,095
+Brian: The resulting PTE binary is linked into firmware alongside the ExecuTorch runtime and CMSIS-NN library, then flashed to the device.
+Brian：生成的 PTE 二进制文件会与 ExecuTorch 运行时和 CMSIS-NN 库一起链接进固件，再烧录到设备上。
+
+72
+00:06:24,095 --> 00:06:27,368
+Inference runs the precompiled graph.
+推理时运行的是预编译的计算图。
+
+73
+00:06:27,368 --> 00:06:31,973
+Ava: Wait, some of these chips also have an Ethos-U accelerator.
+Ava：等等，有些芯片还有 Ethos-U 加速器。
+
+74
+00:06:31,973 --> 00:06:35,758
+Does the CPU backend compete with that path?
+CPU 后端会和这条路径竞争吗？
+
+75
+00:06:35,758 --> 00:06:37,205
+Brian: It complements it.
+Brian：两者是互补的。
+
+76
+00:06:37,205 --> 00:06:43,071
+An Ethos-U NPU, or neural processing unit, can take supported operations.
+Ethos-U NPU，也就是神经网络处理单元，可以执行它支持的运算。
+
+77
+00:06:43,071 --> 00:06:50,172
+Operations left outside its partition can run on the Cortex-M CPU in the same graph.
+同一计算图中，未被分配给它的运算可以交给 Cortex-M CPU 执行。
+
+78
+00:06:50,172 --> 00:06:56,594
+Ava: What decides whether an operation left on the CPU gets CMSIS-NN acceleration?
+Ava：留在 CPU 上的运算能否获得 CMSIS-NN 加速，取决于什么？
+
+79
+00:06:56,594 --> 00:07:00,220
+Brian: The Cortex-M passes run after Ethos-U partitioning.
+Brian：Cortex-M 编译变换在 Ethos-U 分区之后运行。
+
+80
+00:07:00,220 --> 00:07:10,168
+They can reuse the graph's quantization parameters when the operation meets the backend's quantization, layout, and shape requirements.
+如果运算满足后端对量化、布局和形状的要求，就能复用计算图中的量化参数。
+
+81
+00:07:10,168 --> 00:07:13,350
+Ava: And if it doesn't meet those requirements?
+Ava：如果不满足呢？
+
+82
+00:07:13,350 --> 00:07:16,918
+Brian: It falls back to ExecuTorch's portable kernels.
+Brian：就回退到 ExecuTorch 的通用内核。
+
+83
+00:07:16,918 --> 00:07:21,246
+Those work, but the article says they aren't accelerated.
+这些内核能运行，但文章指出它们没有加速。
+
+84
+00:07:21,246 --> 00:07:25,772
+That detail matters when you're estimating performance.
+估算性能时，这一点很重要。
+
+85
+00:07:25,772 --> 00:07:33,250
+Ava: So an NPU doesn't have to cover every operation before a mixed CPU and NPU model can run.
+Ava：所以，即使 NPU 无法覆盖所有运算，CPU 和 NPU 混合执行的模型也能运行。
+
+86
+00:07:33,250 --> 00:07:37,913
+Brian: Exactly. That's the practical benefit the article highlights.
+Brian：没错。文章强调的实际好处正是这一点。
+
+87
+00:07:37,913 --> 00:07:43,920
+A few operations outside the NPU partition don't have to block deployment.
+少量运算落在 NPU 分区之外，也不必成为部署障碍。
+
+88
+00:07:43,920 --> 00:07:47,942
+Ava: Let's get to measurements. What did they actually run?
+Ava：说说测试数据吧。他们实际跑了什么？
+
+89
+00:07:47,942 --> 00:07:53,951
+Brian: Four of the five MLPerf Tiny benchmark models, all quantized to INT8.
+Brian：五个 MLPerf Tiny 基准模型中的四个，全部量化为 INT8。
+
+90
+00:07:53,951 --> 00:08:01,180
+They used one Cortex-M55 core on an Alif Ensemble E8 at four hundred megahertz.
+他们在 Alif Ensemble E8 上使用一个主频 400 MHz 的 Cortex-M55 核心。
+
+91
+00:08:01,180 --> 00:08:06,378
+Ava: The Alif chip has Ethos-U units too. Were those helping?
+Ava：Alif 芯片也有 Ethos-U 单元。测试时用上了吗？
+
+92
+00:08:06,378 --> 00:08:10,131
+Brian: No. The NPUs were unused for these measurements.
+Brian：没有。这些测试并未使用 NPU。
+
+93
+00:08:10,131 --> 00:08:16,736
+That makes this a useful look at the Cortex-M CPU path on that particular board.
+因此，这些数据能反映这块开发板上 Cortex-M CPU 路径的表现。
+
+94
+00:08:16,736 --> 00:08:19,174
+Ava: How quick were the models?
+Ava：模型跑得有多快？
+
+95
+00:08:19,174 --> 00:08:23,518
+Brian: Every one finished within twenty-one point five milliseconds.
+Brian：每个模型都在 21.5 毫秒内运行完毕。
+
+96
+00:08:23,518 --> 00:08:27,648
+Keyword spotting took about five point eight milliseconds.
+关键词识别约需 5.8 毫秒。
+
+97
+00:08:27,648 --> 00:08:32,484
+Visual wake words took twenty-one point four five milliseconds.
+视觉唤醒词识别需 21.45 毫秒。
+
+98
+00:08:32,484 --> 00:08:34,370
+Ava: And the other two?
+Ava：另外两个呢？
+
+99
+00:08:34,370 --> 00:08:38,968
+Brian: Image classification took about fifteen point three milliseconds.
+Brian：图像分类约需 15.3 毫秒。
+
+100
+00:08:38,968 --> 00:08:44,061
+The anomaly detection autoencoder took about one point two milliseconds.
+异常检测自编码器约需 1.2 毫秒。
+
+101
+00:08:44,061 --> 00:08:46,816
+Those are per-inference latencies.
+这些是单次推理的延迟。
+
+102
+00:08:46,816 --> 00:08:52,422
+Ava: What about memory? A small latency number won't help if the model doesn't fit.
+Ava：内存呢？模型装不下的话，延迟再低也没用。
+
+103
+00:08:52,422 --> 00:08:58,617
+Brian: All four used less than ninety kibibytes of peak RAM. Three used less than sixty.
+Brian：四个模型的峰值内存都低于 90 KiB，其中三个低于 60 KiB。
+
+104
+00:08:58,617 --> 00:09:03,020
+The autoencoder needed just five point two kibibytes.
+自编码器只需要 5.2 KiB。
+
+105
+00:09:03,020 --> 00:09:08,266
+Ava: The article also talks about a selective build. What gets selected?
+Ava：文章还提到选择性构建。选择的是什么？
+
+106
+00:09:08,266 --> 00:09:12,435
+Brian: Only the operators a model needs are linked into its firmware.
+Brian：只把模型需要的算子链接进固件。
+
+107
+00:09:12,435 --> 00:09:21,864
+The ExecuTorch core runtime is under twenty kibibytes of flash, and measured code footprints ranged from about fifteen to thirty-seven.
+ExecuTorch 核心运行时占用的闪存不到 20 KiB；实测代码大小约为 15 到 37 KiB。
+
+108
+00:09:21,864 --> 00:09:27,518
+Ava: That's code size, though. The model itself also occupies flash.
+Ava：但那只是代码大小，模型本身也占闪存。
+
+109
+00:09:27,518 --> 00:09:27,910
+Brian: Right.
+Brian：没错。
+
+110
+00:09:27,910 --> 00:09:36,017
+For example, the visual wake words model used about two hundred fifty-three kibibytes for the model and thirty-six for code.
+比如视觉唤醒词模型占用约 253 KiB，代码占用约 36 KiB。
+
+111
+00:09:36,017 --> 00:09:39,244
+The total was about two hundred eighty-nine.
+总共约 289 KiB。
+
+112
+00:09:39,244 --> 00:09:44,274
+Ava: Can we compare those timings with the official MLPerf Tiny leaderboard?
+Ava：这些耗时能和 MLPerf Tiny 官方排行榜比较吗？
+
+113
+00:09:44,274 --> 00:09:52,017
+Brian: The article says no. These are the team's own measurements, using the Alif evaluation kit as a test harness.
+Brian：文章说不是。这是团队自己的测量结果，他们用 Alif 评估套件作为测试平台。
+
+114
+00:09:52,017 --> 00:09:55,808
+They weren't an official MLPerf Tiny submission.
+它们并非 MLPerf Tiny 的官方提交结果。
+
+115
+00:09:55,808 --> 00:10:01,798
+Ava: There's also a person detection demo. What did that add beyond a benchmark table?
+Ava：还有一个人员检测演示。除了基准测试表，它展示了什么？
+
+116
+00:10:01,798 --> 00:10:07,383
+Brian: They deployed a µYOLO person detector on a Renesas board with a Cortex-M85.
+Brian：他们在搭载 Cortex-M85 的瑞萨开发板上部署了 µYOLO 人员检测模型。
+
+117
+00:10:07,383 --> 00:10:13,764
+It takes a one hundred twenty-eight by one hundred twenty-eight RGB camera frame.
+输入是 128×128 的 RGB 摄像头画面。
+
+118
+00:10:13,764 --> 00:10:17,546
+Ava: How big and how fast was that deployment?
+Ava：这次部署占用多大空间，运行有多快？
+
+119
+00:10:17,546 --> 00:10:21,572
+Brian: The INT8 model file was four hundred fifty-two kibibytes.
+Brian：INT8 模型文件大小为 452 KiB。
+
+120
+00:10:21,572 --> 00:10:31,528
+Total flash was six hundred forty kibibytes, peak RAM was two hundred fifty-four, and inference took twenty-four milliseconds per frame.
+总闪存占用 640 KiB，峰值内存占用 254 KiB，单帧推理耗时 24 毫秒。
+
+121
+00:10:31,528 --> 00:10:35,526
+Ava: But the end-to-end rate was twelve point seven frames per second.
+Ava：但端到端速度是每秒 12.7 帧。
+
+122
+00:10:35,526 --> 00:10:39,750
+That's a different measure from model inference time, isn't it?
+这和模型推理时间是两个不同的指标，对吧？
+
+123
+00:10:39,750 --> 00:10:43,339
+Brian: Yes. The article reports both numbers separately.
+Brian：对。文章分别报告了这两个数字。
+
+124
+00:10:43,339 --> 00:10:51,308
+The frame rate covers the end-to-end demo, while twenty-four milliseconds describes one model inference.
+帧率衡量整个演示的端到端速度，24 毫秒则是单次模型推理的耗时。
+
+125
+00:10:51,308 --> 00:10:57,058
+Ava: I noticed that twenty-four milliseconds came after some hardware-specific tuning.
+Ava：我注意到，24 毫秒是经过针对硬件的调优后才达到的。
+
+126
+00:10:57,058 --> 00:10:57,536
+Brian: It did.
+Brian：是的。
+
+127
+00:10:57,536 --> 00:11:04,769
+They put weights for the most expensive operations in fast local memory and enabled the instruction cache.
+他们把计算开销最大的算子所用权重放进快速本地内存，并启用了指令缓存。
+
+128
+00:11:04,769 --> 00:11:10,920
+Reported inference time fell from one hundred ninety-one to twenty-four milliseconds.
+报告的推理时间从 191 毫秒降至 24 毫秒。
+
+129
+00:11:10,920 --> 00:11:12,657
+Ava: Nearly eight times faster.
+Ava：快了将近八倍。
+
+130
+00:11:12,657 --> 00:11:18,086
+That's a strong reminder that buffer placement still matters on these chips.
+这说明在这些芯片上，缓冲区放在哪里依然很重要。
+
+131
+00:11:18,086 --> 00:11:19,521
+Brian: It does in this demo.
+Brian：在这个演示中确实如此。
+
+132
+00:11:19,521 --> 00:11:31,420
+The workflow helps with inspection too: intermediate representations remain executable, so developers can compare outputs as the model moves through export and lowering.
+这套流程也方便检查：中间表示仍可执行，开发者能在模型导出和向底层转换的过程中对比输出。
+
+133
+00:11:31,420 --> 00:11:35,994
+Ava: What can they inspect when performance or behavior changes?
+Ava：性能或行为发生变化时，他们能检查什么？
+
+134
+00:11:35,994 --> 00:11:42,847
+Brian: The article names Model Explorer for viewing graphs and ETDump for per-operator costs on the target.
+Brian：文章提到用 Model Explorer 查看计算图，用 ETDump 查看目标设备上各算子的开销。
+
+135
+00:11:42,847 --> 00:11:48,200
+Those tools help locate a change before treating deployment as a mystery.
+这些工具有助于定位变化的原因。
+
+136
+00:11:48,200 --> 00:11:52,150
+Ava: What's available now, and what's still on the roadmap?
+Ava：现在哪些功能已经可用，哪些还在规划中？
+
+137
+00:11:52,150 --> 00:11:57,082
+Brian: The backend and examples are available in the ExecuTorch repository.
+Brian：后端和示例已在 ExecuTorch 仓库中提供。
+
+138
+00:11:57,082 --> 00:12:09,108
+The article lists broader operator coverage, more mixed-precision support, floating-point kernels, more examples, and validation on more hardware as future work.
+文章将扩大算子覆盖范围、支持更多混合精度、添加浮点运算内核和更多示例，以及在更多硬件上验证列为后续工作。
+
+139
+00:12:09,108 --> 00:12:15,050
+Ava: The fifth MLPerf Tiny model wasn't in these CPU measurements. Why?
+Ava：第五个 MLPerf Tiny 模型为什么没纳入这些 CPU 测量结果？
+
+140
+00:12:15,050 --> 00:12:17,659
+Brian: It's a streaming wake word benchmark.
+Brian：那是一个流式唤醒词基准测试。
+
+141
+00:12:17,659 --> 00:12:23,160
+The article says it still needs test infrastructure for multi-frame inference.
+文章说，多帧推理还需要相应的测试基础设施。
+
+142
+00:12:23,160 --> 00:12:26,824
+So the reported measurements cover four models.
+所以报告的测量结果只涵盖四个模型。
+
+143
+00:12:26,824 --> 00:12:29,121
+Ava: Let me try a three-point recap.
+Ava：我试着用三点总结一下。
+
+144
+00:12:29,121 --> 00:12:38,142
+First, the model stays in the PyTorch-based export workflow, then becomes a compiled program for the microcontroller.
+第一，模型先走基于 PyTorch 的导出流程，再编译成供微控制器运行的程序。
+
+145
+00:12:38,142 --> 00:12:43,083
+Brian: Second, compile-time choices handle kernels, layouts, and memory.
+Brian：第二，在编译时确定运算内核、数据布局和内存安排。
+
+146
+00:12:43,083 --> 00:12:52,556
+Third, the CPU path works alone or alongside Ethos-U, with performance depending on the target and supported operations.
+第三，CPU 路径既可独立运行，也可与 Ethos-U 配合；性能取决于目标硬件和受支持的算子。
+
+147
+00:12:52,556 --> 00:12:55,354
+Ava: That's our tour of PyTorch on Cortex-M.
+Ava：以上就是我们对 Cortex-M 上运行 PyTorch 的介绍。
+
+148
+00:12:55,354 --> 00:12:59,434
+Thanks for listening, and we'll catch you next time.
+感谢收听，下次见。

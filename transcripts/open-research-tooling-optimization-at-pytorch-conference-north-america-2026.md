@@ -1,0 +1,353 @@
+# The Work Underneath PyTorch’s Speed
+
+原文：[Open Research, Tooling & Optimization at PyTorch Conference North America 2026 - PyTorch](https://pytorch.org/blog/open-research-tooling-optimization-at-pytorch-conference-north-america-2026/)
+
+## 摘要
+
+这期节目围绕 PyTorch Conference North America 2026 的技术议题，解释编译器、GPU 内核和分布式系统为何影响模型的启动速度、吞吐量与可扩展性。两位主持人讨论了动态图形捕获、跨硬件内核语言、自动调优、分片训练和低精度训练，并区分了单项操作的加速与整体模型性能。节目也谈到推理、性能诊断和开源工具。文章是一份会议议题导览，因此各项性能数字仍需结合对应的硬件和工作负载理解。
+
+## 对话
+
+Ava: If a model already runs, why should a framework engineer care about a conference post full of compiler and kernel talks?
+
+Ava：如果模型已经能运行，框架工程师为什么还要关注一篇满是编译器和内核演讲的会议文章？
+
+Brian: Because those layers affect how quickly a model starts, how much memory it needs, and whether devices sit idle. This roundup is about the work underneath the model.
+
+Brian：因为这些底层环节会影响模型启动有多快、需要多少内存，以及设备会不会闲置。这篇综述讲的就是模型底层的工作。
+
+Ava: We're talking about PyTorch Conference North America twenty twenty-six, in San Jose on October twentieth and twenty-first?
+
+Ava：我们说的是10月20日和21日在圣何塞举行的2026年 PyTorch Conference North America，对吗？
+
+Brian: Right. The article tours sessions on open research, tooling, and optimization. It's a guide to talks, so each result belongs to a particular session.
+
+Brian：对。文章介绍了开放研究、工具和优化方面的演讲。它是一份演讲指南，所以每项成果都对应一场具体的演讲。
+
+Ava: What's the common problem behind so many different talks?
+
+Ava：这么多不同的演讲，背后有什么共同的问题？
+
+Brian: PyTorch code has to become efficient work on real hardware. That takes compilers, kernels, data movement, and tools that show where time goes.
+
+Brian：PyTorch 代码必须转化为真实硬件上的高效计算。这需要编译器、内核、数据传输，以及能显示时间花在哪里的工具。
+
+Ava: Let's start with torch.compile. I know the name, but what does this article focus on?
+
+Ava：先从 torch.compile 说起吧。我知道这个名字，但这篇文章重点讲什么？
+
+Brian: It focuses on the machinery that turns eager PyTorch code into a graph. That graph can be optimized while the program runs or used to generate an artifact for later execution.
+
+Brian：重点是把 eager 模式的 PyTorch 代码转换成计算图的机制。这个图可以在程序运行时接受优化，也可以用来生成供以后执行的产物。
+
+Ava: So the compiler needs a useful graph before it can make that code faster.
+
+Ava：所以编译器得先拿到有用的计算图，才能让代码跑得更快。
+
+Brian: Exactly. One talk tackles a graph break, a point where graph capture stops. Nested breaks can make the compiler repeat work, especially deep inside layers.
+
+Brian：没错。一场演讲讨论了 graph break，也就是图捕获停止的节点。嵌套的中断会让编译器重复工作，尤其是在模型层级深处。
+
+Ava: Wait, so a small interruption can get expensive just because it's buried deep in the model?
+
+Ava：等等，只因为一个小中断藏在模型深处，代价就会变得很高吗？
+
+Brian: That's the issue. The new Dynamo support described in the article cuts duplicate breaks to a constant amount. Frame traces grow linearly with nesting depth instead of quadratically.
+
+Brian：问题就在这里。文章介绍的 Dynamo 新支持把重复中断的数量降到了常数规模。帧追踪的增长随嵌套深度呈线性关系，而不是平方关系。
+
+Ava: Dynamo is the part doing this graph capture. Less repeated tracing should also make the result easier to inspect.
+
+Ava：Dynamo 就是负责捕获计算图的部分。减少重复追踪，结果应该也更容易检查。
+
+Brian: That's what the session claims: larger captured graphs, fewer breaks, and compilation that's faster and easier to debug.
+
+Brian：这正是那场演讲的说法：捕获的图更大，中断更少，编译也更快、更容易调试。
+
+Ava: What about shapes? A batch or sequence length can change between calls.
+
+Ava：形状呢？批次大小或序列长度可能在两次调用之间发生变化。
+
+Brian: There are two angles here. Pyrefly brings static tensor shape checking into the type checker. The article says shape mismatches cause roughly forty-five percent of deep learning program failures.
+
+Brian：这里有两个角度。Pyrefly 将静态张量形状检查引入了类型检查器。文章称，形状不匹配导致了大约45%的深度学习程序故障。
+
+Ava: So Pyrefly tries to catch a mismatch before I spend time running or compiling?
+
+Ava：所以 Pyrefly 是想让我在花时间运行或编译之前发现形状不匹配？
+
+Brian: Yes. The talk says it was evaluated across twenty-eight real models, including language, vision, recommender, and reinforcement learning models.
+
+Brian：对。演讲说，他们在28个真实模型上进行了评估，包括语言、视觉、推荐和强化学习模型。
+
+Ava: And the other angle is handling shapes that really do change?
+
+Ava：另一个角度是处理确实会变化的形状？
+
+Brian: A session on parametrized CUDA Graphs addresses that. A CUDA Graph captures GPU work for replay. This approach reuses one captured graph across dynamic shapes, without recording one for every possible shape.
+
+Brian：一场关于参数化 CUDA Graphs 的演讲讨论了这个问题。CUDA Graph 会捕获 GPU 工作，以便重放。这种方法让同一个已捕获的图适用于不同的动态形状，无须为每种可能的形状都录制一个图。
+
+Ava: That's the part I didn't get. How can one recording serve different shapes?
+
+Ava：这部分我没弄明白。一次录制怎么能适用于不同的形状？
+
+Brian: The article points to torch.compile's symbolic tracing and guards, then says the graph is re-parametrized. It doesn't give the implementation details here.
+
+Brian：文章提到了 torch.compile 的符号追踪和守卫机制，然后说会对图重新参数化，但这里没有给出实现细节。
+
+Ava: So far, we're spending less time building graphs and getting more use from each one.
+
+Ava：到目前为止，我们减少了构建计算图的时间，也让每个图发挥了更大作用。
+
+Brian: Right. There's also a new C++ FakeTensor, a tensor stand-in used during tracing. The article says FakeTensor propagation takes roughly twenty percent of Dynamo tracing time.
+
+Brian：没错。还有一个新的 C++ FakeTensor，它是在追踪过程中代替真实张量使用的对象。文章称，FakeTensor 的传播大约占 Dynamo 追踪时间的20%。
+
+Ava: I saw a thirty-times-faster number. Is that a thirty-times-faster compile?
+
+Ava：我看到了一个速度提高30倍的数字。是说编译速度提高了30倍吗？
+
+Brian: No. That's the reported speedup on operations such as aten.mm with the new FakeTensor implementation. The article says it reduces cold-start compilation time, but gives no overall multiplier.
+
+Brian：不是。那是新 FakeTensor 实现对 aten.mm 等操作所报告的加速幅度。文章说它缩短了冷启动编译时间，但没有给出整体的加速倍数。
+
+Ava: Good distinction. What's next once the graph is ready?
+
+Ava：这个区别说清楚了。计算图准备好之后，下一步是什么？
+
+Brian: Kernels. These are the pieces of work sent to the hardware. The conference has a whole group of talks on writing and tuning them.
+
+Brian：内核。它们是发送到硬件执行的计算任务。这次会议有一整组关于编写和调优内核的演讲。
+
+Ava: I keep seeing DSL. What's that in this context?
+
+Ava：我总看到 DSL。在这里它是什么意思？
+
+Brian: It's a domain-specific language: a language focused on a particular job. Here, that job is expressing GPU kernels without writing every hardware detail by hand.
+
+Brian：它是领域专用语言，也就是专注于某项特定任务的语言。在这里，这项任务是表达 GPU 内核，而无须手工写出每个硬件细节。
+
+Ava: And Helion is one of those languages?
+
+Ava：Helion 也是这类语言之一？
+
+Brian: Yes. It's PyTorch's high-level kernel-authoring DSL. A session describes new backends using CuTe DSL for recent NVIDIA GPUs and Pallas for TPUs, so one kernel source can target very different hardware.
+
+Brian：是的。它是 PyTorch 用于编写内核的高级 DSL。一场演讲介绍了使用 CuTe DSL 面向新款 NVIDIA GPUs、使用 Pallas 面向 TPUs 的新后端，让同一份内核源码可以适配差异很大的硬件。
+
+Ava: One recipe, different kitchens. Does the article say the same kernel is fastest everywhere?
+
+Ava：同一份食谱，放进不同的厨房。文章有说同一个内核在所有设备上都是最快的吗？
+
+Brian: It doesn't. It describes portability, then other talks show why tuning still matters. FlyDSL, for example, joins TorchInductor's matrix multiplication pipeline on AMD GPUs and reports speedups over Triton there.
+
+Brian：没有。它讲的是可移植性，而其他演讲说明了为什么调优仍然重要。例如，FlyDSL 接入了 TorchInductor 在 AMD GPUs 上的矩阵乘法流水线，并报告说它在这些设备上比 Triton 更快。
+
+Ava: So portability gets the kernel onto a device. Autotuning looks for a better way to run it?
+
+Ava：所以可移植性让内核能在设备上运行，自动调优则寻找更好的运行方式？
+
+Brian: Exactly. Autotuning tries configurations and picks promising ones. In Helion, a filter based on Likelihood-Free Bayesian Optimization reportedly cuts tuning time by thirty-six point five percent.
+
+Brian：正是。自动调优会尝试不同配置，选出有潜力的配置。据报道，在 Helion 中，基于 Likelihood-Free Bayesian Optimization 的筛选器将调优时间缩短了36.5%。
+
+Ava: That's tuning time, not model training time.
+
+Ava：这是调优时间，不是模型训练时间。
+
+Brian: Correct. The same session also describes large-language-model-guided autotuning. It reports up to ten-times-faster tuning on NVIDIA B two hundred, under the conditions used for that result.
+
+Brian：对。同一场报告还介绍了由大语言模型引导的自动调优。报告称，在得出该结果所用的条件下，NVIDIA B200 上的调优速度最高提高了10倍。
+
+Ava: Are there results for an actual serving kernel, rather than just its tuning process?
+
+Ava：有没有实际服务内核的结果，而不只是调优过程的结果？
+
+Brian: An experimental Helion backend for Paged Attention reports up to fifty percent lower latency and ten percent higher end-to-end throughput than an optimized Triton version. Those are two different measures.
+
+Brian：一个用于 Paged Attention 的实验性 Helion 后端报告称，与经过优化的 Triton 版本相比，延迟最多降低50%，端到端吞吐量提高10%。这是两个不同的指标。
+
+Ava: Let me check I've got this. Better compiler capture gives the kernel more to work with. A DSL helps write kernels for different devices. Tuning still decides how well they run.
+
+Ava：我确认一下自己是否理解了：更好的编译器图捕获为内核提供了更多可处理的内容。DSL 有助于为不同设备编写内核。调优仍然决定它们运行得有多好。
+
+Brian: That's a fair recap. Now imagine doing all of that across a cluster instead of one device.
+
+Brian：总结得很准确。现在想象一下，把这一切放到一个集群上，而不是只在一台设备上做。
+
+Ava: This is where sharding comes in: splitting model data across devices?
+
+Ava：这就涉及分片了：把模型数据拆分到多台设备上？
+
+Brian: Yes. FlexShard is a prototype that separates parameter sharding from the runtime machinery of FSDP, or Fully Sharded Data Parallel. Its small Placement contract can support optimizer-aware and quantization-aligned sharding.
+
+Brian：是的。FlexShard 是一个原型，它将参数分片与 FSDP（Fully Sharded Data Parallel）的运行时机制分开。它的小型 Placement 契约可以支持感知优化器需求的分片方式，以及与量化方式对齐的分片方式。
+
+Ava: Why separate those pieces?
+
+Ava：为什么要把这两部分分开？
+
+Brian: Different optimizers and data formats may want different placements. The article gives matrix optimizers such as Muon and block-wise eight-bit floating point communication as examples.
+
+Brian：不同的优化器和数据格式可能适合不同的放置方式。文章举了 Muon 等矩阵优化器和分块式8位浮点通信的例子。
+
+Ava: And compilation across a cluster can be duplicated too, right?
+
+Ava：而且在集群上，编译工作也可能重复，对吧？
+
+Brian: Right. A talk on precompiling distributed training programs proposes compiling once and reusing the artifact on every rank. That removes redundant per-rank compilation and keeps kernel selection identical across the cluster.
+
+Brian：对。一场关于预编译分布式训练程序的演讲提出，只编译一次，再让每个 rank 复用生成的产物。这样就能消除各个 rank 上重复的编译工作，并让整个集群采用相同的内核选择。
+
+Ava: It also mentions divergent compiler decisions causing hangs. That's an expensive kind of disagreement.
+
+Ava：文章还提到，不同的编译器决策可能导致程序卡住。这种分歧的代价可真高。
+
+Brian: It is. Another session, AutoParallel, searches the model graph for a training strategy from a device mesh, memory budget, and sample batch.
+
+Brian：确实如此。另一场演讲介绍的 AutoParallel 会根据设备网格、内存预算和样本批次，在模型计算图中搜索训练策略。
+
+Ava: Does the article give a concrete result for that search?
+
+Ava：文章有没有给出这项搜索的具体结果？
+
+Brian: It says AutoParallel matched a strong hand-tuned baseline on Llama three eight billion while using twelve percent less memory. That's the reported comparison, not a promise for every model.
+
+Brian：文章称，在 Llama 3 8B 上，AutoParallel 达到了一个经过精心人工调优的基线的表现，同时内存使用量减少了12%。这是报告中的比较结果，并不保证适用于每个模型。
+
+Ava: What happens below the sharding strategy, where devices actually exchange data?
+
+Ava：再往分片策略的下一层看，设备实际交换数据时会发生什么？
+
+Brian: The communication talks go there. PyTorch Symmetric Memory gives each rank a direct window into peers' GPU memory, so communication can happen inside a kernel alongside computation.
+
+Brian：关于通信的演讲讲的就是这一层。PyTorch Symmetric Memory 让每个 rank 都能直接访问其他 rank 的 GPU 内存窗口，因此通信可以和计算一起在 kernel 内进行。
+
+Ava: Like reaching across the table for an ingredient while cooking, instead of stopping to arrange a delivery?
+
+Ava：就像做饭时直接伸手从桌子另一边拿食材，不用停下来安排配送？
+
+Brian: That's the idea. Other talks address failures. MCCL, the Meta Collective Communication Library, can reconfigure communication as ranks fail or recover, without restarting the whole job.
+
+Brian：就是这个意思。其他演讲还讨论了故障。MCCL，也就是 Meta Collective Communication Library，可以在 rank 发生故障或恢复时重新配置通信，而不用重启整个作业。
+
+Ava: So the cluster story is placement, consistent compilation, faster communication, and recovery.
+
+Ava：所以，集群层面的重点是放置、一致的编译、更快的通信和故障恢复。
+
+Brian: Yes. The article also covers low-precision training. That's where performance gains have to be weighed against model quality.
+
+Brian：对。文章还谈到了低精度训练。在这方面，必须权衡性能提升和模型质量。
+
+Ava: Take NVFP4. What should I hear in that name?
+
+Ava：以 NVFP4 为例。这个名字意味着什么？
+
+Brian: It's a four-bit floating point format. The article says NVFP4 matrix multiplication has two to three times the peak throughput of eight-bit floating point on GB two hundred and GB three hundred.
+
+Brian：它是一种4位浮点格式。文章称，在 GB200 和 GB300 上，NVFP4 矩阵乘法的峰值吞吐量是8位浮点矩阵乘法的2到3倍。
+
+Ava: Peak throughput sounds like a hardware figure. Does training quality follow automatically?
+
+Ava：峰值吞吐量听起来是个硬件指标。训练质量也会自动跟着提升吗？
+
+Brian: No. The article explicitly notes quality gaps against BF16, or bfloat sixteen, at smaller model sizes. A session presents recipe improvements intended to close that gap.
+
+Brian：不是。文章明确指出，在模型规模较小时，它与 BF16，也就是 bfloat16，相比仍有质量差距。一场报告介绍了旨在缩小这一差距的训练方案改进。
+
+Ava: There's also HiFloat. Is its claim framed differently?
+
+Ava：还有 HiFloat。它的成果是从不同角度表述的吗？
+
+Brian: Yes. Its eight-bit and four-bit formats are designed around weight and gradient distributions. The session reports loss parity with sixteen-bit floating point and a one point five to one point seven times matrix multiplication speedup.
+
+Brian：对。它的8位和4位格式是根据权重和梯度的分布设计的。该场报告称，其损失与16位浮点格式持平，矩阵乘法速度提高了1.5到1.7倍。
+
+Ava: The distinction is useful: peak hardware throughput, kernel speed, and training loss are separate things.
+
+Ava：这个区分很有用：硬件峰值吞吐量、kernel 速度和训练损失是不同的指标。
+
+Brian: Exactly. And the performance story isn't limited to training. One serving talk treats checkpoint loading as data movement and reports four point eight to seven point five times faster model loading.
+
+Brian：正是。而且性能方面的进展不只涉及训练。一场关于模型服务的报告把检查点加载视为数据搬运问题，并报告称模型加载速度提高了4.8到7.5倍。
+
+Ava: Another talks about LMCache, the cluster-wide prompt cache. That's about reusing work during serving?
+
+Ava：另一场演讲谈到 LMCache，也就是覆盖整个集群的提示词缓存。这是为了在模型服务过程中复用已有工作吗？
+
+Brian: Yes. The article describes it as an open-source caching solution spanning several inference engines and storage backends. It doesn't give a speedup number for that session.
+
+Brian：对。文章把它描述为一种开源缓存方案，涵盖多个推理引擎和存储后端。文章没有给出那场演讲的加速数值。
+
+Ava: And how do engineers decide which layer needs attention first?
+
+Ava：工程师怎么判断该先关注哪一层？
+
+Brian: They measure. There's a session on reading PyTorch profiler traces to tell overhead-bound work from compute-bound work. TorchInsights estimates peak memory and runtime for distributed setups before using a real cluster.
+
+Brian：靠测量。有一场演讲介绍如何阅读 PyTorch profiler 追踪记录，判断工作是受开销限制还是受计算限制。TorchInsights 则能在使用真实集群之前，估算分布式配置的峰值内存占用和运行时间。
+
+Ava: That sounds promising. The post also mentions tools people can build on, like TinyTorch and Pyrefly.
+
+Ava：听起来很有前景。那篇文章还提到了人们可以用来继续构建的工具，比如 TinyTorch 和 Pyrefly。
+
+Brian: It does. TinyTorch teaches framework internals by rebuilding basic components in Python. Other sessions discuss open tools and how AI agents are changing PyTorch contribution and review work.
+
+Brian：确实提到了。TinyTorch 通过用 Python 重新构建基础组件来教授框架内部原理。其他演讲讨论了开放工具，以及 AI agents 如何改变 PyTorch 的贡献和审查工作。
+
+Ava: Where does that leave us on the reported speedups? Should I expect them on my own model?
+
+Ava：那我们该怎么看文中报告的加速效果？我应该期待自己的模型也能达到吗？
+
+Brian: The post summarizes talks, but doesn't provide full methods or workload details for every number. We'd need the individual sessions to judge how well each result transfers.
+
+Brian：这篇文章总结了各场演讲，但没有为每个数值都提供完整的方法或工作负载细节。要判断每项结果在其他场景中有多大适用性，我们得看对应的演讲。
+
+Ava: First recap point: compiler work aims to capture more useful graphs and reduce the time spent tracing or compiling them.
+
+Ava：第一点总结：编译器方面的工作旨在捕获更多有用的计算图，并减少追踪或编译这些图所花的时间。
+
+Brian: Second: kernel languages and tuning help turn those graphs into efficient work on different hardware.
+
+Brian：第二点：kernel 语言和调优有助于把这些计算图转化为能在不同硬件上高效运行的工作。
+
+Ava: Third: at scale, placement, communication, numerical quality, loading, and measurement all affect the result.
+
+Ava：第三点：在大规模运行时，放置、通信、数值质量、加载和测量都会影响结果。
+
+Brian: That's our tour of the work underneath PyTorch. Thanks for listening.
+
+Brian：我们对 PyTorch 底层工作的介绍就到这里。感谢收听。
+
+## 术语
+
+| Term | 释义 |
+|---|---|
+| torch.compile | PyTorch 中将急切执行代码转成可优化计算图的编译入口。 |
+| graph break | 图捕获中断的位置；可能导致图变小或增加跟踪工作。 |
+| Dynamo | 文中涉及图捕获与跟踪的 PyTorch 编译组件。 |
+| Pyrefly | 文中用于在类型检查阶段静态检查张量形状的工具。 |
+| CUDA Graph | 捕获 GPU 工作并供后续重放的图。 |
+| FakeTensor | 编译跟踪过程中使用的张量替身。 |
+| DSL | 领域专用语言；文中主要指用于编写硬件内核的语言。 |
+| Helion | PyTorch 的高级内核编写语言，可通过不同后端面向不同硬件。 |
+| autotuning | 尝试并筛选内核配置，以寻找更合适的运行方式。 |
+| sharding | 把模型参数等数据分布到多个设备上的做法。 |
+| FSDP | Fully Sharded Data Parallel，全分片数据并行。 |
+| PyTorch Symmetric Memory | 让各个计算进程直接访问对端 GPU 内存窗口的机制。 |
+| NVFP4 | 文中讨论的四位浮点格式，用于低精度训练。 |
+| BF16 | bfloat sixteen，文中用于比较训练质量的浮点格式。 |
+
+## 口语表达
+
+| Phrase | 释义 |
+|---|---|
+| Wait, so | 等等，所以……；用于确认自己的理解。 |
+| That's the part I didn't get. | 这部分我没听明白。 |
+| Let me check I've got this. | 让我确认一下我是否理解对了。 |
+| That's a fair recap. | 这个总结很准确。 |
+| Good distinction. | 这个区分很有用。 |
+| That sounds promising. | 听起来很有前景。 |
+| Where does that leave us | 那么，这对我们意味着什么；用于转向结论。 |
+| That's the idea. | 大意就是这样。 |

@@ -1,0 +1,289 @@
+# From Research Project to Open Source Ecosystem
+
+原文：[From Research Project to Open Source Ecosystem: Bring Your Academic PyTorch Project to PyTorchCon NA](https://pytorch.org/blog/from-research-project-to-open-source-ecosystem-bring-your-academic-pytorch-project-to-pytorchcon-na/)
+
+## 摘要
+
+本期讨论 PyTorch 基金会面向学术项目的“从学术走向采用”工作坊，帮助优秀研究代码成长为可持续的开源社区项目。节目介绍征集对象、评选标准、闪电演讲和导师办公时间，以及文档、治理、可复现性、安全和维护等常见缺口。符合条件的项目需要使用 PyTorch 或其他 PyTorch 基金会托管项目，并在 2026 年 9 月 30 日太平洋时间午夜前提交。核心信息是：项目不必完美成熟，只要有价值、有潜力，就值得申请帮助。
+
+## 对话
+
+Ava: What happens when a useful PyTorch research project outlives the paper that created it? That’s the question behind a new academic workshop at PyTorch Conference North America 2026.
+
+Ava：一个有用的 PyTorch 研究项目在催生它的论文发表后继续发展，会发生什么？这正是 PyTorch Conference North America 2026 一场新学术工作坊要探讨的问题。
+
+Brian: Right. The workshop is trying to help projects make a difficult jump: from a research artifact to a sustainable open source project that a wider community can use and maintain.
+
+Brian：没错。这个工作坊希望帮助项目完成一次艰难的转变：从研究成果变成可持续的开源项目，让更广泛的社区能够使用和维护。
+
+Ava: So this is for university labs and student teams whose code works, but whose project may still depend on one graduating student or one person who knows the release process.
+
+Ava：所以，它面向的是那些代码已经能用，但项目可能仍依赖一名即将毕业的学生，或唯一懂得发布流程的人的大学实验室和学生团队。
+
+Brian: Exactly. The PyTorch Foundation OSPO and Academic Outreach Working Group wants to bridge that gap. OSPO means Open Source Program Office. The group is inviting academic PyTorch projects to apply for a Day 0 workshop focused on education and community adoption.
+
+Brian：正是如此。PyTorch Foundation OSPO and Academic Outreach Working Group 希望弥合这一差距。OSPO 是 Open Source Program Office 的缩写。该小组邀请学术界的 PyTorch 项目申请参加一场聚焦教育和社区采用的 Day 0 工作坊。
+
+Ava: Let’s start with the basic opportunity. What does a selected team actually get?
+
+Ava：先说说最基本的机会。入选团队究竟能得到什么？
+
+Brian: Eight selected projects will give short lightning talks during the workshop. Each talk is five minutes, and presenters must attend in person. After that, the teams join a hands-on workshop and mentor office hours.
+
+Brian：入选的8个项目将在工作坊期间进行简短的闪电演讲。每场演讲时长5分钟，演讲者必须亲自到场。之后，各团队将参加实操工作坊和导师答疑活动。
+
+Ava: Office hours with whom?
+
+Ava：导师答疑是由哪些人来做？
+
+Brian: With maintainers, open source program managers, people who support open source ecosystems in industry and research organizations, open source contributors, and members of the broader PyTorch community.
+
+Brian：包括项目维护者、开源项目经理、在企业和研究机构支持开源生态的人、开源贡献者，以及更广泛的 PyTorch 社区成员。
+
+Ava: So it’s not just a showcase. Teams bring their real repositories and work on them with mentors.
+
+Ava：所以这不只是一场展示。团队会带着真实的代码仓库，与导师一起动手改进。
+
+Brian: That’s the idea. The article describes a move from show-and-tell to show-and-build. The goal is for each team to leave with a prioritized set of next steps.
+
+Brian：这正是他们的想法。文章把它描述为从 show-and-tell 转向 show-and-build。目标是让每个团队离开时都有一份按优先级排列的后续行动清单。
+
+Ava: What kind of projects are they looking for? Is this only about a new model architecture?
+
+Ava：他们想找什么样的项目？只限于新的模型架构吗？
+
+Brian: No. They want projects with technical value beyond one experiment or one paper. That could be a library or developer tool, a research framework for a specific domain, or a compiler, runtime, profiling, distributed training, inference, or optimization project.
+
+Brian：不是。他们希望项目的技术价值能超越单次实验或单篇论文。项目可以是库或开发者工具、面向特定领域的研究框架，也可以涉及编译器、运行时、性能分析、分布式训练、推理或优化。
+
+Ava: That’s a pretty wide range.
+
+Ava：范围确实很广。
+
+Brian: It is. The call also includes work in computer vision, natural language processing, robotics, scientific computing, healthcare, responsible AI, and accessibility. Evaluation and benchmarking frameworks count too, as do reproducibility toolkits, research infrastructure, and educational tools.
+
+Brian：是的。征集范围还包括计算机视觉、自然语言处理、机器人、科学计算、医疗健康、负责任的 AI 和无障碍领域的工作。评估和基准测试框架也符合条件，可复现性工具包、研究基础设施和教育工具同样如此。
+
+Ava: And the project has to connect to the PyTorch ecosystem.
+
+Ava：而且项目必须与 PyTorch 生态系统有关联。
+
+Brian: Yes. It needs to use PyTorch or another PyTorch Foundation hosted project. The article names DeepSpeed, Helion, Ray, Safetensors, and vLLM as examples of those hosted projects.
+
+Brian：对。项目需要使用 PyTorch 或其他由 PyTorch Foundation 托管的项目。文章列举的托管项目包括 DeepSpeed、Helion、Ray、Safetensors 和 vLLM。
+
+Ava: Could it be an implementation that accompanies a major research paper?
+
+Ava：它可以是某篇重要研究论文的配套实现吗？
+
+Brian: Yes, if it has a life beyond the paper. They also welcome projects that connect these projects with other parts of the open source AI stack, and they say they’re open to ideas they haven’t thought of yet.
+
+Brian：可以，只要它在论文之外仍有持续发展的空间。他们也欢迎把这些项目与开源 AI 技术栈其他部分连接起来的项目，并表示愿意考虑他们尚未想到的点子。
+
+Ava: That last part sounds encouraging. A team doesn’t have to force its work into a fixed category.
+
+Ava：最后这点挺让人受鼓舞的。团队不必硬把自己的工作塞进固定类别。
+
+Brian: Right. The larger message is that you don’t need to have everything figured out.
+
+Brian：没错。更重要的信息是，你不需要事先把所有事情都想清楚。
+
+Ava: That sounds almost too good to be true for an open source call. What does “not everything figured out” mean here?
+
+Ava：对于一次开源项目征集来说，这听起来好得有点难以置信。这里说的“不需要把所有事情都想清楚”具体是什么意思？
+
+Brian: Academic research software and sustainable community projects are often built under different conditions. Academic teams optimize for experimentation, publication, reproducibility, and research velocity. A sustainable project also needs documentation, releases, governance, security, contributor onboarding, testing, licensing, maintainer succession, and community operations.
+
+Brian：学术研究软件和可持续的社区项目往往是在不同条件下开发的。学术团队重视实验、论文发表、可复现性和研究进度。可持续的项目还需要文档、版本发布、治理、安全、帮助新贡献者上手、测试、许可、维护者交接和社区运营。
+
+Ava: Maintainer succession is a big one. A student may create the project, graduate, and then nobody knows how to keep it moving.
+
+Ava：维护者交接是个大问题。学生创建了项目，毕业之后，可能就没人知道该如何继续推进。
+
+Brian: Exactly. The article lists that situation directly. Other examples include documentation that needs work, a repository that new contributors can’t navigate, an informal governance process, weak CI or packaging, or no CONTRIBUTING dot md, SECURITY dot md, or maintainer policy.
+
+Brian：正是如此。文章直接列出了这种情况。其他例子包括文档需要改进、新贡献者看不懂代码仓库的组织方式、治理流程不正式、CI 或打包环节薄弱，或者缺少 CONTRIBUTING dot md、SECURITY dot md 或维护者政策。
+
+Ava: So a project can apply even if those pieces are missing?
+
+Ava：所以，即使缺少这些东西，项目也能申请？
+
+Brian: Yes. Those gaps are part of the reason the workshop exists. Teams may also be unsure how to build a contributor community, how to turn users into contributors, or what would eventually be needed to become a PyTorch Ecosystem project.
+
+Brian：能。这些短板正是举办工作坊的部分原因。团队也可能不确定如何建立贡献者社区、如何让用户成为贡献者，或将来要成为 PyTorch Ecosystem 项目需要满足什么条件。
+
+Ava: Let’s unpack the workshop itself. What happens during the project showcases?
+
+Ava：我们具体说说工作坊。项目展示环节会做些什么？
+
+Brian: Selected teams explain the problem they’re solving, how they use or extend PyTorch Foundation hosted projects, and the academic context behind the work. They also talk about who uses the project today, why it could matter to the broader community, and what support or changes could help it reach the next stage.
+
+Brian：入选团队会说明自己要解决的问题、如何使用或扩展 PyTorch Foundation 托管的项目，以及这项工作的学术背景。他们还会介绍目前谁在使用项目、项目为什么可能对更广泛的社区有价值，以及哪些支持或改变能帮助它进入下一阶段。
+
+Ava: Then the office hours get more practical.
+
+Ava：接下来的导师答疑就更侧重实际操作了。
+
+Brian: Much more practical. Mentors may ask whether someone can understand what the project does, install it, run it, test it, and learn how to contribute. That’s what the article calls open source readiness.
+
+Brian：实际得多。导师可能会问：别人能否看懂这个项目是做什么的，能否安装、运行和测试它，以及能否弄清楚如何参与贡献。这就是文章所说的开源准备程度。
+
+Ava: I like that sequence. First, can a new user get started? Then, can a contributor join?
+
+Ava：我喜欢这个顺序。首先，新用户能上手吗？然后，贡献者能加入吗？
+
+Brian: Yes. Governance is another topic. Who makes decisions? Who can merge changes? What happens when the original academic maintainers move on?
+
+Brian：对。治理也是一个话题。谁来做决定？谁能合并修改？最初的学术维护者离开后会怎样？
+
+Ava: And reproducibility is broader than publishing a paper.
+
+Ava：而可复现性涉及的事情也不止发表论文。
+
+Brian: Right. Another researcher should be able to reproduce the results. That means datasets, benchmarks, evaluation methodology, dependencies, and artifacts need to be clearly documented.
+
+Brian：没错。其他研究者应该能够复现结果。这意味着数据集、基准测试、评估方法、依赖项和相关产物都需要有清晰的文档。
+
+Ava: What about the operational side?
+
+Ava：运营维护方面呢？
+
+Brian: They’ll discuss security and maintenance too: dependencies, vulnerabilities, releases, and supported PyTorch versions. They may also look at ecosystem positioning. What’s the project’s relationship with PyTorch? What unique problem does it solve? What would need to change before a future PyTorch Ecosystem application made sense?
+
+Brian：他们也会讨论安全和维护，包括依赖项、漏洞、版本发布，以及支持哪些 PyTorch 版本。他们还可能审视项目在生态系统中的定位。项目与 PyTorch 是什么关系？它解决了什么独特的问题？要做出哪些改变，未来申请成为 PyTorch Ecosystem 项目才合适？
+
+Ava: That sounds like a roadmap conversation, not a pass-or-fail inspection.
+
+Ava：听起来这是一场讨论路线图的交流，而不是一次判定合格与否的检查。
+
+Brian: That’s how the article presents it. The ambition is to identify gaps and turn them into actionable next steps for making a project easier to use, contribute to, maintain, and grow.
+
+Brian：文章呈现的就是这个意思。他们希望找出短板，把它们转化为可执行的后续步骤，让项目更容易使用、参与贡献、维护和发展。
+
+Ava: Who can submit? Only professors or official university labs?
+
+Ava：谁可以提交申请？只有教授或正式的大学实验室吗？
+
+Brian: No. The call includes university students and graduate researchers, professors and academic educators, research labs and institutes, research software engineers, Academic OSPOs, maintainers of research-originated open source projects, and academic communities building tools around the hosted projects.
+
+Brian：不是。征集对象包括大学生和研究生、教授和高校教育工作者、研究实验室和研究所、研究软件工程师、Academic OSPOs、源于研究的开源项目维护者，以及围绕这些托管项目开发工具的学术社区。
+
+Ava: And projects can come from anywhere in the world.
+
+Ava：而且项目可以来自世界任何地方。
+
+Brian: Yes. They don’t need to represent a large institution, have thousands of users, or already have a mature open source organization. The organizers care about the idea, its usefulness, its relationship with PyTorch, the work already happening around it, and its potential to grow beyond the original academic environment.
+
+Brian：是的。项目不需要代表大型机构，不需要已有数千名用户，也不需要已经建立成熟的开源组织。组织方看重的是项目创意、实用性、与 PyTorch 的关系、围绕项目已经开展的工作，以及它走出最初学术环境并继续发展的潜力。
+
+Ava: How will they evaluate submissions?
+
+Ava：他们会怎样评估申请？
+
+Brian: There are six criteria. Academic relevance: the project came from, substantially grew out of, or supports academic research. Ecosystem relevance: it uses, extends, or integrates with PyTorch or another hosted project. Open source readiness: there’s a public repository, an open source license, and enough documentation for mentors to review it.
+
+Brian：评估有六项标准。学术相关性：项目源于学术研究、在很大程度上从学术研究发展而来，或为学术研究提供支持。生态系统相关性：项目使用、扩展 PyTorch 或其他托管项目，或与之集成。开源准备程度：项目有公开的代码仓库、开源许可证，以及足够让导师审阅的文档。
+
+Ava: What are the remaining three?
+
+Ava：剩下三项呢？
+
+Brian: Potential impact, meaning it addresses a meaningful problem and could help users beyond the original research team. Team commitment, meaning at least one maintainer can attend and continue the agreed next steps afterward. And cohort diversity, so the final group represents different institutions, research areas, project stages, and geographic regions.
+
+Brian：潜在影响：项目解决了有意义的问题，并可能帮助最初研究团队之外的用户。团队投入：至少一名维护者能够到场，并在工作坊结束后继续推进商定的后续步骤。还有入选项目的多样性，让最终的项目群体涵盖不同机构、研究领域、项目阶段和地理区域。
+
+Ava: What should an applicant put in the submission?
+
+Ava：申请者应该在提交材料中写些什么？
+
+Brian: Start with the repository and a short description. Explain where the project came from: a university, lab, research group, course, or academic collaboration. Then describe how it uses or extends PyTorch or its ecosystem, and who it helps, such as researchers, students, machine learning engineers, or a particular scientific community.
+
+Brian：先提供代码仓库链接和简短介绍。说明项目来自哪里：大学、实验室、研究小组、课程，还是学术合作。然后描述它如何使用或扩展 PyTorch 或其生态系统，以及它能帮助谁，例如研究者、学生、机器学习工程师，或某个特定的科学研究群体。
+
+Ava: They also want evidence of what exists today.
+
+Ava：他们也希望看到项目目前已有成果的证据。
+
+Brian: Yes. Users, contributors, releases, papers, deployments, courses, benchmarks, or other signs of adoption are useful context. Then be honest about where you’re stuck: documentation, governance, packaging, testing, contributors, maintainers, visibility, reproducibility, or ecosystem readiness.
+
+Brian：对。用户、贡献者、版本发布、论文、实际部署、课程、基准测试，或其他被采用的迹象，都能提供有用的背景信息。然后坦诚说明目前卡在哪里：文档、治理、打包、测试、贡献者、维护者、知名度、可复现性，还是融入生态系统的准备程度。
+
+Ava: And the final question is what the workshop should help achieve.
+
+Ava：最后一个问题是，希望这个工作坊帮助大家实现什么目标。
+
+Brian: Exactly. They’re not looking for perfectly polished applications. They’re looking for projects worth helping.
+
+Brian：没错。他们要找的不是打磨得尽善尽美的申请，而是值得扶持的项目。
+
+Ava: Let’s make the deadline clear. When does this call close?
+
+Ava：我们把截止时间说清楚。这次征集什么时候结束？
+
+Brian: September thirtieth, twenty twenty-six, at midnight Pacific Time. Registration for the event is separate from the PyTorch Conference and will open later that week.
+
+Brian：截止时间是2026年9月30日太平洋时间午夜。本次活动的报名与 PyTorch Conference 分开进行，将于当周晚些时候开放。
+
+Ava: So if you have a project that deserves a life beyond a paper, thesis, course, grant, or research group, this is a direct invitation.
+
+Ava：所以，如果你的项目值得在论文、学位论文、课程、资助项目或研究团队结束后继续发展，这就是向你发出的直接邀请。
+
+Brian: Yes. The project should already be open source and connected to PyTorch or one of the other hosted projects, but it doesn’t need to be polished. The workshop is designed for the transition itself.
+
+Brian：是的。项目应当已经开源，并且与 PyTorch 或其他托管项目之一有关，但不必打磨得很完善。这个工作坊就是为帮助项目完成这一转变而设计的。
+
+Ava: Let’s close with a three-point recap. First, this workshop helps academic PyTorch projects move toward sustainable community adoption.
+
+Ava：最后用3点来回顾一下。第一，这个工作坊帮助学术界的 PyTorch 项目走向可持续的社区采用。
+
+Brian: Second, selected teams get five-minute lightning talks, hands-on work with mentors, and office hours covering readiness, governance, reproducibility, community, security, maintenance, and ecosystem positioning.
+
+Brian：第二，入选团队可以进行5分钟的闪电演讲、与导师一起动手实践，并参加涵盖准备程度、治理、可复现性、社区、安全、维护和生态系统定位的答疑活动。
+
+Ava: Third, the organizers value potential and commitment over perfect maturity. Submit the project, explain what exists, say where you’re stuck, and describe the next step you want help with.
+
+Ava：第三，组织者看重潜力和投入程度，胜过项目是否已经完全成熟。提交你的项目，说明目前已经做出了什么、卡在哪里，以及希望在哪个下一步得到帮助。
+
+Brian: And remember the deadline: September thirtieth, twenty twenty-six, midnight Pacific Time.
+
+Brian：还有，请记住截止时间：2026年9月30日太平洋时间午夜。
+
+Ava: That’s it for today. If your academic PyTorch project deserves a future beyond the original lab, bring it to the workshop.
+
+Ava：今天就到这里。如果你的学术 PyTorch 项目值得走出最初的实验室、拥有更长远的未来，就带它来参加这个工作坊吧。
+
+Brian: Thanks for listening. We’ll see you in the next episode.
+
+Brian：感谢收听。我们下期节目见。
+
+## 术语
+
+| Term | 释义 |
+|---|---|
+| PyTorch Foundation OSPO | PyTorch 基金会开源项目办公室 |
+| Academic Outreach Working Group | 学术外展工作组 |
+| sustainable open source project | 可持续的开源项目 |
+| research artifact | 研究产物或研究代码成果 |
+| lightning talk | 限时短演讲 |
+| maintainer succession | 维护者交接与继任机制 |
+| governance | 项目治理与决策机制 |
+| reproducibility | 可复现性 |
+| open source readiness | 项目是否已具备开源协作条件 |
+| contributor onboarding | 引导新贡献者加入项目 |
+| ecosystem positioning | 项目在生态中的定位及与 PyTorch 的关系 |
+| research software engineer | 研究软件工程师 |
+| Academic OSPO | 高校或学术机构的开源项目办公室 |
+| cohort diversity | 入选项目群体的多样性 |
+
+## 口语表达
+
+| Phrase | 释义 |
+|---|---|
+| What happens when... | 当……发生时会怎样？ |
+| That’s the idea. | 这就是核心想法。 |
+| Let’s unpack... | 我们来拆解一下…… |
+| You don’t need to have everything figured out. | 你不需要事先把一切都想清楚。 |
+| That’s a big one. | 这一点很关键。 |
+| Let’s make the deadline clear. | 我们把截止时间说清楚。 |
+| Be honest about where you’re stuck. | 如实说明你卡在哪里。 |
+| They’re looking for projects worth helping. | 他们寻找的是值得帮助的项目。 |

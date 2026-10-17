@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PyTorch Conference China 2026: Connecting the Open AI Stack</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/pytorch-conference-china-2026-advancing-the-open-source-ai-stack/">原视频 / 原文</a></p><h1>PyTorch Conference China 2026: Connecting the Open AI Stack</h1>
+<p>原文：[PyTorch Conference China 2026: Advancing the Open Source AI Stack - PyTorch](https://pytorch.org/blog/pytorch-conference-china-2026-advancing-the-open-source-ai-stack/)</p>
+<h2>摘要</h2>
+<p>本期围绕 PyTorch Conference China 2026，讨论模型、框架、算力和基础设施如何组成开放的 AI 技术栈。两位主持人解释了 PyTorch 基金会的新成员、异构硬件适配工作组，以及中国开发者社区的参与情况。他们还审慎解读了大会展示的 DeepSeek-R1 优化案例和开源权重模型流量数据，并指出这些案例不能代表所有工作负载的表现。</p>
+<h2>对话</h2>
+<p>Ava: If a training job has to move to another chip, how much of the software stack has to move with it?</p>
+<p>Ava: 如果一项训练任务必须迁移到另一种芯片，软件栈需要跟着迁移多少？</p>
+<p>Brian: That's the practical question behind PyTorch Conference China twenty twenty-six. The conference looked at how an open AI stack can span different hardware.</p>
+<p>Brian：这正是 2026 年 PyTorch Conference China 背后的实际问题。大会探讨了开放式 AI 技术栈如何适配不同的硬件。</p>
+<p>Ava: So this wasn't just a conference about new PyTorch features?</p>
+<p>Ava: 所以这场大会讨论的不只是 PyTorch 的新功能？</p>
+<p>Brian: Right. It brought the community together in Shanghai on September eighth and ninth, after two related events on September seventh.</p>
+<p>Brian: 对。继九月七日的两场相关活动之后，社区在九月八日和九日齐聚上海。</p>
+<p>Ava: And the theme was Open Source for the AI Era. What does that mean in practice?</p>
+<p>Ava: 大会的主题是 Open Source for the AI Era。这在实践中是什么意思？</p>
+<p>Brian: It means looking beyond the framework alone. The discussions covered models, training, inference, hardware, cloud infrastructure, and agents.</p>
+<p>Brian: 意思是不能只看框架本身。讨论涵盖了模型、训练、推理、硬件、云基础设施和智能体。</p>
+<p>Ava: That's a lot of ground. Is there one idea that connects it?</p>
+<p>Ava: 涉及的范围真广。有没有一个理念把这些内容串起来？</p>
+<p>Brian: The article calls it one open source AI stack: software and hardware layers that different communities build together.</p>
+<p>Brian: 文章把它称为一套开源 AI 技术栈：由不同社区共同构建的软件层和硬件层。</p>
+<p>Ava: Let's slow down. When you say stack, what sits on top of what?</p>
+<p>Ava: 我们说慢一点。你说的技术栈，各层是怎么排列的？</p>
+<p>Brian: At the top are applications and agents. Beneath them are tools for building and delivering intelligence, then tools for running and scaling workloads.</p>
+<p>Brian: 最上层是应用和智能体。下面是构建和交付智能的工具，再往下是运行工作负载并将其扩展到更大规模的工具。</p>
+<p>Ava: And below those?</p>
+<p>Ava: 这些层下面呢？</p>
+<p>Brian: Infrastructure and isolation, then heterogeneous compute. Heterogeneous just means different kinds of processors, including CPUs, GPUs, NPUs, and other accelerators.</p>
+<p>Brian: 再下面是基础设施和隔离层，然后是异构计算。异构指的就是不同种类的处理器，包括 CPUs、GPUs、NPUs 和其他加速器。</p>
+<p>Ava: So a developer working on an agent still depends on choices several layers below it.</p>
+<p>Ava: 这么说，开发智能体的人也会受到下方好几层技术选择的影响。</p>
+<p>Brian: Exactly. Imagine changing the engine in a vehicle. You'd want the controls above it to keep making sense.</p>
+<p>Brian: 正是这样。想象一下给一辆车换发动机。你会希望上面的操控系统仍然能正常发挥作用。</p>
+<p>Ava: That's the appeal. Does the article say every model already runs on every chip?</p>
+<p>Ava: 这就是它吸引人的地方。文章有没有说每个模型现在都能在每种芯片上运行？</p>
+<p>Brian: No. Any Model, Any Chip, Any Cloud, Any Agent is the Foundation's framing. The article also describes the adaptation work still needed.</p>
+<p>Brian: 没有。Any Model, Any Chip, Any Cloud, Any Agent 是基金会提出的愿景。文章也描述了仍需完成的适配工作。</p>
+<p>Ava: What projects did the Foundation put in those middle layers?</p>
+<p>Ava: 基金会把哪些项目放在中间那些层？</p>
+<p>Brian: It placed PyTorch, vLLM, and Ray in the building and delivering layer. vLLM comes up elsewhere in the program in connection with serving.</p>
+<p>Brian: 它把 PyTorch、vLLM 和 Ray 放在构建与交付层。vLLM 在大会其他议程中也被提到，涉及模型服务。</p>
+<p>Ava: And running workloads at scale?</p>
+<p>Ava: 那大规模运行工作负载这一层呢？</p>
+<p>Brian: That layer included Kubernetes, KServe, Kueue, OpenTelemetry, and llm-d. The article presents them as examples within the larger stack.</p>
+<p>Brian: 这一层包括 Kubernetes、KServe、Kueue、OpenTelemetry 和 llm-d。文章把它们作为整个技术栈中的例子。</p>
+<p>Ava: Then OpenStack and Kata Containers are below that?</p>
+<p>Ava: 那 OpenStack 和 Kata Containers 就在更下面？</p>
+<p>Brian: Yes, in infrastructure and isolation. The key point is that these layers meet at real workload boundaries.</p>
+<p>Brian: 对，在基础设施和隔离层。关键是，这些层会在实际工作负载的衔接处相遇。</p>
+<p>Ava: So who takes responsibility when a boundary doesn't work?</p>
+<p>Ava: 那如果层与层的衔接出了问题，谁来负责？</p>
+<p>Brian: That's where collaboration matters. The Foundation says no single organization builds the whole system; its members work across different parts of it.</p>
+<p>Brian: 这就是协作的重要之处。基金会说，没有任何一家组织能构建整个系统；其成员在系统的不同部分开展工作。</p>
+<p>Ava: The article also announces new members. Who joined?</p>
+<p>Ava: 文章还宣布了新成员。有哪些机构加入？</p>
+<p>Brian: Alibaba Cloud and Cambricon joined as Platinum Members. Ant Group joined as a Gold Member. The announcement happened in Shanghai on September eighth.</p>
+<p>Brian: Alibaba Cloud 和 Cambricon 作为 Platinum Members 加入。Ant Group 作为 Gold Member 加入。这项公告是在九月八日于上海发布的。</p>
+<p>Ava: Do their backgrounds show why the Foundation talks about a whole stack?</p>
+<p>Ava: 它们各自的背景能说明基金会为什么强调完整的技术栈吗？</p>
+<p>Brian: They do. Alibaba Cloud's work spans cloud infrastructure and the Qwen model family. Ant Group brings production AI experience at financial-services scale.</p>
+<p>Brian: 能。Alibaba Cloud 的工作横跨云基础设施和 Qwen 模型家族。Ant Group 带来了金融服务规模的生产环境 AI 经验。</p>
+<p>Ava: And Cambricon is the hardware side?</p>
+<p>Ava: Cambricon 代表硬件这一侧？</p>
+<p>Brian: Yes. It develops MLU accelerators. The article says its PyTorch contributions follow an Upstream First approach.</p>
+<p>Brian: 对。它开发 MLU 加速器。文章说，它对 PyTorch 的贡献遵循 Upstream First 方针。</p>
+<p>Ava: Upstream First sounds important, but what did it contribute?</p>
+<p>Ava: Upstream First 听起来很重要，但它具体贡献了什么？</p>
+<p>Brian: The article lists work across torch.compile, Eager Operators, Device Runtime, Distributed Computing, AMP, Dataloader, and Profiler.</p>
+<p>Brian: 文章列出的工作涉及 torch.compile、Eager Operators、Device Runtime、Distributed Computing、AMP、Dataloader 和 Profiler。</p>
+<p>Ava: That's more than a single device hook.</p>
+<p>Ava: 这远不止一个设备接入接口。</p>
+<p>Brian: Right. It touches several places a workload passes through. The article doesn't spell out the individual changes, though.</p>
+<p>Brian: 对。这涉及工作负载运行时经过的多个环节。不过，文章没有详细说明每一项具体改动。</p>
+<p>Ava: Before we get to hardware integration, how large is the China-based contributor community?</p>
+<p>Ava: 在谈硬件集成之前，先说说中国的贡献者社区有多大？</p>
+<p>Brian: The article reports more than one hundred China-based developers contributing to PyTorch across more than forty affiliated organizations.</p>
+<p>Brian: 文章称，来自四十多个所属组织的一百多名中国开发者为 PyTorch 做出了贡献。</p>
+<p>Ava: I also saw a figure above two hundred and fifty. Is that the same count?</p>
+<p>Ava: 我还看到一个超过二百五十的数字。那是同一项统计吗？</p>
+<p>Brian: No. That figure covers organizations across China contributing to PyTorch Foundation projects, including PyTorch, Ray, DeepSpeed, Safetensors, and vLLM.</p>
+<p>Brian: 不是。那个数字统计的是中国各地为 PyTorch 基金会项目做出贡献的组织，项目包括 PyTorch、Ray、DeepSpeed、Safetensors 和 vLLM。</p>
+<p>Ava: That's a useful distinction. One count is PyTorch developers; the other spans Foundation projects.</p>
+<p>Ava: 这个区别很有用。一个统计的是 PyTorch 开发者，另一个涵盖了基金会的多个项目。</p>
+<p>Brian: Exactly. Put them together carelessly, and you'd give listeners the wrong picture.</p>
+<p>Brian: 正是这样。如果随意把两个数字放在一起，就会让听众产生误解。</p>
+<p>Ava: Now, back to chips. What's making hardware support so difficult?</p>
+<p>Ava: 现在回到芯片。硬件支持为什么这么难做？</p>
+<p>Brian: The article points to hardware heterogeneity, high adaptation costs, and a lack of unified standards. Each new chip can create repeated integration work.</p>
+<p>Brian: 文章指出了硬件的异构性、高昂的适配成本，以及缺乏统一标准。每增加一种新芯片，都可能带来重复的集成工作。</p>
+<p>Ava: Repeated where? Just in operators?</p>
+<p>Ava: 哪些地方会重复？只有算子吗？</p>
+<p>Brian: Operators are one part. The September seventh discussions also named compilers, training and inference frameworks, and communications.</p>
+<p>Brian: 算子只是其中一部分。九月七日的讨论还提到了编译器、训练和推理框架，以及通信。</p>
+<p>Ava: So it's like adding a machine to a lab and discovering every tool needs a new connector.</p>
+<p>Ava: 就像给实验室添一台机器，却发现每件工具都需要一个新的连接器。</p>
+<p>Brian: Yes. That's a helpful picture. The FlagOS-hosted event discussed open system software for diverse hardware and collaboration across chip architectures.</p>
+<p>Brian: 对，这个比喻很贴切。由 FlagOS 主办的活动讨论了适用于多样化硬件的开放系统软件，以及跨芯片架构的协作。</p>
+<p>Ava: There was a Huawei-hosted event too, wasn't there?</p>
+<p>Ava: 当时还有一场由 Huawei 主办的活动，对吧？</p>
+<p>Brian: There was. It focused on PyTorch workloads across GPUs, NPUs, and XPUs, including migration, operators, compiler work, and performance tuning.</p>
+<p>Brian: 有。活动重点讨论了 PyTorch 工作负载如何跨 GPUs、NPUs 和 XPUs 运行，包括迁移、算子、编译器工作和性能调优。</p>
+<p>Ava: Can you make the Foundation's response more concrete?</p>
+<p>Ava: 能把基金会的应对办法说得更具体一些吗？</p>
+<p>Brian: The PyTorch Technical Advisory Council has an Accelerator Integration Working Group, co-chaired by Huawei and Intel.</p>
+<p>Brian: PyTorch Technical Advisory Council 下设一个 Accelerator Integration Working Group，由 Huawei 和 Intel 共同担任主席。</p>
+<p>Ava: What does that group actually deliver?</p>
+<p>Ava：那个工作组具体交付什么？</p>
+<p>Brian: It provides standardized hardware onboarding guidelines, cross-repo CI testing, generalized device-aware test suites, and platform incubation workflows.</p>
+<p>Brian：它提供标准化的硬件接入指南、跨仓库 CI 测试、通用的设备感知测试套件，以及平台孵化流程。</p>
+<p>Ava: Cross-repo CI means integration testing across repositories, right? Why does that matter here?</p>
+<p>Ava：跨仓库 CI 是指跨多个代码仓库进行集成测试，对吧？这在这里为什么重要？</p>
+<p>Brian: That's the idea. Hardware support crosses project boundaries, so a test in just one repository may miss a problem elsewhere.</p>
+<p>Brian：就是这个意思。硬件支持涉及多个项目，所以只在一个代码仓库里测试，可能漏掉其他地方的问题。</p>
+<p>Ava: And device-aware tests check behavior with the device in mind?</p>
+<p>Ava：设备感知测试就是结合设备的特性来检查运行表现？</p>
+<p>Brian: Yes. The group also described refined device-agnostic APIs and a broader multi-backend test matrix in its roadmap.</p>
+<p>Brian：对。这个工作组还在路线图中提到了改进设备无关的 API，以及扩大多后端测试矩阵。</p>
+<p>Ava: Device-agnostic APIs: interfaces intended to work without being tied to one device. Is that fair?</p>
+<p>Ava：设备无关的 API，就是不绑定某一种设备、旨在通用的接口。这样理解对吗？</p>
+<p>Brian: That's fair. Multi-backend means testing across different hardware implementations. The article presents this as ongoing work.</p>
+<p>Brian：对。多后端是指在不同的硬件实现上进行测试。文章说这项工作仍在进行中。</p>
+<p>Ava: Let me check the main point. The goal is to make adding hardware less repetitive and easier to test.</p>
+<p>Ava：我确认一下重点：目标是减少添加硬件支持时的重复工作，并让测试更容易。</p>
+<p>Brian: Yes. And hardware vendors and developers are invited to participate in that working group.</p>
+<p>Brian：对。硬件厂商和开发者也受邀参与这个工作组。</p>
+<p>Ava: What did the conference say about models and serving? We haven't spent much time there.</p>
+<p>Ava：大会在模型和推理服务方面说了些什么？我们还没怎么谈到这部分。</p>
+<p>Brian: The keynotes ranged from open-weight models to vLLM deployment, distributed acceleration, cloud infrastructure for Qwen, and agent runtimes.</p>
+<p>Brian：主题演讲涵盖了开放权重模型、vLLM 部署、分布式加速、支持 Qwen 的云基础设施，以及智能体运行时。</p>
+<p>Ava: Open-weight means the model weights are available. Did the article give a concrete optimization example?</p>
+<p>Ava：开放权重是指模型权重可获取。文章给出具体的优化案例了吗？</p>
+<p>Brian: It did. One DeepSeek-R1 case study discussed kernels, routing, parallelism, and serving on the same GB three hundred hardware six months later.</p>
+<p>Brian：是的。一项 DeepSeek-R1 案例研究讨论了内核、路由、并行化和服务部署，以及 6 个月后在同一款 GB300 硬件上的表现。</p>
+<p>Ava: Wait, so what changed in the result?</p>
+<p>Ava：等等，最终结果有什么变化？</p>
+<p>Brian: In the configuration presented, the optimized system delivered two point seven seven times the throughput and sixty percent lower token cost.</p>
+<p>Brian：在展示的配置下，优化后的系统实现了 2.77 倍的吞吐量，token 成本降低了 60%。</p>
+<p>Ava: Throughput means the amount of work served over time. Did they separate the effect of each optimization?</p>
+<p>Ava：吞吐量是指单位时间内提供服务所完成的工作量。他们分别说明了每项优化的效果吗？</p>
+<p>Brian: The article doesn't give that breakdown. It reports the combined result for the presented configuration and cites NVIDIA's twenty twenty-six material.</p>
+<p>Brian：文章没有给出那项细分数据。它报告的是所展示配置的综合结果，并引用了 NVIDIA 2026 年的资料。</p>
+<p>Ava: So I shouldn't treat those numbers as a promise for my own serving setup.</p>
+<p>Ava：所以我不该把这些数字当成自己部署推理服务时也能达到的保证。</p>
+<p>Brian: Right. They show what that case study achieved. The article doesn't claim every workload or accelerator will see the same gain.</p>
+<p>Brian：对。这些数字说明的是那个案例取得的结果。文章没有声称每种工作负载或加速器都能获得相同的提升。</p>
+<p>Ava: Was there another number that stood out?</p>
+<p>Ava：还有其他值得注意的数字吗？</p>
+<p>Brian: Yes. The article cites Mozilla for a change in OpenRouter token traffic served by open-weight models developed in China.</p>
+<p>Brian：有。文章引用 Mozilla 的数据，谈到了中国开发的开放权重模型在 OpenRouter token 流量中所占份额的变化。</p>
+<p>Ava: How big a change?</p>
+<p>Ava：变化有多大？</p>
+<p>Brian: Their share rose from two percent in late twenty twenty-four to forty-five percent in April twenty twenty-six.</p>
+<p>Brian：他们的占比从 2024 年末的 2% 上升到 2026 年 4 月的 45%。</p>
+<p>Ava: That's a large shift. But it's specifically OpenRouter traffic, correct?</p>
+<p>Ava：变化很大。但这说的专门是 OpenRouter 的流量，对吗？</p>
+<p>Brian: Correct. It isn't a measure of all AI usage. It's one traffic measure that helps explain the conference's focus on open models.</p>
+<p>Brian：对。它不能衡量所有 AI 使用情况，只是一项流量指标，有助于解释大会为什么关注开放模型。</p>
+<p>Ava: What about the keynote from Mark Collier? How does it fit with these examples?</p>
+<p>Ava：Mark Collier 的主题演讲呢？它和这些案例有什么联系？</p>
+<p>Brian: He focused on an open ecosystem where researchers, developers, model builders, and hardware companies can work together from experimentation to production.</p>
+<p>Brian：他重点谈了一个开放生态系统，让研究人员、开发者、模型构建者和硬件公司能够从实验阶段到生产阶段协作。</p>
+<p>Ava: That sounds broad. Did the conference connect those people in person too?</p>
+<p>Ava：这听起来范围很广。大会也让这些人在线下交流了吗？</p>
+<p>Brian: Yes. There were technical demonstrations, community meetings, a Foundation press conference, and conversations at the PyTorch booth.</p>
+<p>Brian：是的。现场有技术演示、社区会议、基金会新闻发布会，以及在 PyTorch 展位进行的交流。</p>
+<p>Ava: And Technical Advisory Council members met in Shanghai on day one.</p>
+<p>Ava：Technical Advisory Council 的成员也在首日于上海举行了会议。</p>
+<p>Brian: They did. Those meetings fit the same theme: people working on different layers need places to coordinate.</p>
+<p>Brian：是的。这些会议也呼应了同一个主题：从事不同技术层面工作的人需要有地方协调合作。</p>
+<p>Ava: Here's the catch. A conference article can show direction, but it can't answer every implementation question.</p>
+<p>Ava：不过有一点需要注意。大会文章能展示方向，却无法回答每一个实现层面的问题。</p>
+<p>Brian: Exactly. It names projects and work areas, but gives limited detail on individual integrations, test outcomes, and benchmark methods.</p>
+<p>Brian：没错。文章列出了项目和工作领域，但对各项集成的细节、测试结果和基准测试方法介绍有限。</p>
+<p>Ava: What should an engineer watch next?</p>
+<p>Ava：工程师接下来应该关注什么？</p>
+<p>Brian: The Accelerator Integration Working Group's device-agnostic APIs and expanded multi-backend testing are concrete areas to follow.</p>
+<p>Brian：Accelerator Integration Working Group 的设备无关 API 和扩大的多后端测试，是值得关注的具体工作。</p>
+<p>Ava: And the article points to another conference?</p>
+<p>Ava：文章还提到了另一场大会？</p>
+<p>Brian: PyTorch Conference North America is scheduled for San Jose on October twentieth and twenty-first, with maintainers from PyTorch, vLLM, DeepSpeed, and Ray.</p>
+<p>Brian：PyTorch Conference North America 定于 10 月 20 日和 21 日在圣何塞举行，PyTorch、vLLM、DeepSpeed 和 Ray 的维护者将出席。</p>
+<p>Ava: Let's finish with three things to remember. First?</p>
+<p>Ava：最后说三件值得记住的事。第一件是什么？</p>
+<p>Brian: First, the open AI stack connects applications all the way down to diverse hardware.</p>
+<p>Brian：首先，开放 AI 技术栈把应用一路连接到各种不同的硬件。</p>
+<p>Ava: Second, hardware integration needs shared guidelines and tests. Third, promising numbers need their original context.</p>
+<p>Ava：其次，硬件集成需要共享的指南和测试。第三，看起来很亮眼的数字也需要结合其原始背景来理解。</p>
+<p>Brian: That's it. Thanks for listening, and we'll see you next time.</p>
+<p>Brian：就是这样。谢谢收听，我们下次见。</p>
+<h2>术语</h2>
+<p>Term · 释义</p>
+<p>open source AI stack · 由社区共同建设、涵盖应用到硬件多个层次的开源 AI 技术栈</p>
+<p>heterogeneous compute · 由 CPU、GPU、NPU 等不同类型处理器构成的计算环境</p>
+<p>accelerator integration · 将 AI 加速器接入 PyTorch 及相关软件体系的工作</p>
+<p>hardware onboarding · 让新硬件平台进入并适配软件生态的过程</p>
+<p>cross-repo CI · 跨代码仓库的持续集成测试</p>
+<p>device-aware test suites · 考虑不同设备特性的成套测试</p>
+<p>device-agnostic APIs · 尽量不绑定某一种设备的应用程序接口</p>
+<p>multi-backend test matrix · 覆盖多种硬件后端的测试组合</p>
+<p>open-weight models · 权重开放的模型</p>
+<p>throughput · 单位时间内处理的工作量，即吞吐量</p>
+<p>token cost · 处理每个 token 的成本</p>
+<p>Upstream First · 优先向上游开源项目贡献的方式</p>
+<h2>口语表达</h2>
+<p>Phrase · 释义</p>
+<p>What does that mean in practice? · 实际做起来是什么意思？</p>
+<p>Let's slow down. · 我们放慢一点，先理清楚。</p>
+<p>Can you make the Foundation's response more concrete? · 能把基金会的应对方式讲得更具体吗？</p>
+<p>That's a useful distinction. · 这个区分很有用。</p>
+<p>Let me check the main point. · 我确认一下核心意思。</p>
+<p>Wait, so what changed in the result? · 等等，结果具体发生了什么变化？</p>
+<p>Here's the catch. · 但这里有个需要注意的地方。</p>
+<p>What should an engineer watch next? · 工程师接下来该关注什么？</p></body></html>

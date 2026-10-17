@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Making Low Precision Attention Work End to End</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/low-precision-flash-attention-4-end-to-end-block-scaled-attention-for-blackwell/">原视频 / 原文</a></p><h1>Making Low Precision Attention Work End to End</h1>
+<p>原文：[Low Precision Flash Attention 4: End-to-End Block-Scaled Attention for Blackwell - PyTorch](https://pytorch.org/blog/low-precision-flash-attention-4-end-to-end-block-scaled-attention-for-blackwell/)</p>
+<h2>摘要</h2>
+<p>这篇文章介绍了如何在 Blackwell GPU 上为 FlashAttention-4 实现 MXFP8 前向和反向计算。难点不仅是更换数据格式，还包括在已占满的 TMEM 中安放缩放因子、在线量化中间结果，以及处理变长序列。作者通过调整流水线、复用方形块量化结果，并把量化融合进 RMSNorm 和 GEMM，减少了额外的数据搬运。在文中测试的形状上，核心算子取得明显吞吐提升，但端到端模块的收益随序列长度变化，部分精度选择也依赖其训练工作负载。</p>
+<h2>对话</h2>
+<p>Ava: What if an attention kernel gets much faster, but the training step barely moves? That's the puzzle in this PyTorch post.</p>
+<p>Ava：如果一个注意力内核快了很多，但训练步骤几乎没变快，会怎么样？这正是这篇 PyTorch 文章讨论的难题。</p>
+<p>Brian: Exactly. The team extended FlashAttention-4, or FA4, to use MXFP8, a microscaling eight-bit floating-point format. Then they tackled the work around attention, where a kernel speedup can disappear.</p>
+<p>Brian：没错。团队扩展了 FlashAttention-4（FA4），让它支持 MXFP8，一种微缩放的 8 位浮点格式。随后他们又处理了注意力计算周边的工作，因为内核提速可能在这些环节被抵消。</p>
+<p>Ava: So the headline isn't just, “Blackwell can multiply smaller numbers faster”?</p>
+<p>Ava：所以重点不只是“Blackwell 能更快地对较小的数做乘法”？</p>
+<p>Brian: Right. Blackwell's tensor cores have block-scaled MMA instructions. MMA means matrix multiply-and-accumulate. The post says these instructions offer two to four times the throughput of BF16, or bfloat sixteen, MMA, depending on the microscaling format.</p>
+<p>Brian：对。Blackwell 的张量核心有块缩放 MMA 指令。MMA 指矩阵乘加。文章说，根据所用的微缩放格式，这些指令的吞吐量是 BF16（即 bfloat16）MMA 的 2 到 4 倍。</p>
+<p>Ava: But that's hardware throughput. What gets in the way during training?</p>
+<p>Ava：但那是硬件吞吐量。训练时有什么会拖慢速度？</p>
+<p>Brian: You have to quantize values into the smaller format and manage scale factors. Those scales tell the hardware how to interpret each block. Moving values and scales can cost enough to erase the faster multiplication.</p>
+<p>Brian：你得把数值量化成更小的格式，还要管理缩放因子。这些缩放因子告诉硬件该如何解读每个块。搬运数值和缩放因子的开销可能大到抵消更快乘法带来的收益。</p>
+<p>Ava: Like buying a faster oven, then spending dinner time measuring every ingredient?</p>
+<p>Ava：就像买了台更快的烤箱，结果做晚饭的时间都花在称量每种食材上？</p>
+<p>Brian: Pretty much. Attention adds another problem: some values are created inside the kernel. You can't prepare every quantized input ahead of time.</p>
+<p>Brian：差不多。注意力计算还有一个问题：有些数值是在内核内部生成的。你没法提前准备好每一个量化输入。</p>
+<p>Ava: Let's start with the forward pass. What actually happens there?</p>
+<p>Ava：先说前向传播吧。那里具体会发生什么？</p>
+<p>Brian: Queries and keys produce attention scores. Softmax turns those scores into weights, called P. Then P combines the values to produce the output. The post calls the inputs Q, K, and V: query, key, and value.</p>
+<p>Brian：查询和键生成注意力分数。Softmax 把这些分数变成权重，称为 P。然后 P 与值结合，生成输出。文章把这些输入称为 Q、K 和 V，分别是查询、键和值。</p>
+<p>Ava: And P only exists after softmax. Is that one of the awkward inputs?</p>
+<p>Ava：而 P 只有经过 Softmax 后才会出现。这就是其中一个难处理的输入吗？</p>
+<p>Brian: Yes. Softmax computes P in FP32, meaning thirty-two-bit floating point. Earlier, P was converted to BF16 before the multiplication with V. This version converts P to MXFP8 and computes its scales inside the kernel.</p>
+<p>Brian：是的。Softmax 以 FP32（即 32 位浮点格式）计算 P。此前，P 会先转换为 BF16，再与 V 相乘。这个版本将 P 转换为 MXFP8，并在内核内部计算其缩放系数。</p>
+<p>Ava: Wait, do all those scales follow the same direction through the tensor?</p>
+<p>Ava：等等，这些缩放因子在张量中都是沿同一个方向排列的吗？</p>
+<p>Brian: They don't. Block-scaled MMA needs scales along the dimension being multiplied over. For Q and K, that's the embedding dimension. For V in the multiplication with P, it's the sequence dimension.</p>
+<p>Brian：不是。块缩放 MMA 要求缩放因子沿着执行乘法归约的维度排列。对 Q 和 K 来说，那是嵌入维度；对与 P 相乘的 V 来说，那是序列维度。</p>
+<p>Ava: So even the layout of the scale factors matters.</p>
+<p>Ava：所以连缩放因子的布局也很重要。</p>
+<p>Brian: A lot. The kernel loads them through TMA, the tile-loading mechanism described in the post, and places them in TMEM. TMEM is tensor memory used for operands and accumulated results.</p>
+<p>Brian：非常重要。内核通过 TMA 加载它们；TMA 是文章描述的分块加载机制。然后内核把它们放进 TMEM。TMEM 是用于存放操作数和累加结果的张量内存。</p>
+<p>Ava: Is there room for them? I remember the post saying TMEM was already full.</p>
+<p>Ava：那里还有空间吗？我记得文章说 TMEM 已经满了。</p>
+<p>Brian: That's the central forward-pass puzzle. Blackwell has five hundred and twelve TMEM columns, and the existing FA4 layout uses them all. The team puts scales in regions whose earlier contents have already been consumed.</p>
+<p>Brian：这是前向传播中的核心难题。Blackwell 有 512 个 TMEM 列，而现有的 FA4 布局已经将它们全部用完。团队把缩放系数放进先前内容已经被读取使用的区域。</p>
+<p>Ava: That sounds like reusing a desk as soon as someone finishes their paperwork.</p>
+<p>Ava：听起来就像有人一处理完文件，就立刻把桌子让给别人用。</p>
+<p>Brian: Yes, with careful timing. FA4 alternates between two query tiles. Some scales go where an output hasn't started yet; others go where a score has been read. One reuse needs an extra barrier to prevent two asynchronous writes from colliding.</p>
+<p>Brian：是的，但时机必须把握准确。FA4 在两个查询块之间交替处理。一部分缩放系数放在输出尚未开始写入的位置，另一部分放在分数已经被读取的位置。其中一处复用需要额外的屏障，以免两次异步写入发生冲突。</p>
+<p>Ava: Does that barrier slow everything down?</p>
+<p>Ava：那个屏障会拖慢整个过程吗？</p>
+<p>Brian: The authors say it usually doesn't add cost. Another matrix multiplication typically overlaps the read that must happen before the barrier. That's a scheduling claim about their kernel, rather than a general promise.</p>
+<p>Brian：作者说，它通常不会带来额外开销。另一次矩阵乘法通常会与屏障前必须完成的读取重叠进行。这是针对他们内核调度方式的说法，并非普遍保证。</p>
+<p>Ava: Okay. Faster multiplication also changes which part of the pipeline feels slow, right?</p>
+<p>Ava：好。乘法变快后，流水线中显得慢的部分也会变，对吧？</p>
+<p>Brian: Right. Softmax takes about the same kind of work while MMA gets faster. Delays once hidden behind BF16 multiplication become visible. At tile boundaries, the next softmax can wait for the next query-key multiplication.</p>
+<p>Brian：对。Softmax 的工作量大致不变，而 MMA 变快了。原本被 BF16 乘法掩盖的延迟就显现出来。在分块边界，下一个 Softmax 可能要等待下一次查询与键的乘法。</p>
+<p>Ava: How do they give softmax a head start?</p>
+<p>Ava：他们怎么让 Softmax 提前开始？</p>
+<p>Brian: With unroll-KV, a schedule that interleaves work on key and value tiles. They move the first query-key multiplication for the next tile earlier, alongside the final multiplication with values from the current tile.</p>
+<p>Brian：靠 unroll-KV，这种调度方式会交错处理键分块和值分块上的工作。他们把下一个分块的第一次查询与键的乘法提前，让它与当前分块最后一次和值的乘法同时进行。</p>
+<p>Ava: Nice. Was it a free win?</p>
+<p>Ava：不错。这是不费代价就能得到的提升吗？</p>
+<p>Brian: No. That change initially slowed the BF16 path because it delayed correction work. They moved a barrier wait until after a row-sum calculation that didn't depend on it. That kept the correction pipeline moving.</p>
+<p>Brian：不是。这项改动起初拖慢了 BF16 路径，因为它推迟了修正计算。后来他们把屏障等待移到一个不依赖该屏障的行求和计算之后，使修正计算流水线得以继续运转。</p>
+<p>Ava: And the online conversion of P? Computing a scale for every block sounds expensive.</p>
+<p>Ava：那 P 的即时转换呢？给每个块计算缩放因子听起来很费时。</p>
+<p>Brian: It could be. The post describes short instruction sequences for finding block maxima and converting values. It also reuses a maximum from softmax, avoiding extra maximum calculations while adding one exponential calculation per thirty-two elements.</p>
+<p>Brian：有可能。文章介绍了用于寻找块内最大值和转换数值的简短指令序列。它还复用 softmax 得到的最大值，避免额外计算最大值，但每 32 个元素会增加一次指数运算。</p>
+<p>Ava: Let me recap: they find space for scales, keep softmax busy, and quantize P as it's produced.</p>
+<p>Ava：我总结一下：他们为缩放因子腾出空间，让 Softmax 持续工作，并在 P 生成时就将它量化。</p>
+<p>Brian: That's the forward kernel. Now backward brings a different headache: the same tensor may feed matrix multiplications that read it along different axes.</p>
+<p>Brian：这就是前向内核。接下来，反向传播带来另一个难题：同一个张量可能供沿不同轴读取它的矩阵乘法使用。</p>
+<p>Ava: Why can't they just transpose the already quantized data?</p>
+<p>Ava：为什么不能直接转置已经量化的数据？</p>
+<p>Brian: Ordinary block scaling groups values along the multiplication dimension. After a transpose, those groups can change. Separate quantized copies would mean extra conversion and storage.</p>
+<p>Brian：常规的块缩放会沿着乘法归约维度把数值分组。转置之后，这些分组可能会改变。如果分别保存量化副本，就需要额外的转换和存储。</p>
+<p>Ava: So what's their way around that?</p>
+<p>Ava：那他们怎么解决？</p>
+<p>Brian: They quantize Q, K, and the output gradient using thirty-two by thirty-two square blocks. A square block stays the same block after transposition, so both multiplication directions can share one quantized data representation.</p>
+<p>Brian：他们用 32×32 的方形块量化 Q、K 和输出梯度。方形块转置后仍是同一个块，因此两个乘法方向可以共用一份量化后的数据表示。</p>
+<p>Ava: The payload is shared. Are the scales shared too?</p>
+<p>Ava：数据本体可以共用。缩放因子也能共用吗？</p>
+<p>Brian: Their values can be reused, but the smaller scale tensors still need layouts suited to each tensor-core multiplication. Think of keeping the same books while arranging their index cards for two different readers.</p>
+<p>Brian：这些数值可以复用，但较小的缩放系数张量仍需要针对每次张量核心乘法采用合适的布局。可以想象成书还是同一批书，只是要为两位不同的读者分别排列索引卡。</p>
+<p>Ava: And what about dS, the gradient of the attention scores? That's computed during backward.</p>
+<p>Ava：那 dS，也就是注意力分数的梯度呢？它是在反向传播时计算出来的。</p>
+<p>Brian: They quantize each thirty-two by thirty-two block of dS once as well. A warp, meaning a group of GPU threads, finds the block's largest absolute value. The square block then works for both multiplications that consume dS.</p>
+<p>Brian：他们也对 dS 的每个 32×32 块只量化一次。一个 warp，也就是一组 GPU 线程，会找出块内的最大绝对值。这个方形块随后可供使用 dS 的两次乘法共用。</p>
+<p>Ava: Does backward have the same TMEM space problem?</p>
+<p>Ava：反向传播也有同样的 TMEM 空间问题吗？</p>
+<p>Brian: Yes, with five matrix multiplications competing for space. Two gradient accumulators stay in TMEM throughout the loop. The team reuses the remaining regions for scales and reports needing one additional barrier on the one-CTA path they use for MXFP8.</p>
+<p>Brian：是的，而且有 5 次矩阵乘法在争用空间。两个梯度累加器在整个循环期间都留在 TMEM 中。团队将其余区域复用于缩放系数，并报告说，在他们用于 MXFP8 的单 CTA 路径上，还需要增加一个屏障。</p>
+<p>Ava: There's also a dQ reduction change. Why did that matter?</p>
+<p>Ava：他们还改了 dQ 的归约。这为什么重要？</p>
+<p>Brian: dQ is the query gradient. The kernel writes a tile of it to global memory on every inner-loop iteration, so bandwidth becomes a bottleneck. In their workloads, FP16, or sixteen-bit floating point, with static scaling gave the best performance.</p>
+<p>Brian：dQ 是查询梯度。内核在内层循环的每次迭代中都会把它的一个块写入全局内存，因此带宽成了瓶颈。在他们的工作负载中，采用静态缩放的 FP16（即 16 位浮点格式）性能最好。</p>
+<p>Ava: That accuracy choice sounds workload dependent.</p>
+<p>Ava：这个精度选择听起来取决于工作负载。</p>
+<p>Brian: It is presented that way. The authors say their dQ values remain small and this approach has acceptable numerical accuracy in production workloads. They also report results with FP32 dQ accumulation.</p>
+<p>Brian：作者也是这样表述的。他们说，自己的 dQ 数值保持在较小范围内，这种方法在生产工作负载中具有可接受的数值精度。他们还报告了使用 FP32 累加 dQ 的结果。</p>
+<p>Ava: We've sped up attention itself. How do they stop quantization outside the kernel from eating the gain?</p>
+<p>Ava：注意力计算本身已经提速了。他们怎么避免内核外的量化把收益吃掉？</p>
+<p>Brian: They fuse quantization into producer kernels. RMSNorm, or root mean square normalization, can emit MXFP8 directly. Projection GEMMs, meaning general matrix multiplications, can convert their results to MXFP8 in the epilogue, their final output stage.</p>
+<p>Brian：他们把量化融合进生成数据的内核。RMSNorm，也就是均方根归一化，可以直接输出 MXFP8。投影 GEMM，也就是通用矩阵乘法，可以在尾声阶段，即最终输出阶段，把结果转换成 MXFP8。</p>
+<p>Ava: So the intermediate doesn't make a round trip through global memory?</p>
+<p>Ava：所以中间结果不用在全局内存里往返一次？</p>
+<p>Brian: Exactly. The GEMM result moves from TMEM to registers, gets converted there, and is written out. The BF16 intermediate never reaches global memory. Their fused RMSNorm kernel also waits until it has seen all thirty-two rows needed for each square block's scale.</p>
+<p>Brian：没错。GEMM 的结果从 TMEM 移到寄存器，在寄存器中完成转换，然后写出。中间的 BF16 数据不会进入全局内存。他们融合的 RMSNorm 内核也会等到取得每个方形块计算缩放系数所需的全部 32 行后再处理。</p>
+<p>Ava: The post talks about jagged sequences too. What's jagged here?</p>
+<p>Ava：文章也谈到了不等长序列。这里的“不等长”是什么意思？</p>
+<p>Brian: Different sequences have different lengths. Their natural offsets often don't meet the alignment required by Blackwell's scale-factor layout. Padding every FP8 activation would add storage and memory traffic.</p>
+<p>Brian：不同序列的长度不同。它们原本的偏移量往往达不到 Blackwell 的 scale-factor 布局要求的对齐方式。如果给每个 FP8 激活值都填充数据，就会增加存储占用和内存流量。</p>
+<p>Ava: What gets padded instead?</p>
+<p>Ava：那填充的是哪部分？</p>
+<p>Brian: Only the much smaller scale factors. The FP8 data stays compact at its original positions. When a consumer loads tiles, it uses padded addresses for scales and the original jagged addresses for data.</p>
+<p>Brian：只填充小得多的 scale factors。FP8 数据仍紧凑地保留在原来的位置。后续算子加载数据块时，对 scale factors 使用填充后的地址，对数据使用原来的不等长地址。</p>
+<p>Ava: That's the zero-gather idea: move the little labels, leave the big boxes alone?</p>
+<p>Ava：这就是零 gather 的思路：移动那些小标签，大箱子留在原地？</p>
+<p>Brian: That's a good picture. Lightweight kernels rearrange scale-factor bytes into the layouts the next operation expects. The team also extends a downstream weight-gradient GEMM to handle each variable-length sequence as its own multiplication segment.</p>
+<p>Brian：这个比喻很贴切。轻量级内核会把 scale-factor 字节重新排布成下一步操作所需的布局。团队还扩展了下游的 weight-gradient GEMM，让每条长度不同的序列都能作为独立的乘法片段处理。</p>
+<p>Ava: Let's get to the measurements. Where do the big kernel numbers come from?</p>
+<p>Ava：说说测量结果吧。那些很高的内核性能数字是从哪里来的？</p>
+<p>Brian: From benchmarks on Meta's internal recommendation-system GB300 GPUs. On large language model shapes, their MXFP8 FA4 forward kernel reaches two point eight five petaflops per second, versus two point zero for their internal BF16 FA4.</p>
+<p>Brian：数据来自 Meta 内部推荐系统所用 GB300 GPU 的基准测试。在大语言模型的张量形状下，他们的 MXFP8 FA4 前向内核达到每秒 2.85 千万亿次浮点运算，而他们内部的 BF16 FA4 是每秒 2.0 千万亿次浮点运算。</p>
+<p>Ava: That's about one point four three times faster. What happens in backward?</p>
+<p>Ava：这大约快了 1.43 倍。反向传播的情况呢？</p>
+<p>Brian: On those shapes, it reaches one point eight two petaflops per second with FP32 dQ accumulation, or one point nine eight with FP16 dQ. The BF16 cuDNN baseline is one point five zero.</p>
+<p>Brian：在这些张量形状下，采用 FP32 dQ 累加时，它达到每秒 1.82 千万亿次浮点运算；采用 FP16 dQ 时，达到每秒 1.98 千万亿次浮点运算。BF16 cuDNN 基线是每秒 1.50 千万亿次浮点运算。</p>
+<p>Ava: Their internal recommendation shapes are different from the large language model shapes, aren't they?</p>
+<p>Ava：他们内部的推荐系统形状和大语言模型形状不一样，对吧？</p>
+<p>Brian: Yes: higher batch size, fewer heads, shorter queries, and highly jagged sequence lengths. On a reported jagged forward case, MXFP8 reaches two point five four petaflops per second, versus one point six zero for internal BF16 FA4.</p>
+<p>Brian：是的：批大小更大、注意力头更少、查询序列更短，而且序列长度高度参差不齐。在他们报告的一个不规则序列前向计算案例中，MXFP8 达到每秒 2.54 千万亿次浮点运算，而内部 BF16 FA4 是每秒 1.60 千万亿次浮点运算。</p>
+<p>Ava: And the internal backward result?</p>
+<p>Ava：内部测试的反向传播结果呢？</p>
+<p>Brian: One point five eight petaflops per second with FP16 dQ accumulation, a one point five two times gain over their internal BF16 FA4. With FP32 dQ accumulation, it's one point four two.</p>
+<p>Brian：采用 FP16 dQ 累加时是每秒 1.58 千万亿次浮点运算，比他们内部的 BF16 FA4 快 1.52 倍。采用 FP32 dQ 累加时是每秒 1.42 千万亿次浮点运算。</p>
+<p>Ava: Do those impressive kernel gains survive in the whole module?</p>
+<p>Ava：这些亮眼的内核性能提升在整个模块里还能体现出来吗？</p>
+<p>Brian: Some do. On their single-GPU module test, four thousand and ninety-six key-value tokens show essentially no latency gain. At eight thousand one hundred and ninety-two tokens, it's one point one eight times faster.</p>
+<p>Brian：有些测试确实如此。在他们的单 GPU 模块测试中，键值 token 数为 4096 时，延迟基本没有改善。到 8192 个 token 时，速度快了 1.18 倍。</p>
+<p>Ava: And at the longest tested length?</p>
+<p>Ava：测试中最长的长度呢？</p>
+<p>Brian: At sixteen thousand three hundred and eighty-four tokens, median forward-plus-backward latency falls from about thirty-one point seven milliseconds to twenty-four point five. That's a one point three zero times speedup.</p>
+<p>Brian：到 16384 个 token 时，前向加反向计算的延迟中位数从约 31.7 毫秒降至 24.5 毫秒，也就是提速 1.30 倍。</p>
+<p>Ava: That smallest case is a useful reality check.</p>
+<p>Ava：最短的那个测试是个很有用的现实检验。</p>
+<p>Brian: It is. The post says these recommendation shapes can be bandwidth bound, so conversion and memory traffic matter. Fusing the producers and keeping jagged data compact help the end-to-end result.</p>
+<p>Brian：是的。文章说，这些推荐系统形状可能受内存带宽限制，所以格式转换和内存流量很重要。融合数据生产端、保持不等长数据紧凑，有助于提升端到端性能。</p>
+<p>Ava: How do they check what the lower precision does to the answers?</p>
+<p>Ava：他们怎么检查精度降低对结果有什么影响？</p>
+<p>Brian: They report SQNR, signal-to-quantization-noise ratio, against a BF16 reference. Higher means less error relative to the signal. They also say MXFP8 attention had a neutral training outcome while productionizing this module for GEM.</p>
+<p>Brian：他们报告了相对于 BF16 参考结果的 SQNR，即 signal-to-quantization-noise ratio（信号与量化噪声之比）。数值越高，误差相对于信号就越小。他们还说，在为 GEM 将这个模块投入生产的过程中，MXFP8 attention 对训练结果没有明显影响。</p>
+<p>Ava: Any comparison we should handle carefully?</p>
+<p>Ava：有没有哪项比较需要谨慎看待？</p>
+<p>Brian: Yes. In their tests, cuDNN MXFP8 backward disagreed with the reference for two gradients when V scales were nonuniform. They treat its reported backward throughput as performance-only, not an accuracy-qualified comparison. That caveat doesn't apply to cuDNN MXFP8 forward.</p>
+<p>Brian：是的。在他们的测试中，当 V 的缩放系数不一致时，cuDNN MXFP8 反向计算得到的两个梯度与参考结果不符。因此，他们报告的反向计算吞吐量只代表性能，不能作为经过准确性验证的比较结果。这个限制不适用于 cuDNN MXFP8 的前向计算。</p>
+<p>Ava: And their square-block quantization and FP16 dQ choices were checked on their training workloads?</p>
+<p>Ava：他们的 square-block quantization 和 FP16 dQ 选择，也在自己的训练工作负载上检查过吗？</p>
+<p>Brian: Right. The article says those choices were numerically acceptable there. It doesn't establish the same result for every model or shape.</p>
+<p>Brian：对。文章说，这些选择在那些工作负载上的数值表现是可接受的，但这并不能证明它们对所有模型或形状都有同样的结果。</p>
+<p>Ava: Give me the three-point recap before we go.</p>
+<p>Ava：结束前，给我一个 3 点回顾。</p>
+<p>Brian: First, faster block-scaled MMA needs careful TMEM placement and scheduling. Second, square-block quantization lets backward reuse data across transposes. Third, fused producers and compact jagged data carry more of the kernel gain into the module.</p>
+<p>Brian：第一，要让 block-scaled MMA 更快，需要仔细安排 TMEM 中的数据位置和执行调度。第二，square-block quantization 让反向传播能在转置操作之间复用数据。第三，融合数据生产端并保持不等长数据紧凑，能让更多内核性能提升体现在整个模块中。</p>
+<p>Ava: And the payoff depends on the workload: the longest tested module case gains most, while the shortest barely changes.</p>
+<p>Ava：收益还取决于工作负载：测试中最长的模块用例提升最大，最短的几乎没有变化。</p>
+<p>Brian: Exactly. That's our look at low precision FA4. See you next time.</p>
+<p>Brian：没错。以上就是我们对低精度 FA4 的介绍。下次见。</p>
+<h2>术语</h2>
+<p>Term · 释义</p>
+<p>FlashAttention-4 · 文章扩展的注意力计算内核，简称 FA4。</p>
+<p>MXFP8 · 使用块级缩放因子的八位浮点格式。</p>
+<p>BF16 · bfloat16，文章中的主要精度对照格式。</p>
+<p>block-scaled MMA · 按数据块使用缩放因子的矩阵乘加指令。</p>
+<p>scale factors · 与量化数据块配套、用于解释其数值范围的缩放因子。</p>
+<p>TMEM · Blackwell 上存放计算操作数和累加结果的张量内存。</p>
+<p>TMA · 文中用于加载数据块及缩放因子的硬件加载机制。</p>
+<p>unroll-KV · 交错安排相邻 key/value 数据块计算、减少流水线等待的调度方法。</p>
+<p>dS · 注意力分数 S 的梯度。</p>
+<p>dQ · 查询张量 Q 的梯度。</p>
+<p>RMSNorm · 均方根归一化；文中将其输出与量化融合。</p>
+<p>GEMM epilogue · 通用矩阵乘法的输出阶段；文中在此阶段完成量化。</p>
+<p>jagged sequences · 长度不一、在存储中保持紧凑的序列。</p>
+<p>SQNR · 信号与量化噪声之比；文中用于比较 MXFP8 结果和 BF16 参考结果。</p>
+<h2>口语表达</h2>
+<p>Phrase · 释义</p>
+<p>What gets in the way during training? · 训练时到底有什么阻碍？</p>
+<p>Pretty much. · 差不多就是这样。</p>
+<p>Wait, do all those scales follow the same direction through the tensor? · 等等，这些缩放因子都沿着张量的同一个方向排列吗？</p>
+<p>That's the central forward-pass puzzle. · 这就是前向计算的核心难题。</p>
+<p>Let me recap: · 我来概括一下：</p>
+<p>So what's their way around that? · 那他们是怎么绕开这个问题的？</p>
+<p>That accuracy choice sounds workload dependent. · 这个精度选择听起来取决于具体工作负载。</p>
+<p>That's a good picture. · 这个比喻很贴切。</p>
+<p>That's a useful reality check. · 这是个很有用的现实检验。</p></body></html>

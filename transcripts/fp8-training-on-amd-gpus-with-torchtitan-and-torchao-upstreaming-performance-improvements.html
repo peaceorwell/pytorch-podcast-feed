@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FP8 Training on AMD GPUs with TorchTitan and TorchAO: Upstreaming Performance Improvements</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/fp8-training-on-amd-gpus-with-torchtitan-and-torchao-upstreaming-performance-improvements/">原视频 / 原文</a></p><h1>FP8 Training on AMD GPUs with TorchTitan and TorchAO: Upstreaming Performance Improvements</h1>
+<p>原文：[FP8 Training on AMD GPUs with TorchTitan and TorchAO: Upstreaming Performance Improvements](https://pytorch.org/blog/fp8-training-on-amd-gpus-with-torchtitan-and-torchao-upstreaming-performance-improvements/)</p>
+<h2>摘要</h2>
+<p>本期讨论 TorchTitan 和 TorchAO 如何让 AMD Instinct GPU 原生支持 FP8 训练，并把 Primus-Turbo 中的优化合入 PyTorch 主线。节目解释了 AMD 的 e4m3fnuz 格式、MoE grouped GEMM，以及通过 Triton 融合减少量化开销的方法。在 Llama3-8B 上，FP8 相比 BF16 吞吐提升 13.4%；在 DeepSeek-V3 671B 上，前向融合恢复了 89% 的 FP8 量化开销。最后介绍了 MXFP8 grouped GEMM 和 MI355X 的后续工作。</p>
+<h2>对话</h2>
+<p>Ava: If you have AMD Instinct GPUs, FP8 training can now work out of the box in the standard PyTorch stack. And on Llama3-8B, it delivered a 13.4% throughput gain over BF16. That sounds pretty practical.</p>
+<p>Ava: 如果你有 AMD Instinct GPU，现在就可以直接用标准 PyTorch 技术栈进行 FP8 训练。在 Llama3-8B 上，相比 BF16，吞吐量提高了 13.4%。听起来很实用。</p>
+<p>Brian: Exactly. The key story is upstreaming. Optimizations first demonstrated with Primus-Turbo were merged into TorchAO and TorchTitan, so you don't need a separate AMD-specific training library.</p>
+<p>Brian: 没错。关键在于将优化成果合入上游。最初通过 Primus-Turbo 展示的优化已经合入 TorchAO 和 TorchTitan，因此不需要单独的 AMD 专用训练库。</p>
+<p>Ava: So this episode is about the path from a big optimization project to normal PyTorch support?</p>
+<p>Ava: 所以这一期要讲的是，一个大型优化项目如何逐步成为 PyTorch 的常规支持？</p>
+<p>Brian: Right. We'll walk through correctness first, then performance, then the limits and what's next.</p>
+<p>Brian: 对。我们会先讲正确性，再讲性能，最后讲局限和下一步计划。</p>
+<p>Ava: Let's start with FP8 itself. What changes when a linear layer uses it?</p>
+<p>Ava: 先从 FP8 本身说起。线性层使用 FP8 时会发生什么变化？</p>
+<p>Brian: A linear layer has three matrix multiplications: the forward pass, the gradient input, and the gradient weight update. FP8 training quantizes these operations from 16 bits to 8 bits, which can improve throughput.</p>
+<p>Brian：线性层涉及三次矩阵乘法：前向传播、输入梯度计算和权重梯度更新。FP8 训练将这些运算从 16 位量化到 8 位，从而可能提高吞吐量。</p>
+<p>Ava: But AMD doesn't use exactly the same FP8 format as NVIDIA, correct?</p>
+<p>Ava: 但 AMD 使用的 FP8 格式与 NVIDIA 的并不完全一样，对吗？</p>
+<p>Brian: Correct. AMD Instinct GPUs use an FNUZ variant. FNUZ means Finite, No NaN, Unsigned Zero. The specific format here is e4m3fnuz.</p>
+<p>Brian：没错。AMD Instinct GPU 使用 FNUZ 变体。FNUZ 意为“有限值、无 NaN、无符号零”。这里的具体格式是 e4m3fnuz。</p>
+<p>Ava: What matters about that format?</p>
+<p>Ava: 这种格式有哪些关键之处？</p>
+<p>Brian: Its maximum value is 240, and it has no NaN or infinity encodings. It's implemented on MI300X, MI325X, and MI350X GPUs.</p>
+<p>Brian: 它的最大值是 240，而且没有 NaN 或无穷大的编码。MI300X、MI325X 和 MI350X GPU 都实现了这种格式。</p>
+<p>Ava: Why is choosing that exact format a correctness issue?</p>
+<p>Ava: 为什么选对这个具体格式会关系到正确性？</p>
+<p>Brian: TorchAO originally calculated scales using a different maximum value, from NVIDIA's e4m3fn format. On AMD, values could be scaled beyond what e4m3fnuz can represent. Activations were clipped, gradients were corrupted, and model quality degraded.</p>
+<p>Brian: TorchAO 最初使用另一个最大值来计算缩放系数，这个值来自 NVIDIA 的 e4m3fn 格式。在 AMD 上，数值可能被缩放到超出 e4m3fnuz 可表示范围的程度。激活值因此被截断，梯度遭到破坏，模型质量也随之下降。</p>
+<p>Ava: And because there are no NaN or infinity encodings, the overflow didn't raise an error?</p>
+<p>Ava: 而且因为没有 NaN 或无穷大的编码，溢出也不会报错？</p>
+<p>Brian: Exactly. It silently produced wrong results. So the team added hardware auto-detection. TorchAO now selects the correct FP8 dtype and maximum value automatically.</p>
+<p>Brian: 正是如此。它会悄无声息地产生错误结果。因此团队加入了硬件自动检测。现在 TorchAO 会自动选择正确的 FP8 数据类型和最大值。</p>
+<p>Ava: They also fixed the reported peak FLOPS and loss baselines, right?</p>
+<p>Ava: 他们还修正了报告中的峰值 FLOPS 和损失基线，对吧？</p>
+<p>Brian: Yes. TorchTitan now reports correct MI300X peak FLOPS for MFU, or Model FLOPS Utilization, numbers. It also has platform-specific loss baselines for FNUZ numerics.</p>
+<p>Brian: 是的。现在 TorchTitan 会报告正确的 MI300X 峰值 FLOPS，用于计算 MFU，也就是 Model FLOPS Utilization。它还针对 FNUZ 的数值特性设置了平台专属的损失基线。</p>
+<p>Ava: Before we move to speed, give us the scaling choices. FP8 still needs scales.</p>
+<p>Ava: 在谈速度之前，先介绍一下缩放方式。FP8 仍然需要缩放系数。</p>
+<p>Brian: There are four granularities. Tensorwise uses one scale for the whole tensor. It's fastest but coarsest. Rowwise uses one scale per row. Blockwise uses one per fixed-size tile. MXFP8 uses scales per group packed alongside the data.</p>
+<p>Brian：共有四种粒度。Tensorwise 对整个张量使用一个缩放因子，速度最快，但粒度最粗。Rowwise 对每一行使用一个缩放因子。Blockwise 对每个固定大小的数据块使用一个缩放因子。MXFP8 按组使用缩放因子，并将其与数据一起打包。</p>
+<p>Ava: And TorchAO and TorchTitan support all four on AMD?</p>
+<p>Ava：TorchAO 和 TorchTitan 在 AMD 上都支持这四种粒度吗？</p>
+<p>Brian: Yes. The AMD work made each strategy operate correctly with AMD numerics, and added blockwise kernel support for MI300 and MI350.</p>
+<p>Brian: 是的。AMD 方面的工作使每种策略都能按 AMD 的数值特性正确运行，还为 MI300 和 MI350 增加了 blockwise 内核支持。</p>
+<p>Ava: So the first takeaway is simple: format detection and scaling have to be correct before any benchmark means anything.</p>
+<p>Ava: 所以第一个要点很简单：格式检测和缩放必须正确，否则任何基准测试都没有意义。</p>
+<p>Brian: That's the right recap. Correct dtype, correct maximum value, correct baselines, and correct scaling strategies. Now let's talk about dense models.</p>
+<p>Brian: 总结得对。数据类型要正确，最大值要正确，基线要正确，缩放策略也要正确。现在来谈谈稠密模型。</p>
+<p>Ava: The headline result uses Llama3-8B on eight MI300X GPUs?</p>
+<p>Ava：主要结果是在 8 块 MI300X GPU 上使用 Llama3-8B 得到的吗？</p>
+<p>Brian: Yes. With rowwise FP8, throughput increased 13.4% over BF16. Peak memory was nearly identical, around 39 gigabytes.</p>
+<p>Brian: 是的。使用 rowwise FP8 时，吞吐量比 BF16 提高了 13.4%。峰值内存几乎相同，约为 39 GB。</p>
+<p>Ava: So the gain wasn't from saving memory.</p>
+<p>Ava: 所以性能提升并不是靠节省内存获得的。</p>
+<p>Brian: Right. The recipe keeps the weight-update GEMM in BF16 for higher precision. The forward and gradient-input GEMMs use FP8. The speedup comes from faster FP8 matrix cores.</p>
+<p>Brian: 对。这个训练方案为了保持更高精度，仍用 BF16 执行权重更新的 GEMM；前向传播和输入梯度计算的 GEMM 则使用 FP8。加速来自更快的 FP8 矩阵计算核心。</p>
+<p>Ava: The setup also used torch.compile, FSDP2, and selective activation checkpointing?</p>
+<p>Ava: 这套配置还使用了 torch.compile、FSDP2 和选择性激活检查点技术？</p>
+<p>Brian: Correct. FSDP means Fully Sharded Data Parallel. The reported run used batch size one, sequence length eight thousand one hundred ninety-two, and one hundred steps.</p>
+<p>Brian：没错。FSDP 是 Fully Sharded Data Parallel，即全分片数据并行。报告中的运行采用了 1 的批大小、8192 的序列长度，共执行 100 步。</p>
+<p>Ava: Dense models sound relatively straightforward. Why are Mixture-of-Experts models harder?</p>
+<p>Ava: 稠密模型听起来相对直接。为什么 Mixture-of-Experts 模型更难处理？</p>
+<p>Brian: MoE models route each token to a subset of experts. That creates variable-size batches. Instead of one uniform GEMM, you need a grouped GEMM.</p>
+<p>Brian：MoE 模型会将每个 token 路由给部分专家。这会产生大小不一的批次，因此需要分组 GEMM，而不是一次处理统一批次的 GEMM。</p>
+<p>Ava: Grouped GEMM means several expert matrix multiplications handled together?</p>
+<p>Ava: Grouped GEMM 是指把多个专家的矩阵乘法放在一起处理？</p>
+<p>Brian: Exactly. It needs per-row activation scales, per-expert-column weight scales, and an offset tensor that routes rows to the right expert.</p>
+<p>Brian: 没错。它需要逐行的激活值缩放系数、每个专家各列的权重缩放系数，以及一个将各行路由到对应专家的偏移量张量。</p>
+<p>Ava: And the team enabled FP8 grouped GEMM on ROCm through the Composable Kernel backend?</p>
+<p>Ava: 团队还通过 Composable Kernel 后端，在 ROCm 上启用了 FP8 grouped GEMM？</p>
+<p>Brian: Yes. They adapted the quantization pipeline to use the correct AMD dtype and dispatch path through Composable Kernel.</p>
+<p>Brian: 是的。他们调整了量化流程，使其使用正确的 AMD 数据类型，并通过 Composable Kernel 走正确的分派路径。</p>
+<p>Ava: Now let's get into the expensive part: quantization overhead.</p>
+<p>Ava: 现在来说开销较大的部分：量化开销。</p>
+<p>Brian: The basic FP8 pipeline has several steps. First, compute the absolute maximum, or absmax, per row or column. Then derive a scale and apply it. Finally, clamp and cast to FP8.</p>
+<p>Brian: 基本的 FP8 流程有几个步骤。首先，逐行或逐列计算绝对值最大值，也就是 absmax。然后推导出缩放系数并应用它。最后，将数值截取到允许范围内，再转换为 FP8。</p>
+<p>Ava: Each step used to be a separate kernel launch?</p>
+<p>Ava: 以前每一步都需要单独启动一个内核？</p>
+<p>Brian: Yes. Each launch could materialize an intermediate tensor in HBM, or High Bandwidth Memory. With dozens of expert weight tensors, those round-trips dominated the overhead.</p>
+<p>Brian: 是的。每次启动都可能在 HBM，也就是 High Bandwidth Memory 中生成一个中间张量。有几十个专家权重张量时，这些往返数据传输就成了主要开销。</p>
+<p>Ava: So the problem was memory movement, not the eight-bit arithmetic itself.</p>
+<p>Ava: 所以问题在于数据搬运，而不是 8 位运算本身。</p>
+<p>Brian: Exactly. On these MoE shapes, the math was cheap. Kernel launches and HBM traffic were expensive. The optimizations attacked data movement at three levels.</p>
+<p>Brian：没错。对于这些 MoE 张量形状，数学计算的开销很低，内核启动和 HBM 数据传输的开销却很高。这些优化从三个层面减少了数据移动。</p>
+<p>Ava: Level one was launching fewer kernels. What happened in the backward pass?</p>
+<p>Ava：第一层是减少内核启动次数。反向传播阶段发生了什么？</p>
+<p>Brian: There were two issues. A transpose pattern, written as transpose, contiguous, transpose, forced a full tensor copy through HBM. Pull request number 3972 removed those redundant copies.</p>
+<p>Brian：有两个问题。其中一种转置模式，写作 transpose、contiguous、transpose，会迫使整个张量通过 HBM 复制一次。第 3972 号拉取请求移除了这些冗余复制。</p>
+<p>Ava: And the scale-and-cast chain was still split across kernels.</p>
+<p>Ava: 而缩放和转换的数据处理链仍然分散在多个内核中。</p>
+<p>Brian: Right. Pull request 4069 fused that chain into single Triton kernels in several places. It also added a companion dual-kernel for simultaneous gradient-output and activation quantization.</p>
+<p>Brian: 对。拉取请求 4069 在多个位置将这条处理链融合为单个 Triton 内核。它还增加了一个配套的 dual-kernel，用于同时量化输出梯度和激活值。</p>
+<p>Ava: What was the measured effect?</p>
+<p>Ava: 测得的效果如何？</p>
+<p>Brian: On eight MI300X GPUs with DeepSeek-MoE-16B, the backward fusions delivered a 4.2 times throughput improvement for the backward pass.</p>
+<p>Brian：在使用八块 MI300X GPU 运行 DeepSeek-MoE-16B 时，反向传播阶段的融合优化使该阶段的吞吐量提升至原来的 4.2 倍。</p>
+<p>Ava: That's a large jump. Did the forward path have the same pattern?</p>
+<p>Ava: 提升相当大。前向路径也存在同样的情况吗？</p>
+<p>Brian: Yes. Quantizing expert weights launched five generic kernels per call. There were 24 calls per step, adding about 90 milliseconds per step.</p>
+<p>Brian：对。每次量化专家权重都会启动五个通用内核。每一步要调用 24 次，导致每步增加约 90 毫秒。</p>
+<p>Ava: And the fix was one fused Triton kernel?</p>
+<p>Ava：解决办法是用一个融合的 Triton 内核？</p>
+<p>Brian: Exactly. Pull request 4311 replaced the chain with one fused kernel. It parallelized across both experts and output-dimension blocks, so the surrounding GEMMs could issue sooner.</p>
+<p>Brian：没错。第 4311 号拉取请求用一个融合内核替代了原来的内核链。它同时在专家和输出维度块上实现并行，因此周围的 GEMM 运算可以更早发起。</p>
+<p>Ava: What happened on DeepSeek-V3 671B?</p>
+<p>Ava：DeepSeek-V3 671B 的情况怎么样？</p>
+<p>Brian: On eight MI325X GPUs, end-to-end throughput rose 17%, from 5,996 to 7,027 tokens per second. The forward portion went from about 19 milliseconds to about 7 milliseconds.</p>
+<p>Brian：在八块 MI325X GPU 上，端到端吞吐量提高了 17%，从每秒 5,996 个 token 增至每秒 7,027 个 token。前向部分的耗时从约 19 毫秒降至约 7 毫秒。</p>
+<p>Ava: The BF16 baseline was 7,156 tokens per second, so FP8 got quite close.</p>
+<p>Ava：BF16 基线是每秒 7,156 个 token，所以 FP8 已经相当接近了。</p>
+<p>Brian: Yes. The fused forward kernel recovered 89% of the BF16-to-FP8 gap. The upstream FP8 configuration had added 127 milliseconds per step, and 92% of that was in generic quantization kernels. Fusion removed most of it.</p>
+<p>Brian：是的。融合前向内核弥补了 BF16 与 FP8 之间性能差距的 89%。上游的 FP8 配置使每一步增加了 127 毫秒，其中 92% 花在通用量化内核上。融合消除了其中大部分开销。</p>
+<p>Ava: Level two was making each remaining kernel move memory efficiently. What was wrong with the colwise scales kernel?</p>
+<p>Ava：第二层优化是让剩余的每个内核都高效地搬运内存数据。colwise scales 内核出了什么问题？</p>
+<p>Brian: Its writes were non-coalesced. Consecutive SIMD lanes wrote to addresses separated by K bytes, causing separate memory transactions.</p>
+<p>Brian：它的写入没有合并访存。相邻的 SIMD 通道写入的地址相隔 K 字节，导致产生单独的内存事务。</p>
+<p>Ava: How did they fix that?</p>
+<p>Ava：他们是怎么修复的？</p>
+<p>Brian: They transposed the output tile through LDS, or Local Data Share, before storing it. They also added a fused single-pass variant that removed a redundant HBM read.</p>
+<p>Brian：他们在写入前通过 LDS（Local Data Share）转置输出数据块。他们还增加了一个融合的单遍版本，去掉了一次多余的 HBM 读取。</p>
+<p>Ava: And the per-layer result?</p>
+<p>Ava：每层的结果呢？</p>
+<p>Brian: On MI300X with DeepSeek-V3 671B shapes, one MoE layer dropped from 7,290 microseconds to 1,170 microseconds. That's a 6.2 times speedup.</p>
+<p>Brian：在 MI300X 上，使用 DeepSeek-V3 671B 的张量形状时，一个 MoE 层的耗时从 7,290 微秒降到了 1,170 微秒，速度提升了 6.2 倍。</p>
+<p>Ava: Level three removed synchronization that the hardware didn't need.</p>
+<p>Ava：第三层优化去掉了硬件并不需要的同步。</p>
+<p>Brian: Right. Triton's atomic_add, atomic_max, and atomic_min defaulted to acquire-release ordering. On AMD, that inserted memory fences before and after every atomic operation.</p>
+<p>Brian：对。Triton 的 atomic_add、atomic_max 和 atomic_min 默认使用 acquire-release 内存序。在 AMD 上，这会在每次原子操作前后都插入内存栅栏。</p>
+<p>Ava: Those fences are unnecessary for commutative reductions?</p>
+<p>Ava：对于满足交换律的归约，这些内存栅栏是多余的吗？</p>
+<p>Brian: In this case, yes. The team switched to relaxed ordering on AMD, guarded by a torch.version.hip check. NVIDIA behavior stayed unchanged.</p>
+<p>Brian：在这个场景下，是的。团队通过 torch.version.hip 检查，将 AMD 上的内存序改为 relaxed ordering。NVIDIA 上的行为保持不变。</p>
+<p>Ava: Did every attempted optimization work?</p>
+<p>Ava：尝试过的优化都奏效了吗？</p>
+<p>Brian: No. They expanded the Triton autotune search space from one to eight or sixteen candidate configurations, hoping to find better tile sizes for AMD wavefronts.</p>
+<p>Brian：没有。他们把 Triton 自动调优的搜索范围从一种候选配置扩大到八种或十六种，希望找到更适合 AMD wavefront 的数据块尺寸。</p>
+<p>Ava: But Llama 4 shapes on MI300X showed no measurable improvement.</p>
+<p>Ava：但在 MI300X 上，Llama 4 的张量形状没有显示出可测量的改进。</p>
+<p>Brian: Correct. The extra configurations increased first-iteration compile time, so the change was reverted. The lesson was to shape autotuning around wavefront size, LDS capacity, and register pressure, rather than adding candidates by default.</p>
+<p>Brian：没错。额外的配置增加了首次迭代的编译时间，所以这项改动被撤回了。经验是，自动调优应围绕 wavefront 大小、LDS 容量和寄存器压力来设计，而不是默认增加候选配置。</p>
+<p>Ava: Let's connect the pieces. What are the main results across workloads?</p>
+<p>Ava：我们把这些结果串起来看。不同工作负载的主要结果是什么？</p>
+<p>Brian: For Llama3-8B dense training, rowwise FP8 gave 13.4% more throughput than BF16. For DeepSeek-MoE-16B, backward fusion reached 4.2 times the backward throughput. For DeepSeek-V3 671B, colwise scale optimization reached 6.2 times per MoE layer, and forward fusion improved end-to-end throughput by 17%.</p>
+<p>Brian：对于 Llama3-8B 稠密模型训练，rowwise FP8 的吞吐量比 BF16 高 13.4%。对于 DeepSeek-MoE-16B，反向计算融合使反向计算吞吐量达到原来的 4.2 倍。对于 DeepSeek-V3 671B，colwise scale 优化使每个 MoE 层提速 6.2 倍，前向计算融合则使端到端吞吐量提高了 17%。</p>
+<p>Ava: And all of this is now upstream?</p>
+<p>Ava：这些改进现在都已经合入上游了吗？</p>
+<p>Brian: Yes. The contributions are merged into mainline pytorch/ao and pytorch/torchtitan. Teams with AMD Instinct GPUs can get the gains by upgrading TorchAO and TorchTitan, with nothing AMD-specific to install.</p>
+<p>Brian：是的。这些贡献已经合入 pytorch/ao 和 pytorch/torchtitan 的主线。使用 AMD Instinct GPU 的团队只需升级 TorchAO 和 TorchTitan，就能获得这些性能提升，无需安装任何 AMD 专用组件。</p>
+<p>Ava: What's next?</p>
+<p>Ava：接下来呢？</p>
+<p>Brian: Work is continuing on MXFP8 grouped GEMM and quantization kernels for forward and backward passes on MI355X GPUs. More Triton optimizations are also coming along the fusion pipeline.</p>
+<p>Brian：团队正在继续开发适用于 MI355X GPU 前向和反向计算的 MXFP8 grouped GEMM 与量化内核。沿着融合处理流程，也会有更多 Triton 优化。</p>
+<p>Ava: Before we sign off, let's do the promised three-point recap.</p>
+<p>Ava：结束前，我们来做之前答应的三点回顾。</p>
+<p>Brian: First, AMD FP8 correctness depends on hardware-aware FNUZ support, automatic dtype selection, and accurate loss and MFU baselines.</p>
+<p>Brian：第一，AMD FP8 的正确性依赖于考虑硬件特性的 FNUZ 支持、自动 dtype 选择，以及准确的 loss 和 MFU 基线。</p>
+<p>Ava: Second, MoE models need grouped GEMM with per-row scales, per-expert-column scales, and offset-based routing.</p>
+<p>Ava：第二，MoE 模型需要 grouped GEMM，并配合逐行 scale、逐专家列 scale 和基于 offset 的路由。</p>
+<p>Brian: Third, the biggest performance wins came from reducing data movement: fewer launches, coalesced memory access, and relaxed synchronization. That's how the team recovered most of the FP8 overhead.</p>
+<p>Brian：第三，最大的性能收益来自减少数据搬运：减少内核启动次数、合并内存访问，以及放宽同步要求。团队就是这样消除了 FP8 的大部分额外开销。</p>
+<p>Ava: Great. If you're running AMD Instinct hardware, the improvements are already in the PyTorch stack.</p>
+<p>Ava：很好。如果你使用 AMD Instinct 硬件，这些改进已经进入 PyTorch 技术栈了。</p>
+<p>Brian: Upgrade TorchAO and TorchTitan, and give the upstream recipes a try. Thanks for listening.</p>
+<p>Brian：升级 TorchAO 和 TorchTitan，试试上游提供的方案。感谢收听。</p>
+<h2>术语</h2>
+<p>Term · 释义</p>
+<p>FP8 · 8 位浮点格式，用于降低矩阵乘法的数据精度并提升吞吐</p>
+<p>FNUZ · Finite, No NaN, Unsigned Zero，AMD 使用的 FP8 数值格式变体</p>
+<p>e4m3fnuz · AMD 的 FP8 数据类型，最大值为 240，不能编码 NaN 或 Inf</p>
+<p>TorchAO · PyTorch 的量化与低精度训练库</p>
+<p>TorchTitan · PyTorch 的大规模模型训练框架</p>
+<p>MoE · Mixture-of-Experts，将 token 路由到部分专家网络的架构</p>
+<p>grouped GEMM · 把多个专家的矩阵乘法组合处理的 GEMM 方式</p>
+<p>ROCm · AMD GPU 的软件平台和计算栈</p>
+<p>Triton · 用于编写高性能 GPU kernel 的编程框架</p>
+<p>HBM · High Bandwidth Memory，高带宽显存</p>
+<p>LDS · Local Data Share，AMD GPU 上的本地共享存储</p>
+<p>FSDP2 · Fully Sharded Data Parallel 的第二代实现</p>
+<p>MFU · Model FLOPS Utilization，模型浮点运算利用率</p>
+<p>absmax · 张量元素绝对值中的最大值，用于计算量化 scale</p>
+<p>MXFP8 · 按组存储 scale 与数据的 FP8 缩放策略</p>
+<h2>口语表达</h2>
+<p>Phrase · 释义</p>
+<p>That sounds pretty practical. · 这听起来很实用。</p>
+<p>Let's start with... · 我们先从……开始。</p>
+<p>What matters about that format? · 这种格式的关键点是什么？</p>
+<p>So the first takeaway is simple. · 所以第一个要点很简单。</p>
+<p>Before we move to speed... · 在进入性能之前……</p>
+<p>Let's get into the expensive part. · 我们来讲最昂贵的部分。</p>
+<p>What happened on... ? · 在……上结果怎么样？</p>
+<p>Did every attempted optimization work? · 每个尝试的优化都有效吗？</p>
+<p>Let's connect the pieces. · 我们把这些部分串起来。</p>
+<p>Before we sign off... · 在结束之前……</p></body></html>

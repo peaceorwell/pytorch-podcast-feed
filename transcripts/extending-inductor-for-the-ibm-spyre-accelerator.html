@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Teaching Inductor to Think Like IBM Spyre</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/extending-inductor-for-the-ibm-spyre-accelerator/">原视频 / 原文</a></p><h1>Teaching Inductor to Think Like IBM Spyre</h1>
+<p>原文：[Extending Inductor for the IBM Spyre Accelerator - PyTorch](https://pytorch.org/blog/extending-inductor-for-the-ibm-spyre-accelerator/)</p>
+<h2>摘要</h2>
+<p>IBM 的 Spyre 是面向企业推理的加速器，采用固定大小的数据块、每核独立的片上存储，以及编译时确定的工作分配。torch-spyre 将编译后端从独立开发的 sendnn 迁移到扩展 PyTorch Inductor 的实现，扩展部分的代码行数约为前者的七分之一。节目解释了布局选择、片上存储规划与跨核分工为何必须相互协调，并介绍文章报告的性能案例。最后讨论当前扩展接口和搜索成本的限制，以及与 PyTorch 上游合作的进展。</p>
+<h2>对话</h2>
+<p>Ava: What if your accelerator could run PyTorch models, but the compiler kept thinking it was a GPU? That sounds expensive.</p>
+<p>Ava：如果你的加速器能运行 PyTorch 模型，编译器却一直把它当成 GPU，会怎样？听起来代价不小。</p>
+<p>Brian: It can be. IBM's Spyre team moved its torch.compile backend onto Inductor, PyTorch's compiler backend. The result is roughly seven times smaller than its predecessor.</p>
+<p>Brian：有可能。IBM 的 Spyre 团队把它的 torch.compile 后端迁移到了 PyTorch 的编译器后端 Inductor。结果，代码规模约为前一版的七分之一。</p>
+<p>Ava: Seven times smaller? What did it replace?</p>
+<p>Ava：缩小到七分之一？它取代了什么？</p>
+<p>Brian: A separate compiler stack called sendnn. The new backend extends Inductor, so it can use much of the compiler machinery PyTorch already has.</p>
+<p>Brian：一套名为 sendnn 的独立编译器栈。新后端扩展了 Inductor，因此可以利用 PyTorch 已有的大部分编译器机制。</p>
+<p>Ava: Let's back up. What's unusual about Spyre itself?</p>
+<p>Ava：我们先退一步。Spyre 本身有什么特别之处？</p>
+<p>Brian: It's a seventy-five-watt accelerator for enterprise inference. It connects through PCIe, the computer's expansion bus, and needs no custom power delivery or cooling.</p>
+<p>Brian：它是一款用于企业推理的 75 瓦加速器。它通过计算机的扩展总线 PCIe 连接，不需要专门的供电或散热方案。</p>
+<p>Ava: And inside? I'm guessing it doesn't look much like a GPU.</p>
+<p>Ava：那它内部呢？我猜它看起来不太像 GPU。</p>
+<p>Brian: Right. It has thirty-two small cores connected in a ring. Each core has its own two-megabyte scratchpad, a small, fast memory managed explicitly.</p>
+<p>Brian：对。它有 32 个小型核心，彼此连接成环。每个核心都有自己的 2 兆字节暂存存储器，这是一种需要显式管理的小容量高速存储器。</p>
+<p>Ava: So where does the compiler feel that difference?</p>
+<p>Ava：编译器在什么地方会感受到这种差别？</p>
+<p>Brian: In three places: how data moves, what stays in each scratchpad, and which core does which work. Those choices drive this whole story.</p>
+<p>Brian：体现在 3 个方面：数据如何移动、每个暂存存储器中保留什么，以及哪个核心负责哪项工作。这些选择贯穿了整个故事。</p>
+<p>Ava: Before those details, where does torch-spyre fit into the compilation pipeline?</p>
+<p>Ava：在讲这些细节之前，torch-spyre 在编译流程中处于什么位置？</p>
+<p>Brian: Torch-spyre is Spyre's PyTorch integration. Dynamo traces the model. AOTAutograd partitions it. Then Inductor lowers the resulting FX graph into a loop-level intermediate representation, or LoopLevelIR.</p>
+<p>Brian：Torch-spyre 是 Spyre 与 PyTorch 的集成层。Dynamo 追踪模型，AOTAutograd 对它进行分区，然后 Inductor 将得到的 FX 图降低为循环级中间表示，也就是 LoopLevelIR。</p>
+<p>Ava: Intermediate representation meaning the compiler's working version of the program?</p>
+<p>Ava：中间表示是指编译器处理程序时使用的版本？</p>
+<p>Brian: Exactly. Torch-spyre extends that work and produces SuperDSC, another intermediate representation. A proprietary compiler called DeepTools then turns SuperDSC into Spyre instructions.</p>
+<p>Brian：正是如此。Torch-spyre 在此基础上继续扩展，生成另一种中间表示 SuperDSC。随后，一个名为 DeepTools 的专有编译器将 SuperDSC 转换成 Spyre 指令。</p>
+<p>Ava: So the article focuses on the Inductor-to-SuperDSC part.</p>
+<p>Ava：所以文章重点讲的是从 Inductor 到 SuperDSC 的这部分。</p>
+<p>Brian: Yes. Some extensions break operations into Spyre-friendly primitives. Others teach Inductor how to lower those primitives. The big planning decisions happen later, at LoopLevelIR.</p>
+<p>Brian：对。有些扩展把操作拆解成适合 Spyre 的原语，另一些则让 Inductor 学会如何将这些原语降低到更底层的表示。主要的规划决策发生在更后面的 LoopLevelIR 阶段。</p>
+<p>Ava: Is that later planning already a normal Inductor extension hook?</p>
+<p>Ava：后面的规划已经有标准的 Inductor 扩展钩子可用了吗？</p>
+<p>Brian: Not yet. Torch-spyre uses a monkey-patch, meaning it changes an existing code path to insert its passes before Inductor creates SchedulerNodes.</p>
+<p>Brian：还没有。Torch-spyre 使用 monkey-patch，也就是修改现有代码路径，在 Inductor 创建 SchedulerNodes 之前插入自己的处理流程。</p>
+<p>Ava: Why does that timing matter?</p>
+<p>Ava：为什么这个时机会有影响？</p>
+<p>Brian: Those passes need to rewrite large parts of the graph. Once SchedulerNodes exist, Inductor doesn't support that kind of rewrite. The built-in hook arrives too late.</p>
+<p>Brian：这些处理流程需要重写图中的大部分内容。一旦 SchedulerNodes 创建完成，Inductor 就不支持这种重写了。内置的钩子出现得太晚。</p>
+<p>Ava: Got it. Let's take the first hardware problem: moving data.</p>
+<p>Ava：明白了。先来看第一个硬件问题：移动数据。</p>
+<p>Brian: Spyre moves data in sticks. Each stick is an aligned chunk of one hundred twenty-eight bytes, or sixty-four fp16 values. Fp16 means sixteen-bit floating point.</p>
+<p>Brian：Spyre 以 stick 为单位移动数据。每个 stick 是一个对齐的 128 字节数据块，也就是 64 个 fp16 值。fp16 指 16 位浮点数。</p>
+<p>Ava: Wait, so a kernel can't just ask for one tensor element?</p>
+<p>Ava：等等，也就是说，一个内核不能只请求一个张量元素？</p>
+<p>Brian: That's right. A GPU exposes individual elements to the kernel. Spyre exposes the whole stick. Think of moving a sealed tray instead of picking up one item.</p>
+<p>Brian：没错。GPU 会让内核访问单个元素，而 Spyre 向内核提供的是整个 stick。你可以把它想成搬运一盘封好的物品，而不是只拿起其中一件。</p>
+<p>Ava: Then the compiler has to care how elements are packed into each tray.</p>
+<p>Ava：那编译器就必须考虑元素是如何装进每个托盘的。</p>
+<p>Brian: Exactly. A pointwise operation needs its inputs and output to share the same innermost stick dimension. Different operations can impose different packing constraints.</p>
+<p>Brian：正是如此。逐元素操作要求输入和输出使用相同的最内层 stick 维度。不同操作可能对数据的排列方式提出不同要求。</p>
+<p>Ava: What happens when two operations want incompatible packing?</p>
+<p>Ava：如果两个操作需要互不兼容的排列方式，会发生什么？</p>
+<p>Brian: The compiler may insert a restickify operation. It physically rebuilds the sticks with a different arrangement. That moves data, so choosing layouts across the graph has a cost.</p>
+<p>Brian：编译器可能插入一个 restickify 操作，用另一种排列方式实际重建这些 stick。这会移动数据，因此在整个图中选择布局是有成本的。</p>
+<p>Ava: So the key point is that layout isn't just a local indexing detail.</p>
+<p>Ava：所以关键在于，布局不只是局部的索引细节。</p>
+<p>Brian: Right. It affects real time. For batched matrix multiplication with tensors already on the device, changing the input and output tiling cut kernel time by twenty-nine to sixty-nine percent.</p>
+<p>Brian：对。这确实会影响运行时间。在张量已位于设备上的批量矩阵乘法中，改变输入和输出的分块方式使内核运行时间缩短了 29% 到 69%。</p>
+<p>Ava: That's the first problem. What's special about the scratchpad?</p>
+<p>Ava：这是第一个问题。scratchpad 有什么特别之处？</p>
+<p>Brian: Nothing moves into it automatically. The compiler must emit instructions for transfers from device memory to scratchpad, and from scratchpad to the core's compute engines.</p>
+<p>Brian：数据不会自动进入 scratchpad。编译器必须生成传输指令，把数据从设备内存送到 scratchpad，再从 scratchpad 送到核心的计算引擎。</p>
+<p>Ava: And if it forgets to keep something close?</p>
+<p>Ava：如果编译器忘了把某些数据留在附近呢？</p>
+<p>Brian: Then that value may go back to device memory and get fetched again. Spyre workloads are often limited by memory movement, so those round trips matter.</p>
+<p>Brian：那些数据就可能返回设备内存，之后又被取回来。Spyre 的工作负载往往受内存数据移动限制，因此这些往返传输很重要。</p>
+<p>Ava: The third problem was dividing work among cores, right?</p>
+<p>Ava：第三个问题是把工作分配给各个核心，对吗？</p>
+<p>Brian: Yes. Spyre is a static dataflow machine. It doesn't have a GPU-style runtime scheduler balancing work as it goes. The compiler assigns each operation's work to cores beforehand.</p>
+<p>Brian：对。Spyre 是一台静态数据流机器。它没有像 GPU 那样在运行过程中平衡工作的运行时调度器。编译器会提前把每个操作的工作分配给各个核心。</p>
+<p>Ava: Does that fixed assignment offer any upside?</p>
+<p>Ava：这种固定分配有什么好处吗？</p>
+<p>Brian: It can. These are naturally persistent kernels: a core can keep useful data in its scratchpad across several rounds of computation.</p>
+<p>Brian：可能有。这些内核天然具有常驻特性：一个核心可以在多轮计算中一直把有用的数据保存在自己的 scratchpad 里。</p>
+<p>Ava: How does the compiler decide the split?</p>
+<p>Ava：编译器如何决定怎么划分？</p>
+<p>Brian: Its work-division planner makes three passes. First it enforces each core's device-memory address limit. Then a cost model compares matrix multiplication splits. A final pass handles other operations.</p>
+<p>Brian：它的工作划分规划器会进行 3 轮处理。首先，它确保不超出每个核心的设备内存寻址上限。然后，成本模型比较矩阵乘法的不同拆分方式。最后一轮处理其他运算。</p>
+<p>Ava: Can you make that concrete without reading a page of tensor shapes?</p>
+<p>Ava：能举个具体例子，又不用念一整页张量形状吗？</p>
+<p>Brian: In the article's large matmul example, the first pass must split the reduction dimension in two. The cost model then favors splitting the output dimension sixteen ways.</p>
+<p>Brian：在文章的大规模矩阵乘法示例中，第一轮必须把归约维度拆成 2 份。随后，成本模型倾向于把输出维度拆成 16 份。</p>
+<p>Ava: So it picks a legal split, then looks for a faster one.</p>
+<p>Ava：也就是说，它先选一种合法的划分，再寻找更快的划分方式。</p>
+<p>Brian: Exactly. Splitting can also make data fit locally. A four-megabyte tensor won't fit in one core's scratchpad, but four row slices of one megabyte each can.</p>
+<p>Brian：没错。拆分还能让数据装进本地存储。一个 4 兆字节的张量装不进单个核心的暂存存储器，但按行拆成 4 片、每片 1 兆字节就可以。</p>
+<p>Ava: What if even a core's slice is too large?</p>
+<p>Ava：如果连分给一个核心的切片也太大呢？</p>
+<p>Brian: The program can iterate over smaller tiles. Torch-spyre offers a helper built on torch.scan for expressing those tiled loops. That trades more iterations for a smaller memory footprint.</p>
+<p>Brian：程序可以遍历更小的数据块。Torch-spyre 提供了一个基于 torch.scan 的辅助工具，用来表达这种分块循环。这样会增加迭代次数，但能减小内存占用。</p>
+<p>Ava: And then an allocator chooses what stays in scratchpad?</p>
+<p>Ava：然后由分配器决定哪些数据留在 scratchpad 中？</p>
+<p>Brian: Yes, including where each buffer sits. It offers solvers from a simple greedy method to more involved options, including simulated annealing and CP-SAT, a constraint solver.</p>
+<p>Brian：对，还要决定每个缓冲区放在哪里。它提供多种求解方法，从简单的贪心方法到更复杂的方案，包括模拟退火和约束求解器 CP-SAT。</p>
+<p>Ava: Let's put numbers on it. Did scratchpad planning help an actual kernel?</p>
+<p>Ava：我们用数字说话。scratchpad 规划有没有帮到实际的内核？</p>
+<p>Brian: In a single-core softmax example, improved scheduling cut median kernel time from thirty-two point five one to twenty-three point six seven microseconds. That's a twenty-seven percent reduction.</p>
+<p>Brian：在单核 softmax 示例中，改进调度后，内核运行时间的中位数从 32.51 微秒降至 23.67 微秒，减少了 27%。</p>
+<p>Ava: What changed in that softmax?</p>
+<p>Ava：那个 softmax 有什么变化？</p>
+<p>Brian: The compiler kept small reduction outputs on-core, reused scratchpad addresses for pointwise steps, and copied the input into scratchpad once instead of fetching it for every reader.</p>
+<p>Brian：编译器把较小的归约结果留在计算核心上，在逐点运算步骤中复用暂存区地址，并且只把输入复制到暂存区一次，而不是让每个读取它的操作都重新获取输入。</p>
+<p>Ava: That sounds clear enough. Where do work division and storage start fighting?</p>
+<p>Ava：这听起来很清楚。工作划分和存储安排从哪里开始产生冲突？</p>
+<p>Brian: Imagine one operation produces a buffer across several cores. The next operation chooses a different split. Its cores expect different pieces from the ones already sitting in scratchpad.</p>
+<p>Brian：假设一个操作在多个核心上生成了一个缓冲区。下一个操作选择了不同的划分方式，它的各个核心需要的数据块，与已经放在暂存区里的数据块不同。</p>
+<p>Ava: Ah, a work-division mismatch. What did the compiler do before?</p>
+<p>Ava：啊，是工作划分不匹配。编译器以前怎么处理？</p>
+<p>Brian: It couldn't keep that shared buffer resident. The producer wrote it to device memory, and the consumer read it back. That's exactly the traffic scratchpad planning tries to avoid.</p>
+<p>Brian：它没法让这个共享缓冲区一直留在那里。生产者把它写入设备内存，消费者再把它读回来。这正是暂存区规划想要避免的数据传输。</p>
+<p>Ava: Is there a way to move pieces directly between cores?</p>
+<p>Ava：有没有办法直接在核心之间搬运这些数据块？</p>
+<p>Brian: Spyre has one. Torch-spyre has begun using lx_relayout, an on-chip shuffle between cores' scratchpads. It still takes time and needs space for both layouts during the move.</p>
+<p>Brian：Spyre 有这个办法。Torch-spyre 已开始使用 lx_relayout，在各核心的暂存区之间进行片上数据重排。不过，这仍然需要时间，而且搬运期间还得有空间同时容纳两种布局。</p>
+<p>Ava: So the compiler now has a real choice to price.</p>
+<p>Ava：所以编译器现在确实有几种选择，需要比较它们的代价。</p>
+<p>Brian: Right. It can accept a less efficient split that keeps neighboring operations aligned, pay for an on-chip relayout, or use device memory.</p>
+<p>Brian：对。它可以接受一种效率较低、但能让相邻操作保持一致的划分方式；也可以为片上数据重排付出代价；或者使用设备内存。</p>
+<p>Ava: How does it compare choices across a whole chain?</p>
+<p>Ava：它怎么比较整条操作链上的不同选择？</p>
+<p>Brian: A newer co-optimizing allocator chooses work division and scratchpad placement together. One path prunes the search with hardware-specific rules. Another uses OR-Tools CP-SAT to examine candidate splits and relayouts.</p>
+<p>Brian：一种较新的协同优化分配器会同时选择工作划分方式和暂存区中的放置位置。其中一条路径用针对硬件的规则缩小搜索范围，另一条则用 OR-Tools CP-SAT 检查候选划分方式和数据重排方案。</p>
+<p>Ava: Does the fuller search account for scratchpad capacity during a shuffle?</p>
+<p>Ava：更全面的搜索会考虑数据重排期间的暂存区容量吗？</p>
+<p>Brian: Yes. Its constraints require buffers to fit, including both copies while a relayout is live. It also assigns relayout a cost, rather than treating the shuffle as free.</p>
+<p>Brian：会。它的约束要求缓冲区能放得下，包括数据重排进行时同时存在的两份数据。它还会给数据重排计入成本，不会把这种搬运当成免费操作。</p>
+<p>Ava: What difference has coordinated planning made?</p>
+<p>Ava：协调规划带来了什么变化？</p>
+<p>Brian: In a fused multilayer perceptron, or MLP, style kernel, a pointwise operation adopted a neighboring matmul's split. Core utilization rose from roughly two-thirds to about eighty percent.</p>
+<p>Brian：在一个融合的多层感知机（MLP）式内核中，某个逐元素运算采用了相邻矩阵乘法的拆分方式。核心利用率从约三分之二升至约 80%。</p>
+<p>Ava: And kernel time?</p>
+<p>Ava：那内核运行时间呢？</p>
+<p>Brian: It fell by around seventeen percent. That kernel was also roughly twice as fast as its sendnn-compiled equivalent.</p>
+<p>Brian：它下降了约 17%。这个内核的速度也大约是 sendnn 编译的同等内核的 2 倍。</p>
+<p>Ava: Does matching splits work for every chain?</p>
+<p>Ava：让划分方式保持一致，适用于每一条操作链吗？</p>
+<p>Brian: No. In a multi-head-attention kernel, the matmuls around softmax contract along different axes. They can't simply copy each other's split.</p>
+<p>Brian：不适用。在一个多头注意力内核中，softmax 前后的 matmul 沿不同的轴进行收缩，因此不能简单地照搬彼此的划分方式。</p>
+<p>Ava: What did the planner find instead?</p>
+<p>Ava：规划器转而找到了什么方案？</p>
+<p>Brian: It offered both matmuls and the softmax a shared batch-and-output tiling. The chain then used one consistent division, keeping the attention scores off a device-memory round trip.</p>
+<p>Brian：它为两个 matmul 和 softmax 提供了一种共享的批次与输出分块方式。这样整条操作链就能采用一致的划分方式，避免注意力分数在设备内存中往返传输。</p>
+<p>Ava: And where did direct relayout pay off?</p>
+<p>Ava：直接进行数据重排又在哪里带来了收益？</p>
+<p>Brian: On a small synthetic graph, an eighty-microsecond device-memory round trip became a one point one microsecond on-chip shuffle. That's a focused example, not a general speedup claim.</p>
+<p>Brian：在一个小型合成计算图中，原本耗时 80 微秒的设备内存往返传输，变成了耗时 1.1 微秒的片上数据重排。这是一个针对特定场景的例子，并非普遍的加速结论。</p>
+<p>Ava: Let's return to that seven-times-smaller compiler claim.</p>
+<p>Ava：我们回头说说编译器规模缩小到七分之一的说法。</p>
+<p>Brian: The article counts roughly two hundred seventy-three thousand non-comment lines for sendnn and thirty-eight thousand six hundred for the Inductor extension, excluding tests.</p>
+<p>Brian：文章统计，sendnn 约有 273,000 行非注释代码，而 Inductor 扩展约有 38,600 行；两者都不包括测试代码。</p>
+<p>Ava: Is that a direct comparison of equal, standalone compilers?</p>
+<p>Ava：这是对功能相当、各自独立的编译器所做的直接比较吗？</p>
+<p>Brian: No. The extension relies on Inductor underneath it. That's why it can be smaller. The article also reports fewer functions and lower average complexity per function.</p>
+<p>Brian：不是。这个扩展依赖底层的 Inductor，所以它才能更小。文章还报告说，它的函数数量更少，每个函数的平均复杂度也更低。</p>
+<p>Ava: What still needs work?</p>
+<p>Ava：还有哪些工作要做？</p>
+<p>Brian: The exhaustive search grows quickly as kernels grow, so its run time is bounded. The team is exploring pruning rules that keep searches fast without losing good solutions.</p>
+<p>Brian：随着内核规模增大，穷举搜索的规模会迅速增长，所以必须限制它的运行时间。团队正在探索剪枝规则，希望在不丢失优质解的情况下保持搜索速度。</p>
+<p>Ava: And the Inductor hook still needs cleaning up?</p>
+<p>Ava：Inductor 的那个接口也还需要整理吗？</p>
+<p>Brian: Yes. Turning those pre-scheduling passes from a monkey-patch into a supported hook is under discussion with upstream PyTorch maintainers.</p>
+<p>Brian：是的。团队正在与上游 PyTorch 维护者讨论，如何把这些调度前处理流程从 monkey-patch 改为受支持的接口。</p>
+<p>Ava: Has any of this work already reached upstream?</p>
+<p>Ava：这些工作有任何部分已经进入上游了吗？</p>
+<p>Brian: Support for registering device-specific decompositions improved and shipped in PyTorch two point twelve. The article also describes public design proposals for tiled layouts and a new intermediate representation.</p>
+<p>Brian：注册设备专属分解规则的支持得到了改进，并随 PyTorch 2.12 发布。文章还介绍了关于分块布局和一种新中间表示的公开设计提案。</p>
+<p>Ava: Give me the three-point recap.</p>
+<p>Ava：用 3 点给我概括一下。</p>
+<p>Brian: First, Inductor gave torch-spyre a much smaller compiler base. Second, sticks, scratchpads, and static core assignment demand special planning. Third, coordinating those decisions avoids costly data movement.</p>
+<p>Brian：第一，Inductor 为 torch-spyre 提供了一个规模小得多的编译器基础。第二，sticks、暂存区和静态核心分配都需要专门规划。第三，协调这些决策可以避免代价高昂的数据搬运。</p>
+<p>Ava: That's Spyre and Inductor for today. Thanks for listening.</p>
+<p>Ava：今天关于 Spyre 和 Inductor 的内容就到这里。感谢收听。</p>
+<h2>术语</h2>
+<p>Term · 释义</p>
+<p>torch.compile · PyTorch 的模型编译入口，文章中的 Spyre 后端接入这一编译流程。</p>
+<p>Inductor · PyTorch 的编译后端；torch-spyre 在其基础上添加设备专用扩展。</p>
+<p>sendnn · torch-spyre 先前使用的独立编译栈。</p>
+<p>scratchpad · 每个 Spyre 核心独有、由编译器显式管理的片上存储。</p>
+<p>sticks · Spyre 数据移动与计算的基本块；每块为一百二十八字节。</p>
+<p>fp16 · 十六位浮点数格式。</p>
+<p>LoopLevelIR · Inductor 的循环级中间表示，torch-spyre 在这一层进行关键规划。</p>
+<p>SuperDSC · torch-spyre 扩展生成的中间表示，随后交给 DeepTools 编译。</p>
+<p>restickify · 重新排列张量元素并重组 sticks 的数据移动操作。</p>
+<p>work-division planner · 在编译时决定如何将操作分配到 Spyre 各核心的规划器。</p>
+<p>lx_relayout · 在核心的 scratchpad 之间直接重排数据的片上操作。</p>
+<p>CP-SAT · 用于搜索满足约束且成本较低的分工与存储方案的求解器。</p>
+<p>SchedulerNodes · Inductor 调度阶段使用的节点；生成后难以对图做大规模重写。</p>
+<h2>口语表达</h2>
+<p>Phrase · 释义</p>
+<p>Let's back up. · 我们先退一步，把背景说清楚。</p>
+<p>Wait, so · 等等，也就是说……</p>
+<p>That's right. · 对，正是这样。</p>
+<p>So the key point is · 所以关键在于……</p>
+<p>Can you make that concrete · 能举个具体例子说明吗？</p>
+<p>Let's put numbers on it. · 我们用具体数字来看。</p>
+<p>What still needs work? · 还有哪些地方需要改进？</p>
+<p>Give me the three-point recap. · 请用三点总结一下。</p></body></html>
