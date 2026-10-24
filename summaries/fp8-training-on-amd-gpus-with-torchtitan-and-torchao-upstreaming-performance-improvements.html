@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AMD GPU 上的 FP8 训练优化</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/fp8-training-on-amd-gpus-with-torchtitan-and-torchao-upstreaming-performance-improvements/">原视频 / 原文</a></p><h1>AMD GPU 上的 FP8 训练优化</h1>
+<p>依据：原文</p>
+<p>来源：https://pytorch.org/blog/fp8-training-on-amd-gpus-with-torchtitan-and-torchao-upstreaming-performance-improvements/</p>
+<p>AMD 与 Meta/PyTorch 将原先用于 Primus-Turbo 的优化合入 TorchAO 和 TorchTitan，使 AMD Instinct GPU 能通过标准 PyTorch 训练栈使用 FP8。文章重点说明数值格式适配、MoE 分组矩阵乘法，以及降低量化开销的 Triton 内核优化。</p>
+<h3>问题与数值正确性</h3>
+<p>FP8 能加速矩阵乘法，但 TorchAO 原先使用的最大值与 AMD 的 e4m3fnuz 格式不符。该格式最大可表示值为 240，且没有 NaN 或 Inf 编码；错误的缩放会悄然截断激活值并损坏梯度。团队加入硬件自动检测，修正 MI300X 的峰值算力报告和平台对应的损失基线，并让 tensorwise、rowwise、blockwise、MXFP8 四种缩放策略适配 AMD 数值格式。其中 blockwise 内核支持覆盖 MI300 和 MI350。</p>
+<h3>MoE 支持与开销来源</h3>
+<p>MoE 模型把 token 分配给不同专家，形成大小不一的批次。FP8 分组矩阵乘法需要激活值的逐行缩放、权重的逐专家列缩放，以及指明路由位置的偏移量。团队通过 Composable Kernel 后端在 ROCm 上启用这一计算。原有量化流程分开计算绝对值最大值、缩放、截断和类型转换，反复启动内核并读写显存；专家权重较多时，这些数据搬运成为主要开销。</p>
+<h3>优化与实测结果</h3>
+<p>团队移除反向传播中多余的转置拷贝，将多步量化合并为 Triton 内核。在 8 张 MI300X 上训练 DeepSeek-MoE-16B，反向传播吞吐提升 4.2 倍。前向融合把每次专家权重量化的五个内核合为一个；在 8 张 MI325X 上运行 DeepSeek-V3 671B，端到端吞吐从 5996 增至 7027 tok/s，提升 17%。同一条件下 BF16 基线为 7156 tok/s，因此这项前向优化弥合了原有 FP8 与 BF16 吞吐差距的 89%。另在单张 MI300X、DeepSeek-V3 671B 的张量形状下，改进列向缩放的合并写入和显存读取，使每个 MoE 层相关耗时从 7290 降至 1170 微秒，提速 6.2 倍。</p>
+<h3>适用条件与后续</h3>
+<p>密集模型的另一项测试使用 8 张 MI300X 训练 Llama3-8B：前向和输入梯度矩阵乘法用 rowwise FP8，权重梯度矩阵乘法仍用 BF16，吞吐比纯 BF16 高 13.4%，峰值显存均约 39 GB。团队还把 AMD GPU 上部分归约原子操作改为宽松内存顺序。扩大 Triton 自动调优候选范围在 MI300X 的 Llama 4 张量形状上没有带来可测提升，反而增加首次编译时间，因此已撤回。上述改动已合入 TorchAO 和 TorchTitan 主线；面向 MI355X 的 MXFP8 分组矩阵乘法和量化内核仍在开发，文章未给出其性能结果。</p></body></html>

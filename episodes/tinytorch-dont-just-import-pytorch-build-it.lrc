@@ -1,0 +1,273 @@
+[ti:TinyTorch: Don’t Just Import PyTorch. Build It.]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: What if learning PyTorch internals meant building a tiny version yourself, on an old laptop, with no GPU?
+[00:00.00]Ava：如果只用一台没有 GPU 的旧笔记本，亲手做个小型框架，就能学会 PyTorch 内部原理呢？
+[00:07.75]That’s TinyTorch, and it could change how framework engineers learn.
+[00:07.75]这就是 TinyTorch，它可能改变框架工程师的学习方式。
+[00:13.12]Brian: Right. TinyTorch is a free, open-source curriculum.
+[00:13.12]Brian：没错。TinyTorch 是一套免费开源课程。
+[00:16.72]You build a working machine-learning framework from scratch, from tensors through transformers, in pure Python, while using PyTorch’s own API.
+[00:16.72]你会用纯 Python，从张量到 Transformer，依照 PyTorch 的 API，从零构建一个能运行的机器学习框架。
+[00:27.10]Ava: So this isn’t just another tutorial where you read about autograd and then import torch.
+[00:27.10]Ava：所以这不只是读完 autograd 自动求导原理，再导入 torch 的教程。
+[00:33.21]Brian: Exactly. You implement the pieces.
+[00:33.21]Brian：对。每个组件都要自己实现。
+[00:35.65]There are twenty modules, and the whole thing runs on a laptop with four gigabytes of RAM and no GPU.
+[00:35.65]课程有 20 个模块，只需 4 GB 内存的笔记本，无需 GPU 就能运行。
+[00:43.26]Ava: Why did the authors think PyTorch needed a teaching version?
+[00:43.26]Ava：作者为什么认为 PyTorch 需要一个教学版？
+[00:47.60]PyTorch already has a huge amount of documentation.
+[00:47.60]PyTorch 的文档已经很丰富了。
+[00:51.65]Brian: Because mature systems become too large to hold in your head.
+[00:51.65]Brian：因为成熟系统太庞大，没人能把它的全貌都装进脑子里。
+[00:56.24]The article compares PyTorch with MINIX, the Tiger compiler, and xv6.
+[00:56.24]文章把 PyTorch 与 MINIX、Tiger 编译器和 xv6 作了比较。
+[01:01.43]Those teaching systems don’t replace production systems.
+[01:01.43]这些教学系统不会取代生产系统。
+[01:05.64]They expose what production systems normally hide.
+[01:05.64]它们让生产系统通常隐藏的机制显现出来。
+[01:09.76]Ava: So TinyTorch is the missing rung below the real framework.
+[01:09.76]Ava：所以 TinyTorch 是通往真实框架的那级台阶。
+[01:14.71]Brian: That’s the idea.
+[01:14.71]Brian：就是这个意思。
+[01:15.83]Existing writing on PyTorch internals is often excellent, but it assumes you already think like a framework engineer.
+[01:15.83]现有的 PyTorch 内部原理文章往往写得很好，但默认你已经具备框架工程师的思维方式。
+[01:24.02]TinyTorch gives you something you can finish and inspect yourself.
+[01:24.02]TinyTorch 则让你有个能亲手完成、亲自检查的系统。
+[01:28.98]Ava: And the argument is aimed at PyTorch teams too, not only students.
+[01:28.98]Ava：而且文章也是写给 PyTorch 团队看的，不只是给学生。
+[01:34.09]Brian: Yes. Frameworks depend on a small group of people who can reason from the inside.
+[01:34.09]Brian：对。框架离不开一小群能从内部理解系统的人。
+[01:39.94]They notice tensor-cache leaks, understand when gradient checkpointing is worth recomputing, and identify bottlenecks before opening a profiler.
+[01:39.94]他们能发现张量缓存泄漏，判断何时值得用梯度检查点重新计算，还能在打开性能分析器前找出瓶颈。
+[01:50.71]Ava: But that group doesn’t grow automatically.
+[01:50.71]Ava：但这样的人不会自动变多。
+[01:53.82]Brian: Most people reach the internals because something broke badly.
+[01:53.82]Brian：大多数人是出了严重问题，才开始接触内部机制。
+[01:57.97]They learn under deadline pressure, from the outside in, in whatever order the bug demands.
+[01:57.97]他们顶着期限压力，从外往里学，遇到什么故障就先学什么。
+[02:04.06]That creates competence with holes in it.
+[02:04.06]这样练出的能力难免有缺口。
+[02:07.15]Ava: Building the system changes that arrival path.
+[02:07.15]Ava：亲手构建系统，就改变了学习内部机制的路径。
+[02:10.79]Brian: Once you implement autograd yourself, you can’t unsee the computational graph.
+[02:10.79]Brian：一旦自己实现过 autograd 自动求导，就再也无法忽视计算图。
+[02:16.24]Once you profile your own memory allocation, you can’t forget its cost.
+[02:16.24]一旦分析过自己程序的内存分配，就忘不了它的开销。
+[02:21.56]Ava: The article has a nice image there: the abstraction can be a wall or a door.
+[02:21.56]Ava：文章里有个很妙的比喻：抽象层可以是一堵墙，也可以是一扇门。
+[02:27.33]Brian: Right.
+[02:27.33]Brian：没错。
+[02:27.54]A student who writes backward() and allocates Adam’s momentum and variance buffers already has a mental model.
+[02:27.54]自己写过 backward()、分配过 Adam 动量和方差缓冲区的学生，脑中已经有了模型。
+[02:31.43]When they meet production autograd, it looks like a more sophisticated version of something they understand.
+[02:31.43]再接触生产级 autograd 时，他们看到的只是自己熟悉的机制变得更精密了。
+[02:35.60]Ava: That sounds useful for onboarding.
+[02:35.60]Ava：这对新人入职培训很有用。
+[02:38.37]Brian: Companies are using it that way.
+[02:38.37]Brian：企业已经在这么用了。
+[02:40.76]Teams run two-to-three-week intensives, quarter-long internal training, and targeted workshops.
+[02:40.76]团队会开设为期 2 到 3 周的强化班、持续一个季度的内部培训，以及专题工作坊。
+[02:47.83]Someone might work through Module zero six on autograd or Module twelve on attention.
+[02:47.83]有人可能专门学习讲 autograd 自动求导的模块 06，或讲注意力机制的模块 12。
+[02:54.52]Ava: Okay, how is the curriculum organized?
+[02:54.52]Ava：那课程是怎么安排的？
+[02:58.20]Brian: Twenty modules in four tiers, driven by a command-line tool called tito.
+[02:58.20]Brian：分为 4 个层级，共 20 个模块，通过名为 tito 的命令行工具推进。
+[03:03.29]The lessons are Jupyter notebooks with the hard parts removed for learners to fill in.
+[03:03.29]课程使用 Jupyter 笔记本，把难点留空，让学习者自己补上。
+[03:09.71]Ava: What does a learner need?
+[03:09.71]Ava：学习者需要什么基础？
+[03:11.77]Brian: Python and comfort with NumPy.
+[03:11.77]Brian：会用 Python，熟悉 NumPy。
+[03:14.22]No GPU, no cloud account, and no prior machine-learning systems background.
+[03:14.22]不需要 GPU、云账户，也不需要机器学习系统方面的基础。
+[03:20.71]Ava: The first design choice is called systems from day one, right?
+[03:20.71]Ava：第一个设计选择叫“从第一天就学系统”，对吧？
+[03:25.04]Brian: Yes. Module zero one includes a memory_footprint() method before matrix multiplication.
+[03:25.04]Brian：对。模块 01 在讲矩阵乘法之前，就加入了 memory_footprint() 方法。
+[03:31.96]You learn that one batch of thirty-two ImageNet images costs nineteen megabytes by computing it.
+[03:31.96]你会亲手算出，一批 32 张 ImageNet 图像要占 19 MB 内存。
+[03:39.94]Ava: Then later you discover Adam’s memory cost by actually allocating its buffers.
+[03:39.94]Ava：后来，你还会通过实际分配缓冲区，发现 Adam 的内存开销。
+[03:46.02]Brian: Exactly. Adam needs roughly three times the optimizer memory of SGD.
+[03:46.02]Brian：没错。Adam 所需的优化器内存大约是 SGD 的 3 倍。
+[03:51.27]You measure that yourself, so it’s harder to dismiss as a fact from a slide.
+[03:51.27]你自己量过，就不会把它当成幻灯片上的一个数字。
+[03:57.48]Ava: The second choice is progressive disclosure.
+[03:57.48]Ava：第二个选择是逐步揭示细节。
+[04:01.00]Brian: The Tensor class stays clean through Module zero five.
+[04:01.00]Brian：直到模块 05，Tensor 类都保持简洁。
+[04:03.67]In Module zero six, you implement enable_autograd(), adding requires_grad, grad, and backward() to the class you already know.
+[04:03.67]Brian：到了模块 06，你要实现 enable_autograd()，为熟悉的类加入 requires_grad、grad 和 backward()。
+[04:10.23]Ava: That keeps the early data layout and arithmetic from being buried under gradient machinery.
+[04:10.23]Ava：这样，前面的数据布局和运算就不会被梯度机制淹没。
+[04:16.49]Brian: And the old code keeps working.
+[04:16.49]Brian：旧代码也照样能用。
+[04:17.14]The implementation uses runtime monkey-patching instead of inheritance.
+[04:17.14]实现方式是在运行时动态修改类，而不是使用继承。
+[04:19.00]Ava: That choice will make some Python people uncomfortable.
+[04:19.00]Ava：有些 Python 开发者可能不喜欢这个选择。
+[04:23.23]Brian: The authors admit that.
+[04:23.23]Brian：作者也承认这一点。
+[04:23.41]It won because one Tensor class survives across all twenty modules, and students remember the moment their tensors visibly gain new powers.
+[04:23.41]之所以这样选，是因为同一个 Tensor 类贯穿全部 20 个模块，而且学生会记住张量明显获得新能力的那一刻。
+[04:24.45]It also mirrors PyTorch zero point four, when Variable was merged into Tensor.
+[04:24.45]这也呼应了 PyTorch 0.4 将 Variable 合并进 Tensor 的做法。
+[04:25.38]Ava: What’s the third design choice?
+[04:25.38]Ava：第三个设计选择是什么？
+[04:28.06]Brian: Build to validate.
+[04:28.06]Brian：通过动手构建来验证。
+[04:29.15]Six historical milestones check whether the implementation works: the Perceptron in nineteen fifty-eight, the XOR crisis in nineteen sixty-nine, the backpropagation revival in nineteen eighty-six, a nineteen ninety-eight CNN breakthrough, the Transformer in twenty seventeen, and finally MLPerf-style benchmarking.
+[04:29.15]六个历史里程碑用来检验实现是否有效：1958 年的感知机、1969 年的 XOR 危机、1986 年反向传播的复兴、1998 年 CNN 的突破、2017 年的 Transformer，最后是 MLPerf 式基准测试。
+[04:48.48]Ava: So history supplies motivation, but task performance supplies evidence.
+[04:48.48]Ava：也就是说，历史提供动机，任务表现提供证据。
+[04:54.51]Brian: Exactly. A unit test can be faked or misunderstood.
+[04:54.51]Brian：没错。单元测试可能被敷衍通过，也可能被误解。
+[04:58.46]If your network learns, your autograd has to be doing something right.
+[04:58.46]如果网络真的学会了，你的自动求导至少有些地方是对的。
+[05:03.86]For the CNN milestone, the network must clear seventy-five percent on CIFAR-10.
+[05:03.86]在 CNN 这一关，网络在 CIFAR-10 上的准确率必须超过 75%。
+[05:10.32]Ava: And the API deliberately looks like PyTorch.
+[05:10.32]Ava：而且 API 是特意仿照 PyTorch 设计的。
+[05:14.10]Brian: That’s the transfer mechanism.
+[05:14.10]Brian：这就是迁移机制。
+[05:16.28]If you build loss.backward() in TinyTorch, you can recognize the shape of PyTorch’s version later.
+[05:16.28]如果你在 TinyTorch 中实现 loss.backward()，以后就能看懂 PyTorch 版本的结构。
+[05:23.40]A PyTorch developer can read the attention module and see how the graph is constructed.
+[05:23.40]PyTorch 开发者读注意力模块时，也能看出计算图是怎么构建的。
+[05:30.08]Ava: But the resemblance stops at the API surface.
+[05:30.08]Ava：但相似之处只到 API 这一层。
+[05:33.98]Brian: Yes. There’s no dispatcher, no C++ or CUDA layer, no JIT, and nothing distributed.
+[05:33.98]Brian：对。它没有调度器、C++ 或 CUDA 层，也没有 JIT 和分布式功能。
+[05:40.59]It’s also slow: pure Python runs somewhere between one hundred and ten thousand times slower than PyTorch.
+[05:40.59]它也很慢：纯 Python 实现比 PyTorch 慢约 100 到 10000 倍。
+[05:49.50]Ava: That range is huge.
+[05:49.50]Ava：这个范围可真大。
+[05:51.79]Brian: The article gives the range without narrowing it.
+[05:51.79]Brian：文章只给出了这个范围，没有进一步缩小。
+[05:55.37]The slowness became part of the lesson, though.
+[05:55.37]不过，慢也成了教学的一部分。
+[05:58.80]A TinyTorch Conv2d can take ninety-seven seconds where PyTorch takes ten milliseconds.
+[05:58.80]TinyTorch 的 Conv2d 可能要跑 97 秒，而 PyTorch 只要 10 毫秒。
+[06:05.44]Ava: That makes vectorization painfully concrete.
+[06:05.44]Ava：这让向量化的必要性变得切身体会得到。
+[06:09.31]Brian: Exactly. It stops being advice you read and becomes something that happened to you.
+[06:09.31]Brian：没错。它不再是读来的建议，而是亲身经历。
+[06:15.57]Ava: Where did the project come from?
+[06:15.57]Ava：这个项目是怎么来的？
+[06:18.01]Brian: It began as a Harvard course, CS two forty-nine r, launched in twenty twenty as a graduate seminar on TinyML.
+[06:18.01]Brian：它始于哈佛 2020 年开设的研究生研讨课 CS 249r，主题是 TinyML。
+[06:26.22]There was no textbook, so the course notes became one.
+[06:26.22]当时没有教材，课程讲义后来就成了教材。
+[06:30.64]Ava: Then an open repository grew around the notes.
+[06:30.64]Ava：随后，讲义周围逐渐形成了一个开放仓库。
+[06:34.40]Brian: Students and educators fixed examples and proposed chapters.
+[06:34.40]Brian：学生和教育工作者修正示例，也提议增加章节。
+[06:38.56]By twenty twenty-four, people kept asking about training at scale, so the project split into two volumes.
+[06:38.56]到 2024 年，不断有人询问大规模训练，项目于是分成了两卷。
+[06:46.18]Ava: And eventually a textbook wasn’t enough.
+[06:46.18]Ava：后来，光有教材也不够了。
+[06:49.69]Brian: Reading about autograd and implementing autograd create different kinds of knowledge.
+[06:49.69]Brian：阅读自动求导和亲手实现自动求导，获得的是两种不同的知识。
+[06:55.24]The project added build modules, Marimo labs, MLSys dot im for performance modeling, hardware kits for Arduino and Raspberry Pi, StaffML for interview preparation, and an instructor hub.
+[06:55.24]项目又加入了动手构建模块、Marimo 实验、用于性能建模的 MLSys.im、Arduino 和 Raspberry Pi 硬件套件、用于面试准备的 StaffML，以及教师中心。
+[07:07.73]Ava: The community numbers also changed quickly.
+[07:07.73]Ava：社区规模也迅速变化。
+[07:11.59]Brian: The article says there were about two thousand stars in August twenty twenty-five.
+[07:11.59]Brian：文章说，2025 年 8 月时，仓库大约有 2000 颗星。
+[07:17.14]Someone posted the repository on X in October.
+[07:17.14]有人在 10 月把仓库分享到 X。
+[07:20.25]Two weeks later it reached five thousand, passed ten thousand by December, and is now above twenty-seven thousand, with at least ninety-five contributors and courses at fifty or more universities.
+[07:20.25]两周后星数达到 5000，12 月突破 10000，如今已超过 27000；贡献者至少有 95 人，50 多所大学开设了相关课程。
+[07:33.87]Ava: They’re clear that this wasn’t a clever growth campaign.
+[07:33.87]Ava：他们也说得很清楚，这并不是什么精心策划的增长活动。
+[07:37.70]Brian: Right. One person with reach shared it, after five years of quiet accumulation.
+[07:37.70]Brian：对。默默积累了五年后，一位有影响力的人分享了它。
+[07:43.38]Andrea now maintains it from ETH Zurich, after it was built at Harvard.
+[07:43.38]这个项目在哈佛创建，如今由 Andrea 在苏黎世联邦理工学院维护。
+[07:48.49]Moving a curriculum between institutions is a real test of whether it serves people beyond its original classroom.
+[07:48.49]一套课程换了学校还能用，才真正检验它能否服务原来课堂以外的人。
+[07:57.04]Ava: The article gives four lessons for other open curricula. Let’s walk through them.
+[07:57.04]Ava：文章为其他开放课程总结了四条经验。我们逐条聊聊。
+[08:02.69]Brian: First, match the production API exactly.
+[08:02.69]Brian：第一，教学 API 要与实际生产环境的 API 完全一致。
+[08:05.68]Every hour learners spend translating between a teaching API and the real one is wasted effort.
+[08:05.68]学习者每花一小时在教学 API 和真实 API 之间转换，都是白费力气。
+[08:13.14]Ava: Second, choose the hardware floor before the feature list.
+[08:13.14]Ava：第二，先确定最低硬件要求，再列功能清单。
+[08:17.81]Brian: TinyTorch targets a dual-core two-gigahertz CPU, four gigabytes of RAM, and no network during training.
+[08:17.81]Brian：TinyTorch 面向双核 2 GHz CPU、4 GB 内存的设备，训练时无需联网。
+[08:25.14]It ships two tiny offline datasets: about one thousand grayscale digits and three hundred fifty conversational question-answer pairs, together under fifty megabytes.
+[08:25.14]它附带两份很小的离线数据集：约 1000 张灰度数字图像和 350 组对话问答，总共不到 50 MB。
+[08:37.22]Ava: That choice excludes GPU support, but it enables Chromebook classrooms and old laptops.
+[08:37.22]Ava：这个选择放弃了 GPU 支持，却让 Chromebook 教室和旧笔记本也能用。
+[08:44.17]Brian: Yes.
+[08:44.17]Brian：对。
+[08:44.45]Decide whom you’re willing to exclude before the project grows, because revisiting that decision gets expensive.
+[08:44.45]项目壮大前，就要想清楚愿意让谁无法使用；以后再改，代价会很高。
+[08:52.70]Ava: Third, slow can be educational.
+[08:52.70]Ava：第三，慢也能教会人东西。
+[08:56.49]Brian: The ninety-seven-second convolution teaches the need for vectorization better than a warning ever could.
+[08:56.49]Brian：一次耗时 97 秒的卷积，比任何警告都更能让人明白为什么需要向量化。
+[09:03.65]Ava: And fourth, instructor infrastructure is the real bottleneck.
+[09:03.65]Ava：第四，教师配套才是真正的瓶颈。
+[09:08.51]Brian: Good content alone doesn’t get adopted. Gradeable content does.
+[09:08.51]Brian：光有好内容还不够。内容能评分，才容易被采用。
+[09:13.43]TinyTorch includes NBGrader autograding, locked test cells, point allocations, an INSTRUCTOR.md, milestone scripts, and three integration models for different course sizes.
+[09:13.43]TinyTorch 包含 NBGrader 自动评分、锁定的测试单元格、分值分配、INSTRUCTOR.md、里程碑脚本，以及适用于不同课程规模的三种集成模式。
+[09:27.20]Ava: So the instructor has to be supported as carefully as the learner.
+[09:27.20]Ava：所以，教师也需要得到和学生同样周到的支持。
+[09:32.23]Brian: Exactly. The instructor must defend the curriculum to a committee.
+[09:32.23]Brian：正是。教师还得向委员会说明这套课程为什么值得采用。
+[09:37.33]If that path fails, teaching quality doesn’t matter.
+[09:37.33]如果过不了这一关，教学质量再高也没用。
+[09:41.70]Ava: There’s also a succession plan.
+[09:41.70]Ava：项目还有接班计划。
+[09:44.40]Brian: Yes.
+[09:44.40]Brian：对。
+[09:44.66]The project commits to maintenance through twenty twenty-seven, a two-week pull-request review target, and a governance transition during twenty twenty-six and twenty twenty-seven.
+[09:44.66]项目承诺维护到 2027 年，争取在两周内审核拉取请求，并在 2026 至 2027 年间完成治理权交接。
+[09:56.42]Sustainability means making yourself replaceable, with a date attached.
+[09:56.42]可持续发展，就是定下日期，让别人能接替自己。
+[10:01.41]Ava: What remains unknown?
+[10:01.41]Ava：还有哪些未知数？
+[10:03.70]Brian: TinyTorch is still in preview, aimed at classroom readiness for Fall twenty twenty-six.
+[10:03.70]Brian：TinyTorch 仍处于预览阶段，目标是在 2026 年秋季达到课堂使用标准。
+[10:09.37]The authors have not measured learning outcomes.
+[10:09.37]作者还没有衡量学习成效。
+[10:12.50]They have a strong educational rationale, but no controlled data showing that TinyTorch students debug production systems better than students in a conventional course.
+[10:12.50]他们有充分的教育理念依据，但没有对照数据证明，TinyTorch 学生比传统课程的学生更擅长排查生产系统的问题。
+[10:23.80]Ava: And the technical scope has real holes.
+[10:23.80]Ava：技术范围也有明显缺口。
+[10:27.08]Brian: It’s single-node and CPU-only.
+[10:27.08]Brian：它只支持单节点和 CPU。
+[10:29.19]It teaches memory and compute, but not GPU kernels, distributed training, or gradient synchronization.
+[10:29.19]它讲内存和计算，但不讲 GPU 内核、分布式训练或梯度同步。
+[10:36.36]Parallel data loading and GPU memory management were deliberately left out because doing them properly would break the four-gigabyte floor.
+[10:36.36]并行数据加载和 GPU 内存管理被有意排除，因为要把它们做好，就无法维持最低 4 GB 的硬件门槛。
+[10:46.49]Ava: So what can people do next?
+[10:46.49]Ava：大家接下来能做什么？
+[10:49.60]Brian: They can review modules against real PyTorch semantics, pilot a tier and report failures, write the missing distributed and GPU modules, localize the material, or adopt it and add their institution to the community map.
+[10:49.60]Brian：可以对照 PyTorch 的实际语义审查模块，试用一个课程层级并反馈问题，编写缺失的分布式和 GPU 模块，翻译本地化教材，或采用这套课程并把自己的机构加入社区地图。
+[11:05.21]Ava: The code is MIT licensed, and the curriculum is CC BY-SA four point zero.
+[11:05.21]Ava：代码采用 MIT 许可证，课程内容采用 CC BY-SA 4.0 许可证。
+[11:12.02]Brian: Right. Forking and adapting are explicitly allowed.
+[11:12.02]Brian：对。项目明确允许复刻和改编。
+[11:15.73]The project also invites people to join the PyTorch Academic OSPO Working Group, which connects researchers, educators, students, and open-source practitioners.
+[11:15.73]项目也邀请大家加入 PyTorch Academic OSPO Working Group，让研究人员、教育工作者、学生和开源实践者相互交流。
+[11:27.73]Ava: Let’s close with the three points I’m taking away.
+[11:27.73]Ava：最后说说我记住的三点。
+[11:31.03]First, building a small framework creates a mental model for the production one.
+[11:31.03]第一，亲手构建一个小框架，能帮助你理解生产级框架。
+[11:36.67]Brian: Second, matching the real API and keeping the hardware floor low makes the curriculum transferable.
+[11:36.67]Brian：第二，与真实 API 保持一致、降低硬件门槛，课程才能迁移到实际应用中。
+[11:43.88]Ava: Third, the project is promising but still needs evidence, instructors, and contributors for the parts it leaves out.
+[11:43.88]Ava：第三，项目很有前景，但仍需要学习成效的证据、教师的参与，以及贡献者补上缺失的部分。
+[11:52.01]Brian: That’s TinyTorch: don’t just import PyTorch.
+[11:52.01]Brian：这就是 TinyTorch：别只会导入 PyTorch。
+[11:55.45]Build enough of it to understand what happens when the abstraction breaks.
+[11:55.45]亲手构建足够多的部分，才能明白抽象失效时会发生什么。
+[12:01.58]Ava: Thanks for listening. We’ll see you next time.
+[12:01.58]Ava：感谢收听。下次见。

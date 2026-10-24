@@ -1,0 +1,544 @@
+1
+00:00:00,000 --> 00:00:06,978
+Ava: A training job that moves to another accelerator with a small change gives a team more choices.
+Ava：只需小幅改动就能把训练任务迁到另一种加速器，团队就有了更多选择。
+
+2
+00:00:06,978 --> 00:00:12,487
+Then performance tuning begins, and shapes or sharding may still need work.
+接下来还要调优性能，张量形状和分片方式可能仍需调整。
+
+3
+00:00:12,487 --> 00:00:18,566
+That gap runs through the PyTorch Conference North America 2026 announcements.
+这种差距贯穿了 2026 年北美 PyTorch 大会的各项发布。
+
+4
+00:00:18,566 --> 00:00:24,267
+Brian: The event brought at least 3,500 attendees to San Jose on October 20 and 21.
+Brian：大会于 10 月 20 日至 21 日在圣何塞举行，吸引了至少 3,500 人参加。
+
+5
+00:00:24,267 --> 00:00:28,318
+Its theme was accelerating open intelligence together.
+大会主题是“携手加速开放智能”。
+
+6
+00:00:28,318 --> 00:00:38,044
+For framework engineers, the interesting part is how work on training, serving, compilers, hardware, and production connects.
+对框架工程师来说，值得关注的是训练、推理服务、编译器、硬件和生产环境如何衔接。
+
+7
+00:00:38,044 --> 00:00:45,329
+Ava: Mark Collier set out a goal of training and serving models on any chip, in any cloud, for any agent.
+Ava：Mark Collier 提出的目标是：在任何芯片、任何云上，为任何智能体训练模型并提供推理服务。
+
+8
+00:00:45,329 --> 00:00:47,587
+That spans a lot of boundaries.
+这跨越了许多技术边界。
+
+9
+00:00:47,587 --> 00:00:54,930
+A backend can open a path to new hardware, while the rest of the workload still needs attention.
+后端能打通新硬件的使用路径，但工作负载的其他部分仍需处理。
+
+10
+00:00:54,930 --> 00:01:01,712
+Brian: The conference connected research, models, frameworks, infrastructure, hardware, and production.
+Brian：大会把研究、模型、框架、基础设施、硬件和生产环境联系了起来。
+
+11
+00:01:01,712 --> 00:01:05,526
+Its announcements show several ways those layers meet.
+各项发布展示了这些层面衔接的几种方式。
+
+12
+00:01:05,526 --> 00:01:10,260
+Native backends support familiar PyTorch workflows on more devices.
+原生后端让熟悉的 PyTorch 工作流程可以在更多设备上运行。
+
+13
+00:01:10,260 --> 00:01:14,286
+Compiler projects translate work for particular hardware.
+编译器项目则将程序转换为适合特定硬件运行的形式。
+
+14
+00:01:14,286 --> 00:01:19,016
+Other projects address training, data loading, and deployment.
+其他项目涉及训练、数据加载和部署。
+
+15
+00:01:19,016 --> 00:01:21,259
+Ava: Let's take a concrete workload.
+Ava：来看一个具体的工作负载。
+
+16
+00:01:21,259 --> 00:01:26,325
+A team trains a model in PyTorch and wants to try another accelerator.
+一个团队用 PyTorch 训练模型，想试试另一种加速器。
+
+17
+00:01:26,325 --> 00:01:33,416
+I'd check whether it runs, whether distributed training still fits, and what serving will require.
+我会检查它能否运行、分布式训练是否仍然适用，以及推理服务需要什么。
+
+18
+00:01:33,416 --> 00:01:38,542
+TorchTPU offers a path for the Google TPU part of that experiment.
+TorchTPU 为这项实验中的 Google TPU 提供了一条路径。
+
+19
+00:01:38,542 --> 00:01:43,658
+Brian: TorchTPU is an open source collaboration between Google and Meta.
+Brian：TorchTPU 是 Google 与 Meta 合作的开源项目。
+
+20
+00:01:43,658 --> 00:01:51,766
+It introduces a native PyTorch backend for Google TPUs, with eager execution and torch.compile support.
+它为 Google TPU 引入原生 PyTorch 后端，支持即时执行和 torch.compile。
+
+21
+00:01:51,766 --> 00:02:03,372
+The validated integrations named in the announcement include TorchTitan for training, vLLM and SGLang for inference, and Ray for orchestration.
+公告列出的已验证集成包括用于训练的 TorchTitan、用于推理的 vLLM 和 SGLang，以及用于编排的 Ray。
+
+22
+00:02:03,372 --> 00:02:08,240
+Ava: The caveat is that migration and peak performance are different steps.
+Ava：但迁移成功和达到最佳性能是两个不同阶段。
+
+23
+00:02:08,240 --> 00:02:17,699
+A device change may be enough to move a workload, but reaching peak performance may require changes to shapes, sharding, and operations.
+更换设备或许足以迁移工作负载，但要达到最佳性能，可能还得调整张量形状、分片方式和算子。
+
+24
+00:02:17,699 --> 00:02:23,474
+I'd treat the device change as the start of an evaluation, not its conclusion.
+我会把更换设备视为评估的起点，而不是终点。
+
+25
+00:02:23,474 --> 00:02:27,270
+Brian: TorchNeuron makes a related move for AWS Trainium.
+Brian：TorchNeuron 为 AWS Trainium 提供了类似的路径。
+
+26
+00:02:27,270 --> 00:02:30,535
+It's an open source native PyTorch backend.
+它是一个开源的原生 PyTorch 后端。
+
+27
+00:02:30,535 --> 00:02:38,280
+The announcement says researchers can experiment and run workloads with a single configuration change.
+公告称，研究人员只需更改一项配置，就能开展实验并运行工作负载。
+
+28
+00:02:38,280 --> 00:02:44,248
+Its public beta launched at the conference on October 20 under Apache 2.0.
+它于 10 月 20 日大会期间启动公测，采用 Apache 2.0 许可证。
+
+29
+00:02:44,248 --> 00:02:50,271
+Ava: Once that workload starts running, I'd look beyond the initial device change.
+Ava：工作负载开始运行后，我会继续查看更换设备之外的情况。
+
+30
+00:02:50,271 --> 00:02:54,183
+Training may use compilation and distributed APIs.
+训练可能会用到编译和分布式 API。
+
+31
+00:02:54,183 --> 00:03:01,379
+The TorchNeuron update names eager execution, torch.compile, DTensor, and torch.distributed.
+TorchNeuron 的更新提到了即时执行、torch.compile、DTensor 和 torch.distributed。
+
+32
+00:03:01,379 --> 00:03:07,518
+That covers more than a device switch, at least in the described workflow.
+至少在所描述的工作流程中，它涵盖的不只是设备切换。
+
+33
+00:03:07,518 --> 00:03:15,551
+Brian: It also names libraries such as TorchTitan and describes a path from research experimentation to production deployment.
+Brian：它还提到了 TorchTitan 等库，并描述了从研究实验走向生产部署的路径。
+
+34
+00:03:15,551 --> 00:03:23,922
+For a real training job, I'd check its operations and distributed setup on Trainium, then measure the behavior I care about.
+对于实际训练任务，我会检查它的算子和分布式配置在 Trainium 上的表现，再测量我关心的指标。
+
+35
+00:03:23,922 --> 00:03:28,052
+The configuration claim alone doesn't predict its speed.
+仅凭更改配置的说法，无法预测它的速度。
+
+36
+00:03:28,052 --> 00:03:31,863
+Ava: There's another boundary after a model reaches a backend.
+Ava：模型适配后端之后，还要跨过另一道关。
+
+37
+00:03:31,863 --> 00:03:38,414
+The device needs an executable program that follows its rules for placing tensors and moving data.
+设备需要可执行的程序，而且程序必须遵循其张量放置和数据移动规则。
+
+38
+00:03:38,414 --> 00:03:41,823
+That makes the IBM Spyre compiler work interesting.
+这正是 IBM Spyre 编译器工作的有趣之处。
+
+39
+00:03:41,823 --> 00:03:46,786
+It starts from decisions Inductor has already made about the program.
+它从 Inductor 已经做出的程序决策出发。
+
+40
+00:03:46,786 --> 00:03:55,105
+Brian: IBM's torch-spyre translates Inductor's decisions about work division and tensor placement into executable programs.
+Brian：IBM 的 torch-spyre 将 Inductor 对任务划分和张量放置的决策转化为可执行程序。
+
+41
+00:03:55,105 --> 00:04:01,202
+An open source Dataflow Scheduler builds pipelines for data movement and computation.
+开源的 Dataflow Scheduler 为数据移动和计算构建流水线。
+
+42
+00:04:01,202 --> 00:04:04,501
+Device-specific stages then produce SpyreCode.
+随后，针对设备的编译阶段生成 SpyreCode。
+
+43
+00:04:04,501 --> 00:04:11,664
+You can see how general compiler decisions become work that this particular device can execute.
+由此可以看到，通用的编译器决策如何变成这款设备能够执行的程序。
+
+44
+00:04:11,664 --> 00:04:19,255
+Ava: Data movement belongs in that explanation because compute alone doesn't describe the whole program.
+Ava：这里必须谈到数据移动，因为仅看计算无法说明整个程序。
+
+45
+00:04:19,255 --> 00:04:24,393
+The FlyDSL update takes a different route on AMD MI350-series GPUs.
+FlyDSL 的更新在 AMD MI350 系列 GPU 上采取了另一条路线。
+
+46
+00:04:24,393 --> 00:04:32,138
+Its optional backend connects eligible operations to optimized kernels through existing PyTorch APIs.
+它的可选后端通过现有 PyTorch API，将符合条件的算子接入优化内核。
+
+47
+00:04:32,138 --> 00:04:36,782
+I'd want to know what happens outside that eligible set.
+我还想知道不符合条件的算子会怎样运行。
+
+48
+00:04:36,782 --> 00:04:40,788
+Brian: Unsupported workloads keep their existing implementations.
+Brian：不支持的工作负载仍使用原有实现。
+
+49
+00:04:40,788 --> 00:04:48,456
+So the new path can apply where an operation is eligible, while other work continues through the existing path.
+因此，符合条件的算子可以走新路径，其他部分继续走原有路径。
+
+50
+00:04:48,456 --> 00:04:58,684
+That matters when evaluating a model with many operations: support for one optimized kernel doesn't describe the behavior of the full workload.
+评估包含大量算子的模型时，这一点很重要：支持某个优化内核，并不能说明整个工作负载的表现。
+
+51
+00:04:58,684 --> 00:05:02,371
+Ava: Let's follow that through to a large training workload.
+Ava：我们接着看大型训练任务。
+
+52
+00:05:02,371 --> 00:05:10,417
+TorchTitan expanded model support across its 5D parallelism stack and introduced reinforcement learning through TitanRL.
+TorchTitan 扩展了五维并行体系支持的模型，并通过 TitanRL 引入强化学习。
+
+53
+00:05:10,417 --> 00:05:19,818
+I'm interested in the boundary between training a model and running it for generation, because both activities appear in that workflow.
+我想了解模型训练和生成推理之间的界限，因为这个流程两者都有。
+
+54
+00:05:19,818 --> 00:05:27,303
+Brian: TitanRL keeps the same model implementation across pretraining, post-training, and execution inside vLLM.
+Brian：TitanRL 在预训练、后训练和 vLLM 执行阶段复用同一套模型实现。
+
+55
+00:05:27,303 --> 00:05:33,576
+That can reduce the need to maintain separate model implementations across those stages.
+这能减少为各阶段分别维护模型实现的工作。
+
+56
+00:05:33,576 --> 00:05:41,696
+The design also includes asynchronous rollouts and multiple forms of parallelism for training and generation.
+这一设计还包括异步采样轨迹，以及用于训练和生成的多种并行方式。
+
+57
+00:05:41,696 --> 00:05:45,964
+Ava: Sharing the implementation addresses one kind of duplication.
+Ava：共用模型实现解决了一种重复劳动。
+
+58
+00:05:45,964 --> 00:05:53,522
+Reinforcement learning also has a scheduling problem: generation produces rollouts while training uses them.
+强化学习还有调度问题：生成阶段产出采样轨迹，训练阶段使用它们。
+
+59
+00:05:53,522 --> 00:05:56,530
+Asynchronous rollouts sound relevant there.
+异步采样轨迹在这里似乎很有用。
+
+60
+00:05:56,530 --> 00:06:03,598
+I'd still evaluate how that arrangement behaves for the model and resources a team actually has.
+但我仍会评估这种安排在团队实际使用的模型和资源上表现如何。
+
+61
+00:06:03,598 --> 00:06:12,148
+Brian: The update also covers performance improvements, FlexShard, graph-based training, distributed communication, and checkpointing.
+Brian：这次更新还涉及性能优化、FlexShard、基于计算图的训练、分布式通信和检查点。
+
+62
+00:06:12,148 --> 00:06:18,812
+Those are useful areas to examine, but naming them doesn't rank their effect on a particular model.
+这些都值得研究，但光列出名称无法判断它们对特定模型的影响大小。
+
+63
+00:06:18,812 --> 00:06:25,356
+A team would need measurements from its own training and generation setup to make that call.
+团队需要测量自己的训练和生成环境，才能做出判断。
+
+64
+00:06:25,356 --> 00:06:28,761
+Ava: Here's where that matters at the kernel level.
+Ava：在内核层面，这一点就很关键了。
+
+65
+00:06:28,761 --> 00:06:35,572
+A developer may tune tile sizes and warp counts, while the compiler has controls of its own.
+开发者可以调整分块大小和 warp 数量，编译器也有自己的控制选项。
+
+66
+00:06:35,572 --> 00:06:45,842
+Helion's integration with NVIDIA CompileIQ adds Advanced Control Files to the autotuning search alongside those kernel configurations.
+Helion 集成 NVIDIA CompileIQ 后，自动调优会将高级控制文件（Advanced Control Files）与这些内核配置一同纳入搜索。
+
+67
+00:06:45,842 --> 00:06:50,455
+Brian: Developers can tune offline and pin the selected configuration.
+Brian：开发者可以离线调优，再固定选定的配置。
+
+68
+00:06:50,455 --> 00:06:54,189
+Compiler defaults remain a candidate in the search.
+编译器默认配置也仍是候选项。
+
+69
+00:06:54,189 --> 00:07:02,316
+That gives a developer a concrete tuning workflow: compare the available choices, then retain the selected one.
+这样就有了明确的调优流程：比较各个选项，再保留选中的配置。
+
+70
+00:07:02,316 --> 00:07:09,256
+The result of that search still belongs to the kernels and configurations being evaluated.
+搜索结果仍只适用于所评估的内核和配置。
+
+71
+00:07:09,256 --> 00:07:14,680
+Ava: So I'd keep the default in the search and inspect what the tuning run selects.
+Ava：所以我会把默认配置留在候选项中，看看调优最终选了什么。
+
+72
+00:07:14,680 --> 00:07:22,328
+A pinned configuration is useful for that workload, but I wouldn't assume it gives every kernel the same gain.
+固定配置对该任务有用，但不能假设每个内核都能获得同样的收益。
+
+73
+00:07:22,328 --> 00:07:27,198
+Shapes and compiler choices are part of the engineering question.
+输入形状和编译器选项也是工程上需要考虑的因素。
+
+74
+00:07:27,198 --> 00:07:32,026
+Brian: Deployment brings a different device target into view.
+Brian：部署时，还要考虑另一类目标设备。
+
+75
+00:07:32,026 --> 00:07:41,325
+ExecuTorch now provides a direct path from PyTorch training to on-device inference on Arm Cortex-M CPUs.
+ExecuTorch 现在提供了一条从 PyTorch 训练直接走向 Arm Cortex-M CPU 端侧推理的路径。
+
+76
+00:07:41,325 --> 00:07:53,924
+Its Cortex-M backend uses Arm CMSIS-NN acceleration and supports the Scalar, DSP, and MVE/Helium capability tiers from a single workflow.
+其 Cortex-M 后端采用 Arm CMSIS-NN 加速，并通过同一流程支持 Scalar、DSP 和 MVE/Helium 三个能力层级。
+
+77
+00:07:53,924 --> 00:08:00,140
+Ava: For a team shipping to those CPUs, one workflow across the capability tiers sounds useful.
+Ava：对要部署到这些 CPU 的团队来说，用一套流程覆盖各能力层级很有用。
+
+78
+00:08:00,140 --> 00:08:03,869
+I'd still check which tier the target device provides.
+但我仍会确认目标设备支持哪个层级。
+
+79
+00:08:03,869 --> 00:08:14,026
+The workflow connects training and on-device inference, while the available acceleration depends on the device the model will actually run on.
+这套流程衔接了训练和端侧推理，而可用的加速能力取决于模型实际运行的设备。
+
+80
+00:08:14,026 --> 00:08:17,322
+Brian: Data loading has its own portability problem.
+Brian：数据加载也有自身的可移植性问题。
+
+81
+00:08:17,322 --> 00:08:21,423
+A distributed job may resume with a different GPU count.
+分布式任务恢复运行时，GPU 数量可能会变化。
+
+82
+00:08:21,423 --> 00:08:27,942
+If its global batches change, comparing the resumed run with the original becomes harder.
+如果全局批次也随之改变，就更难比较恢复后的运行与原始运行。
+
+83
+00:08:27,942 --> 00:08:35,616
+Zephon's TorchTitan integration is designed to preserve identical global batches across that change.
+Zephon 与 TorchTitan 的集成旨在 GPU 数量变化时保持全局批次完全一致。
+
+84
+00:08:35,616 --> 00:08:39,685
+Ava: What can we actually conclude from the test?
+Ava：这项测试究竟能证明什么？
+
+85
+00:08:39,685 --> 00:08:46,715
+A 1B-parameter model resumed from a 16-GPU checkpoint on 8, 32, and 64 GPUs.
+一个 10 亿参数模型从 16 张 GPU 的检查点恢复后，分别在 8、32 和 64 张 GPU 上运行。
+
+86
+00:08:46,715 --> 00:08:52,634
+The SHA-256 hash of every global batch matched the original run.
+每个全局批次的 SHA-256 哈希都与原始运行一致。
+
+87
+00:08:52,634 --> 00:08:58,718
+That's a direct check of batch identity in those resumed runs.
+这直接验证了这些恢复运行中的批次一致性。
+
+88
+00:08:58,718 --> 00:09:03,493
+Brian: The hash result supports the global-batch claim in that test.
+Brian：哈希结果支持这项测试中的全局批次一致性结论。
+
+89
+00:09:03,493 --> 00:09:08,972
+By itself, it doesn't establish that every model update was identical.
+但仅凭这一点，无法证明每次模型参数更新都完全相同。
+
+90
+00:09:08,972 --> 00:09:15,155
+Zephon also tokenizes, packs, shuffles, and mixes data inside the training job.
+Zephon 还在训练任务中完成数据的分词、打包、打乱和混合。
+
+91
+00:09:15,155 --> 00:09:19,732
+That avoids keeping a preprocessed copy of the corpus.
+这样就不必保留一份预处理后的语料副本。
+
+92
+00:09:19,732 --> 00:09:23,529
+Ava: There's a production feedback loop in the Shopify case.
+Ava：Shopify 的案例展示了一个生产反馈循环。
+
+93
+00:09:23,529 --> 00:09:32,019
+Shopify uses PyTorch and vLLM in a continual learning loop that puts production failures back into model weights every day.
+Shopify 用 PyTorch 和 vLLM 构建持续学习循环，每天把生产环境中的失败案例用于更新模型权重。
+
+94
+00:09:32,019 --> 00:09:41,274
+That's a concrete connection between serving behavior and repeated model improvement, rather than a hardware portability example.
+这是服务表现与持续改进模型之间的具体联系，而非硬件可移植性的例子。
+
+95
+00:09:41,274 --> 00:09:47,647
+Brian: The conference report says Shopify beat frontier-model quality and cut serving costs by 96%.
+Brian：会议报告称，Shopify 的质量超过了前沿模型，服务成本降低了 96%。
+
+96
+00:09:47,647 --> 00:09:50,279
+Those are Shopify's reported outcomes.
+这些是 Shopify 报告的结果。
+
+97
+00:09:50,279 --> 00:10:02,336
+Before applying that number to another service, we'd need to examine its comparison setup and quality measure, then see whether the other service has similar conditions.
+要把这个数字用于其他服务，得先看它的对比方式和质量指标，再判断其他服务是否具备类似条件。
+
+98
+00:10:02,336 --> 00:10:10,779
+Ava: These paths cross several PyTorch Foundation projects: PyTorch, vLLM, DeepSpeed, Ray, Helion, and Safetensors.
+Ava：这些路径涉及多个 PyTorch 基金会项目：PyTorch、vLLM、DeepSpeed、Ray、Helion 和 Safetensors。
+
+99
+00:10:10,779 --> 00:10:18,454
+The conference theme makes more sense when you see those projects as parts of a connected ecosystem.
+把这些项目看作相互连接的生态组成部分，大会主题就更容易理解了。
+
+100
+00:10:18,454 --> 00:10:26,326
+Their interfaces and contributors help ideas move between training, inference, and infrastructure.
+它们的接口和贡献者帮助新思路在训练、推理和基础设施之间流转。
+
+101
+00:10:26,326 --> 00:10:33,594
+Brian: The Foundation announced nine new members, including Platinum members Nebius, Nscale, and Shopify.
+Brian：基金会宣布新增九名成员，包括白金会员 Nebius、Nscale 和 Shopify。
+
+102
+00:10:33,594 --> 00:10:39,231
+The event also had more than 100 technical sessions and 144 poster sessions.
+大会还举办了 100 多场技术专题会议和 144 场海报展示。
+
+103
+00:10:39,231 --> 00:10:50,484
+Those numbers show the breadth of participation, with work spanning the core framework, kernels, training, on-device inference, and responsible AI.
+这些数字体现了参与面的广度，研究涵盖核心框架、算子内核、训练、端侧推理和负责任的人工智能。
+
+104
+00:10:50,484 --> 00:10:52,442
+Ava: My takeaways are practical.
+Ava：我的收获更偏重实操。
+
+105
+00:10:52,442 --> 00:10:59,113
+For a new backend, I'd check support, then measure my workload with its shapes and sharding.
+对于新后端，我会先确认支持情况，再按实际数据形状和分片方式测量工作负载。
+
+106
+00:10:59,113 --> 00:11:03,246
+For a resumed training run, I'd check the global batches.
+对于恢复运行的训练任务，我会检查全局批次。
+
+107
+00:11:03,246 --> 00:11:11,210
+And I'd read a production result like Shopify's as a case to investigate before forecasting my own costs.
+至于 Shopify 这样的生产环境成果，我会先研究具体案例，再预测自己的成本。
+
+108
+00:11:11,210 --> 00:11:23,236
+Brian: That brings the announcements together: more places to run PyTorch workloads, more ways to tune them, and specific evidence to examine for each claim.
+Brian：这些发布内容可以归结为：运行 PyTorch 工作负载的平台更多了，调优方法更多了，每项主张也都有具体证据可供检验。
+
+109
+00:11:23,236 --> 00:11:30,160
+The conference returns to San Jose on October 6 and 7, 2027. Thanks for listening.
+大会将于 2027 年 10 月 6 日至 7 日重返圣何塞。感谢收听。

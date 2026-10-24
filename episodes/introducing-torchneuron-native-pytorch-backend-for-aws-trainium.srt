@@ -1,0 +1,704 @@
+1
+00:00:00,000 --> 00:00:05,718
+Ava: What if moving a PyTorch training loop to a different AI chip took one device change?
+Ava：如果只改一个设备设置，就能把 PyTorch 训练循环迁移到另一种 AI 芯片上呢？
+
+2
+00:00:05,718 --> 00:00:08,894
+That could save a lot of engineering time.
+那能省下大量工程时间。
+
+3
+00:00:08,894 --> 00:00:11,650
+Brian: That's the promise behind TorchNeuron.
+Brian：这正是 TorchNeuron 的目标。
+
+4
+00:00:11,650 --> 00:00:18,964
+It makes AWS Trainium, a family of chips for AI training and inference, a native PyTorch device.
+它让用于 AI 训练和推理的 AWS Trainium 芯片成为 PyTorch 原生设备。
+
+5
+00:00:18,964 --> 00:00:25,170
+Ava: Why does native support matter? People have already been running models on Trainium.
+Ava：原生支持为什么重要？大家不是已经能在 Trainium 上运行模型了吗？
+
+6
+00:00:25,170 --> 00:00:29,910
+Brian: They have. But models, libraries, and training tools keep changing.
+Brian：没错，但模型、库和训练工具一直在变。
+
+7
+00:00:29,910 --> 00:00:36,416
+Teams want to use familiar PyTorch workflows without adapting their software each time.
+团队希望沿用熟悉的 PyTorch 工作流程，不必每次都调整软件。
+
+8
+00:00:36,416 --> 00:00:42,670
+Ava: So the cost isn't just how long a model runs. It's also the work of getting it running.
+Ava：所以成本不只是模型运行时间，还包括让它跑起来的工作。
+
+9
+00:00:42,670 --> 00:00:43,094
+Brian: Right.
+Brian：对。
+
+10
+00:00:43,094 --> 00:00:51,996
+The article includes the time spent making a workload work, tuning it, and maintaining it as models and libraries evolve.
+文章还把适配工作负载、调优，以及随模型和库演进进行维护的时间算进去。
+
+11
+00:00:51,996 --> 00:00:55,538
+Ava: What changed in PyTorch to make this possible?
+Ava：PyTorch 有什么变化，才让这成为可能？
+
+12
+00:00:55,538 --> 00:00:59,023
+Brian: PyTorch made many APIs accelerator-agnostic.
+Brian：PyTorch 让许多 API 不再依赖特定加速器。
+
+13
+00:00:59,023 --> 00:01:04,014
+That means code can address a device through common interfaces.
+这样，代码就能通过通用接口使用设备。
+
+14
+00:01:04,014 --> 00:01:08,800
+It also added official ways to register custom hardware.
+它还提供了注册自定义硬件的官方方式。
+
+15
+00:01:08,800 --> 00:01:12,174
+Ava: And TorchNeuron uses one of those ways?
+Ava：TorchNeuron 用的就是其中一种方式？
+
+16
+00:01:12,174 --> 00:01:17,959
+Brian: Yes. PrivateUse1 is PyTorch's extension point for a custom device backend.
+Brian：是的。PrivateUse1 是 PyTorch 为自定义设备后端提供的扩展点。
+
+17
+00:01:17,959 --> 00:01:23,468
+TorchNeuron registers Trainium there under the device name neuron.
+TorchNeuron 通过它注册 Trainium，设备名为 neuron。
+
+18
+00:01:23,468 --> 00:01:28,762
+Ava: Give me the simplest example. What does the developer actually change?
+Ava：举个最简单的例子。开发者实际要改什么？
+
+19
+00:01:28,762 --> 00:01:33,626
+Brian: In the article's training loop, they move the model to the neuron device.
+Brian：在文章的训练循环中，只需把模型移到 neuron 设备上。
+
+20
+00:01:33,626 --> 00:01:38,640
+The optimizer and the rest of that loop stay in familiar PyTorch form.
+优化器和循环的其余部分仍是熟悉的 PyTorch 写法。
+
+21
+00:01:38,640 --> 00:01:44,774
+Ava: That's pleasantly boring. Does device-independent code need even that change?
+Ava：这倒是省心。设备无关的代码连这一步都不用改吗？
+
+22
+00:01:44,774 --> 00:01:53,617
+Brian: Code already written against torch dot accelerator, PyTorch's recommended device-agnostic API, can run unmodified.
+Brian：如果代码已使用 PyTorch 推荐的设备无关 API torch.accelerator，就能直接运行，无需修改。
+
+23
+00:01:53,617 --> 00:01:58,156
+That's useful when a project supports several devices.
+这对支持多种设备的项目很有用。
+
+24
+00:01:58,156 --> 00:02:03,402
+Ava: Okay, the model is on Trainium. How does an operation run?
+Ava：好，模型已经放到 Trainium 上了。运算怎么执行？
+
+25
+00:02:03,402 --> 00:02:08,621
+Brian: There are two main modes: eager execution and torch dot compile.
+Brian：主要有两种模式：即时执行和 torch.compile。
+
+26
+00:02:08,621 --> 00:02:12,290
+Eager runs operations as Python reaches them.
+即时执行会在 Python 运行到某个运算时执行它。
+
+27
+00:02:12,290 --> 00:02:16,880
+Compile captures work into a graph for optimization.
+编译模式则把运算捕获成计算图，以便优化。
+
+28
+00:02:16,880 --> 00:02:22,102
+Ava: So eager is the mode where I can still print values and use breakpoints?
+Ava：所以即时执行模式还能打印数值、设置断点？
+
+29
+00:02:22,102 --> 00:02:25,440
+Brian: Exactly. Python control flow works there too.
+Brian：没错，Python 的控制流也能正常工作。
+
+30
+00:02:25,440 --> 00:02:32,244
+That's why the article presents eager as the natural choice for research and debugging.
+因此，文章认为即时执行很适合研究和调试。
+
+31
+00:02:32,244 --> 00:02:36,770
+Ava: But running every operation separately sounds expensive.
+Ava：但逐个执行运算听起来开销很大。
+
+32
+00:02:36,770 --> 00:02:37,529
+Brian: It can be.
+Brian：确实可能如此。
+
+33
+00:02:37,529 --> 00:02:45,878
+Each eager operation compiles its own Neuron Executable File Format file, or NEFF, and launches on the device.
+每个即时执行的运算都会单独编译成 Neuron 可执行文件格式文件（NEFF），再在设备上启动。
+
+34
+00:02:45,878 --> 00:02:49,720
+Intermediate data moves through device memory.
+中间数据通过设备内存传递。
+
+35
+00:02:49,720 --> 00:02:52,830
+Ava: Is that why there's an adaptive eager mode?
+Ava：所以才有自适应即时执行模式？
+
+36
+00:02:52,830 --> 00:02:54,572
+Brian: Yes. It's experimental.
+Brian：对，它还处于实验阶段。
+
+37
+00:02:54,572 --> 00:03:04,388
+The goal is to reduce launch cost and create more chances to fuse operations, while keeping the interactive eager experience.
+目标是在保持即时执行交互体验的同时，降低启动开销，并增加运算融合的机会。
+
+38
+00:03:04,388 --> 00:03:09,202
+Ava: Fuse as in combine several small jobs into one larger job?
+Ava：融合，就是把几个小任务合成一个大任务？
+
+39
+00:03:09,202 --> 00:03:14,025
+Brian: That's the idea. Imagine carrying groceries one item at a time.
+Brian：正是如此。想象一下每次只拿一件东西搬运杂货。
+
+40
+00:03:14,025 --> 00:03:20,040
+Combining trips can help, and you still get to work in an interactive way.
+合并几趟搬运会更省事，同时还能保持交互式的工作方式。
+
+41
+00:03:20,040 --> 00:03:23,438
+Ava: Then when would I choose torch dot compile?
+Ava：那什么时候该选 torch.compile？
+
+42
+00:03:23,438 --> 00:03:27,430
+Brian: For a stable model where production performance matters.
+Brian：模型已经稳定，而且生产环境的性能很重要时。
+
+43
+00:03:27,430 --> 00:03:35,620
+It captures a graph of operations, lets the Neuron compiler optimize it, and produces a NEFF for the hardware.
+它捕获运算图，交给 Neuron 编译器优化，再生成供硬件运行的 NEFF。
+
+44
+00:03:35,620 --> 00:03:38,394
+Ava: Do I have to compile the whole model?
+Ava：必须编译整个模型吗？
+
+45
+00:03:38,394 --> 00:03:46,520
+Brian: No. The article says you can optimize all or part of it, and compiled work can run alongside eager work.
+Brian：不用。文章说可以优化全部或部分模型，编译后的运算也能与即时执行的运算并行使用。
+
+46
+00:03:46,520 --> 00:03:51,502
+Ava: What happens between PyTorch code and that final device file?
+Ava：从 PyTorch 代码到最终的设备文件，中间经历了什么？
+
+47
+00:03:51,502 --> 00:03:57,192
+Brian: TorchDynamo captures an FX graph, a graph representation of the model.
+Brian：TorchDynamo 会捕获 FX 图，也就是模型的图表示。
+
+48
+00:03:57,192 --> 00:04:01,419
+AOTAutograd traces the backward graph ahead of time.
+AOTAutograd 会提前追踪反向传播图。
+
+49
+00:04:01,419 --> 00:04:06,972
+Torch-MLIR and StableHLO sit on the path to the Neuron compiler.
+Torch-MLIR 和 StableHLO 位于通往 Neuron 编译器的处理流程中。
+
+50
+00:04:06,972 --> 00:04:11,786
+Ava: That's a lot of stages. What's the useful picture to keep in mind?
+Ava：步骤真不少。该怎样简单理解整个过程？
+
+51
+00:04:11,786 --> 00:04:21,699
+Brian: PyTorch gathers the work, prepares the forward and backward paths, then passes them through compiler stages until Trainium can execute them.
+Brian：PyTorch 汇集计算任务，准备前向和反向路径，再经过各编译阶段，最终交给 Trainium 执行。
+
+52
+00:04:21,699 --> 00:04:23,536
+That's the key point.
+这就是关键。
+
+53
+00:04:23,536 --> 00:04:27,318
+Ava: And how does someone select the Neuron compiler?
+Ava：那怎么选择 Neuron 编译器？
+
+54
+00:04:27,318 --> 00:04:33,760
+Brian: They can set neuron as the default backend once, or name it in a torch dot compile call.
+Brian：可以一次性将 neuron 设为默认后端，也可以在调用 torch.compile 时指定它。
+
+55
+00:04:33,760 --> 00:04:36,380
+The article shows both choices.
+文章介绍了这两种方式。
+
+56
+00:04:36,380 --> 00:04:42,970
+Ava: Does native support reach normal PyTorch features, or just model execution?
+Ava：原生支持涵盖常用的 PyTorch 功能，还是只支持模型执行？
+
+57
+00:04:42,970 --> 00:04:52,547
+Brian: It reaches familiar interfaces for tensors, neural network modules, automatic mixed precision, distributed work, and profiling.
+Brian：张量、神经网络模块、自动混合精度、分布式计算和性能分析，都能使用熟悉的接口。
+
+58
+00:04:52,547 --> 00:04:56,592
+The article also reports broad operator coverage.
+文章还提到，它支持大量算子。
+
+59
+00:04:56,592 --> 00:05:01,334
+Ava: Broad sounds useful, but it doesn't mean every operator.
+Ava：支持大量算子是好事，但也不是支持所有算子。
+
+60
+00:05:01,334 --> 00:05:03,496
+Brian: Correct. We'll get to the gaps.
+Brian：没错。稍后会讲到哪些还不支持。
+
+61
+00:05:03,496 --> 00:05:12,844
+For supported models, the article lists common floating-point types, integer and boolean types, and working mixed precision code.
+对于受支持的模型，文章列出了常见浮点、整数和布尔类型，以及可正常运行的混合精度代码。
+
+62
+00:05:12,844 --> 00:05:16,578
+Ava: What about training across many devices?
+Ava：在多台设备上训练呢？
+
+63
+00:05:16,578 --> 00:05:20,393
+Brian: The standard distributed APIs are supported.
+Brian：标准的分布式 API 也受支持。
+
+64
+00:05:20,393 --> 00:05:29,672
+That includes DDP, or Distributed Data Parallel, and FSDP2, or Fully Sharded Data Parallel version two.
+包括 DDP（分布式数据并行）和 FSDP2（完全分片数据并行第二版）。
+
+65
+00:05:29,672 --> 00:05:34,846
+Ava: Can people combine those ideas with tensor and pipeline parallelism?
+Ava：这些方法能和张量并行、流水线并行结合吗？
+
+66
+00:05:34,846 --> 00:05:35,162
+Brian: Yes.
+Brian：能。
+
+67
+00:05:35,162 --> 00:05:44,559
+The article describes tensor parallelism, pipeline parallelism, and combinations such as FSDP2 with tensor parallelism.
+文章介绍了张量并行、流水线并行，以及 FSDP2 与张量并行等组合。
+
+68
+00:05:44,559 --> 00:05:49,884
+DTensor and DeviceMesh help manage sharding and process groups.
+DTensor 和 DeviceMesh 有助于管理分片和进程组。
+
+69
+00:05:49,884 --> 00:05:53,546
+Ava: And the devices still need to exchange data.
+Ava：设备之间还是得交换数据。
+
+70
+00:05:53,546 --> 00:05:59,702
+Brian: Right. Collective operations include gathering and reducing data across workers.
+Brian：对。集合通信操作包括在各工作进程之间收集和归约数据。
+
+71
+00:05:59,702 --> 00:06:04,473
+Within a node, they use Trainium's dedicated collective cores.
+在节点内部，它们使用 Trainium 专用的集合通信核心。
+
+72
+00:06:04,473 --> 00:06:08,440
+Between nodes, they use Elastic Fabric Adapter.
+在节点之间，则使用 Elastic Fabric Adapter。
+
+73
+00:06:08,440 --> 00:06:12,102
+Ava: What if a project uses streams to overlap work?
+Ava：如果项目用流来重叠执行任务呢？
+
+74
+00:06:12,102 --> 00:06:17,702
+Brian: Streams and events are supported. A stream keeps its own operations ordered.
+Brian：流和事件都受支持。每条流内的操作按顺序执行。
+
+75
+00:06:17,702 --> 00:06:24,020
+If one stream needs another stream's result, you record an event and wait for it.
+如果一条流需要另一条流的结果，就记录一个事件并等待它。
+
+76
+00:06:24,020 --> 00:06:27,946
+Ava: Like handing over a ticket before the next worker starts?
+Ava：就像把凭证交给下一位工作人员，他才能开工？
+
+77
+00:06:27,946 --> 00:06:28,534
+Brian: Exactly.
+Brian：正是。
+
+78
+00:06:28,534 --> 00:06:34,410
+There's a hardware detail, though: non-default streams share one hardware queue.
+不过有个硬件细节：非默认流共用一条硬件队列。
+
+79
+00:06:34,410 --> 00:06:40,416
+They keep ordering and event behavior, but don't each get a dedicated engine.
+它们仍保持操作顺序和事件机制，但并非每条流都有独立的执行单元。
+
+80
+00:06:40,416 --> 00:06:47,054
+Ava: So the PyTorch behavior is there, but I shouldn't picture a separate engine for every stream.
+Ava：所以 PyTorch 的行为是一样的，但不能以为每条流都有独立的执行单元。
+
+81
+00:06:47,054 --> 00:06:52,886
+Brian: You've got it. And an asynchronous error appears at the next synchronization point.
+Brian：理解对了。异步错误会在下一个同步点显现。
+
+82
+00:06:52,886 --> 00:06:59,068
+TorchNeuron tracks the earliest exception and reports it with its original context.
+TorchNeuron 会追踪最早出现的异常，并连同原始上下文一起报告。
+
+83
+00:06:59,068 --> 00:07:04,181
+Ava: Suppose the standard operations aren't fast enough for one critical layer.
+Ava：假如某个关键层用标准操作还不够快呢？
+
+84
+00:07:04,181 --> 00:07:05,706
+What's available?
+有什么办法？
+
+85
+00:07:05,706 --> 00:07:13,777
+Brian: NKI, the Neuron Kernel Interface, lets developers write custom operators with lower-level hardware control.
+Brian：NKI（Neuron Kernel Interface）让开发者能编写自定义算子，更直接地控制底层硬件。
+
+86
+00:07:13,777 --> 00:07:18,200
+Those operators can work in eager and compiled models.
+这些算子可用于即时执行和编译后的模型。
+
+87
+00:07:18,200 --> 00:07:22,654
+Ava: Does that mean rewriting the entire model as custom kernels?
+Ava：这意味着要把整个模型重写成自定义内核吗？
+
+88
+00:07:22,654 --> 00:07:27,993
+Brian: No. The article suggests using NKI for performance-critical pieces.
+Brian：不用。文章建议只在性能关键的部分使用 NKI。
+
+89
+00:07:27,993 --> 00:07:37,428
+It also describes NKI-lib, an open-source set of optimized operators for common language and multimodal workloads.
+文章还介绍了 NKI-lib：一套面向常见语言和多模态工作负载的开源优化算子。
+
+90
+00:07:37,428 --> 00:07:42,026
+Ava: There's a sine example in the article. What should I take from it?
+Ava：文章里有个正弦函数示例。它说明了什么？
+
+91
+00:07:42,026 --> 00:07:50,996
+Brian: It registers a custom sine operator and its backward calculation using PyTorch's recommended autograd registration style.
+Brian：它按照 PyTorch 推荐的 autograd 注册方式，注册了自定义正弦算子及其反向计算。
+
+92
+00:07:50,996 --> 00:07:54,904
+The forward and backward paths call NKI kernels.
+前向和反向路径都会调用 NKI 内核。
+
+93
+00:07:54,904 --> 00:07:59,550
+Ava: Nice. Once it's running, how do I find the slow part?
+Ava：不错。跑起来后，怎么找出慢在哪里？
+
+94
+00:07:59,550 --> 00:08:06,384
+Brian: TorchNeuron extends the standard torch dot profiler interface with Neuron-specific settings.
+Brian：TorchNeuron 在标准的 torch.profiler 接口上增加了 Neuron 专用设置。
+
+95
+00:08:06,384 --> 00:08:12,380
+It can collect framework, runtime, and device activity in a connected trace.
+它能把框架、运行时和设备活动采集到一条关联的追踪记录中。
+
+96
+00:08:12,380 --> 00:08:13,344
+Ava: Connected how?
+Ava：怎么关联？
+
+97
+00:08:13,344 --> 00:08:19,546
+Profiling tools sometimes give me three timelines that don't seem to know each other.
+性能分析工具有时给我三条时间线，看起来彼此毫无关联。
+
+98
+00:08:19,546 --> 00:08:24,368
+Brian: Neuron Explorer links events across those layers and back to source lines.
+Brian：Neuron Explorer 能把这些层面的事件关联起来，并追溯到源代码行。
+
+99
+00:08:24,368 --> 00:08:31,104
+It also shows call hierarchy and dependency chains, so you can inspect what a stall is waiting on.
+它还会显示调用层级和依赖链，方便查看停顿时在等待什么。
+
+100
+00:08:31,104 --> 00:08:36,422
+Ava: Can an engineer analyze the data without the visual interface?
+Ava：工程师能不通过可视化界面分析这些数据吗？
+
+101
+00:08:36,422 --> 00:08:36,704
+Brian: Yes.
+Brian：对。
+
+102
+00:08:36,704 --> 00:08:46,780
+Neuron Explorer emits Parquet metrics for operations and engines, and the built-in profiler tools can sort operations by device-side cost.
+Neuron Explorer 会生成记录算子和引擎指标的 Parquet 文件，内置分析工具还能按设备端开销对算子排序。
+
+103
+00:08:46,780 --> 00:08:52,002
+Ava: Let's move from features to evidence. What has the team tested?
+Ava：从功能说到证据吧。团队测试了什么？
+
+104
+00:08:52,002 --> 00:08:57,065
+Brian: They report a continuous sweep of one hundred thousand Hugging Face models.
+Brian：他们称持续测试了10万个 Hugging Face 模型。
+
+105
+00:08:57,065 --> 00:09:03,896
+Based on download counts, those models cover ninety-nine point nine percent of real-world usage.
+按下载量计算，这些模型覆盖了99.9%的实际使用量。
+
+106
+00:09:03,896 --> 00:09:06,670
+Ava: What did they check for each model?
+Ava：每个模型都检查了什么？
+
+107
+00:09:06,670 --> 00:09:15,728
+Brian: Whether it loaded, ran forward and backward passes, compiled, and used device operators or fell back to the host processor.
+Brian：检查能否加载、执行前向和反向计算、完成编译，以及使用设备算子还是回退到主机处理器。
+
+108
+00:09:15,728 --> 00:09:19,908
+They used reduced but representative configurations.
+他们采用了缩小规模但有代表性的配置。
+
+109
+00:09:19,908 --> 00:09:23,450
+Ava: Does the article say every model passed?
+Ava：文章说所有模型都通过了吗？
+
+110
+00:09:23,450 --> 00:09:26,982
+Brian: No. It says the team is closing remaining gaps.
+Brian：没有。文章说团队还在补齐剩余缺口。
+
+111
+00:09:26,982 --> 00:09:34,696
+The supplied text refers to a graph of sweep results, but doesn't give a pass percentage to quote.
+所提供的文本提到一张测试结果图，但没有给出可引用的通过率。
+
+112
+00:09:34,696 --> 00:09:38,142
+Ava: Was there testing against PyTorch itself?
+Ava：有没有针对 PyTorch 本身进行测试？
+
+113
+00:09:38,142 --> 00:09:38,437
+Brian: Yes.
+Brian：有。
+
+114
+00:09:38,437 --> 00:09:45,652
+The August twenty twenty-six run had about one hundred fifty-four thousand upstream test outcomes.
+2026年8月那轮测试产生了约15.4万项上游测试结果。
+
+115
+00:09:45,652 --> 00:09:50,420
+Roughly sixty-nine thousand were skipped for stated reasons.
+其中约6.9万项因注明的原因被跳过。
+
+116
+00:09:50,420 --> 00:09:54,322
+Ava: That's a large skipped group. What was in it?
+Ava：跳过的数量很大，具体包括什么？
+
+117
+00:09:54,322 --> 00:09:58,713
+Brian: About thirty thousand came from PyTorch's own eligibility checks.
+Brian：约3万项是由 PyTorch 自身的适用性检查跳过的。
+
+118
+00:09:58,713 --> 00:10:08,184
+Around thirty-nine thousand were deliberate Neuron skips, including about twenty-two thousand tied to missing native operator lowering.
+约3.9万项是 Neuron 主动跳过的，其中约2.2万项与缺少原生算子降阶实现有关。
+
+119
+00:10:08,184 --> 00:10:12,134
+Ava: So those totals alone don't tell us a pass rate.
+Ava：所以光看这些总数，算不出通过率。
+
+120
+00:10:12,134 --> 00:10:12,537
+Brian: Right.
+Brian：没错。
+
+121
+00:10:12,537 --> 00:10:20,956
+The article says it reports pass rates against enabled tests, but these counts need their skip categories to make sense.
+文章说通过率是按已启用的测试计算的，但要理解这些数字，还得看跳过项的分类。
+
+122
+00:10:20,956 --> 00:10:24,042
+Ava: Are there any customer performance numbers?
+Ava：有客户的性能数据吗？
+
+123
+00:10:24,042 --> 00:10:37,088
+Brian: Deepgram reports that, in the benchmarks it evaluated, Trainium processed about sixty percent more input audio seconds per dollar than its existing graphics processing unit, or GPU, baselines.
+Brian：Deepgram 表示，在其评估的基准测试中，Trainium 每美元处理的输入音频时长比现有的图形处理器（GPU）基线多约60%。
+
+124
+00:10:37,088 --> 00:10:40,990
+Ava: That's specific to Deepgram's benchmarks, then.
+Ava：那这个结果仅适用于 Deepgram 的基准测试。
+
+125
+00:10:40,990 --> 00:10:41,265
+Brian: Yes.
+Brian：对。
+
+126
+00:10:41,265 --> 00:10:53,772
+Cartesia offers a different example: it says its standard inference pipeline ran with minimal PyTorch code changes, leaving it to focus custom kernels on repeatedly used layers.
+Cartesia 提供了另一个例子：它表示，标准推理流水线只需少量修改 PyTorch 代码就能运行，因此可以把自定义内核的开发重点放在反复使用的层上。
+
+127
+00:10:53,772 --> 00:10:58,010
+Ava: How does this connect to libraries people already use?
+Ava：这和大家已经在用的库有什么关系？
+
+128
+00:10:58,010 --> 00:11:06,771
+Brian: The article describes Trainium support in TorchTitan and upstream Hugging Face libraries, including Transformers and Diffusers.
+Brian：文章介绍了 TorchTitan 和 Hugging Face 上游库中的 Trainium 支持，包括 Transformers 和 Diffusers。
+
+129
+00:11:06,771 --> 00:11:10,984
+Those connections are central to the compatibility goal.
+这些集成是实现兼容性目标的关键。
+
+130
+00:11:10,984 --> 00:11:14,286
+Ava: What's still missing in this first release?
+Ava：首个版本还缺什么？
+
+131
+00:11:14,286 --> 00:11:17,085
+Brian: Some operators lack native lowering.
+Brian：部分算子还没有原生降阶实现。
+
+132
+00:11:17,085 --> 00:11:26,182
+The explicit first-release exclusions include sparse tensors, forward-mode autograd, and dynamic and symbolic shapes.
+首个版本明确不支持稀疏张量、前向模式自动微分，以及动态形状和符号形状。
+
+133
+00:11:26,182 --> 00:11:29,564
+The team says it's working on coverage.
+团队表示正在扩大支持范围。
+
+134
+00:11:29,564 --> 00:11:32,458
+Ava: And what's next for availability?
+Ava：接下来何时能用上？
+
+135
+00:11:32,458 --> 00:11:42,674
+Brian: The article announces an open-source public beta under Apache two point zero for October twentieth, twenty twenty-six, with installable packages.
+Brian：文章宣布将于2026年10月20日推出采用 Apache 2.0 许可证的开源公测版，并提供可安装的软件包。
+
+136
+00:11:42,674 --> 00:11:47,040
+It also says TorchAO and FP8 are in private beta for now.
+文章还说，TorchAO 和 FP8 目前处于封闭测试阶段。
+
+137
+00:11:47,040 --> 00:11:49,790
+Ava: Give me the three things to remember.
+Ava：说说最值得记住的三点。
+
+138
+00:11:49,790 --> 00:11:54,412
+Brian: First, TorchNeuron makes Trainium a native PyTorch device.
+Brian：第一，TorchNeuron 让 Trainium 成为 PyTorch 原生设备。
+
+139
+00:11:54,412 --> 00:12:01,265
+Second, eager, compile, custom kernels, and profiling give teams several ways to work.
+第二，即时执行、编译、自定义内核和性能分析，为团队提供了多种工作方式。
+
+140
+00:12:01,265 --> 00:12:06,316
+Third, the testing is broad, but first-release gaps remain.
+第三，测试覆盖面很广，但首个版本仍有缺口。
+
+141
+00:12:06,316 --> 00:12:10,818
+Ava: That's our tour of TorchNeuron. Thanks for listening.
+Ava：以上就是我们对 TorchNeuron 的介绍。感谢收听。

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Zephon 让 TorchTitan 弹性恢复时保持数据顺序</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/bringing-elastically-deterministic-data-loading-to-torchtitan-with-zephon/">原视频 / 原文</a></p><h1>Zephon 让 TorchTitan 弹性恢复时保持数据顺序</h1>
+<p>依据：原文</p>
+<p>来源：https://pytorch.org/blog/bringing-elastically-deterministic-data-loading-to-torchtitan-with-zephon/</p>
+<p>Zephon 在训练任务中即时完成分词、打包、混洗和数据集混合，省去为每次实验预先生成数据副本。它还让 TorchTitan 在改变 GPU 数量后恢复训练时，继续向模型提供相同的全局批次，使数据消融实验更容易比较。</p>
+<h3>要解决的问题</h3>
+<p>调整数据配比、过滤规则或打包方式通常需要重新处理整个语料；许多实验只读取生成的数据一次。常规数据加载器还会随 GPU 数量改变样本顺序，使模型结果受到计算资源分配的影响。对并行运行的大量消融实验，这种差异可能被误判为数据配方的效果。</p>
+<h3>数据流水线与确定性机制</h3>
+<p>用户分别定义数据集、规划混合与顺序的 WorkSource，以及处理样本的 Pipeline。WorkSource 可从少量样本估算 token 与字节的比例，以原始文本规划按 token 计的混合权重。每个算子由按顺序作决策的单线程累积器和可并行执行的无状态工作函数组成；并行度因此只影响处理速度。Zephon 把数据分入固定数量的逻辑流，每条流独立维护打包等状态，再随数据并行副本数量重新分配。检查点只记录尚在处理的输入片段；定期清空算子状态后，恢复时从最近一次清空处重放并跳过已消费的数据。</p>
+<h3>实验结果</h3>
+<p>在 TorchTitan 的 10 亿参数模型实验中，作者从 16 GPU 训练的第 150 步检查点恢复到 8、32 和 64 GPU。常规加载器产生不同的后续样本顺序和损失曲线；Zephon 各步全局批次的 SHA-256 均与原运行一致，损失曲线几乎重合。另一组从头训练 200 亿 token 的实验使用 8、16、32、64 GPU：常规加载器的 DCLM Core v1 和 FineWeb 评分最大差距分别为 0.82 和 0.64 分，Zephon 分别为 0.05 和 0.011 分。</p>
+<h3>接入条件与边界</h3>
+<p>TorchTitan 集成用数据配方建立 Zephon Pipeline，并把其状态写入训练检查点。逻辑流数量须预先确定，且能被计划使用的数据并行规模整除；每步全局批次也须能均匀分到各流。恢复时需保持数据、分词器、随机种子、混合权重、上下文长度和全局批次大小不变，并行度等性能设置可以调整。过多逻辑流会增加恢复耗时。Zephon 保证批次一致，但 GPU 数量改变仍可能影响浮点归约顺序，因此不保证损失值逐位相同。</p>
+<h3>性能与后续方向</h3>
+<p>在作者测试的完整视觉语言流水线中，Zephon 的吞吐量跟上了受测加载器中最快的 Google Grain。作者还报告，在 Python 3.14t 上，其线程运行器获取视觉语言样本的速度约为标准 Python 上进程运行器的 3.7 倍。支持训练过程中动态调整混合权重、同时维持确定性，目前仍是开发中的方向。</p></body></html>

@@ -1,0 +1,309 @@
+[ti:Helion Meets Hugging Face Kernels: From Tuning to Shipping]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: You find a fast GPU kernel, a small program for a graphics processing unit.
+[00:00.00]Ava：你找到了一个高速 GPU 内核，也就是在图形处理器上运行的小程序。
+[00:05.37]Why can sharing it still feel harder than writing it?
+[00:05.37]为什么分享它有时比编写它还难？
+[00:09.52]Brian: Packaging and installation can get messy.
+[00:09.52]Brian：打包和安装可能很麻烦。
+[00:12.37]This article shows how Helion kernels can be tuned, published through Hugging Face Kernels, and loaded by other people.
+[00:12.37]这篇文章介绍如何调优 Helion 内核、通过 Hugging Face Kernels 发布，并供他人加载使用。
+[00:20.98]Ava: So there are two names here. What's Helion, and what's Kernels with a capital K?
+[00:20.98]Ava：这里有两个名字。Helion 是什么？大写 K 的 Kernels 又是什么？
+[00:27.16]Brian: Helion is a domain-specific language, or DSL, for writing machine-learning kernels.
+[00:27.16]Brian：Helion 是用于编写机器学习内核的领域专用语言，也就是 DSL。
+[00:33.45]Kernels is the Hugging Face project for packaging and distributing them.
+[00:33.45]Kernels 是 Hugging Face 用来打包和分发这些内核的项目。
+[00:39.25]Ava: That split helps. Let's start with the developer.
+[00:39.25]Ava：这样就清楚了。先说开发者这一侧。
+[00:42.56]What does writing a Helion kernel actually feel like?
+[00:42.56]编写 Helion 内核实际是什么体验？
+[00:46.49]Brian: The article calls it PyTorch with tiles.
+[00:46.49]Brian：文章称之为“带分块的 PyTorch”。
+[00:49.40]You work with PyTorch tensors, and ordinary PyTorch operations describe what happens inside each tile.
+[00:49.40]你处理 PyTorch 张量，用普通的 PyTorch 操作描述每个数据块内的计算。
+[00:57.18]Ava: A tile is a chunk of the work, right? Like cutting a large sheet into smaller pieces?
+[00:57.18]Ava：数据块就是把任务分成小份，对吧？像把一大张纸裁成小片？
+[01:03.63]Brian: Exactly.
+[01:03.63]Brian：没错。
+[01:04.22]The matrix multiplication example walks over output tiles, accumulates products across another tiled dimension, and writes each result into an output tensor.
+[01:04.22]矩阵乘法示例逐块处理输出，沿另一个分块维度累加乘积，再将结果写入输出张量。
+[01:16.14]Ava: But a tile needs a size. Does the author choose that while writing the computation?
+[01:16.14]Ava：但数据块总得有大小。作者写计算逻辑时就要定下来吗？
+[01:22.11]Brian: They can leave it open.
+[01:22.11]Brian：可以先不定。
+[01:23.78]Helion's tile operation says to split the iteration space, while leaving choices such as tile size to its autotuner.
+[01:23.78]Helion 的分块操作只指定拆分迭代空间，块大小等选择交给自动调优器。
+[01:32.54]Ava: Wait, so the same source can be tried with several ways of dividing the work?
+[01:32.54]Ava：等等，也就是说，同一份源码可以尝试多种任务划分方式？
+[01:38.43]Brian: Yes, and the search goes further.
+[01:38.43]Brian：对，而且搜索范围还不止这些。
+[01:40.93]Helion also explores lowering strategies: concrete ways to turn that source into an implementation.
+[01:40.93]Helion 还会探索不同的编译转换策略，也就是把源码变成具体实现的方式。
+[01:48.77]Ava: What changes when a lowering strategy changes?
+[01:48.77]Ava：编译转换策略变了，具体会有什么变化？
+[01:52.16]Give me something more tangible than a compiler diagram.
+[01:52.16]举个比编译器示意图更直观的例子。
+[01:56.63]Brian: Memory access can change.
+[01:56.63]Brian：内存访问方式会变。
+[01:58.37]So can the order of nested loops, how loops are flattened, or whether a reduction persists instead of looping.
+[01:58.37]嵌套循环的顺序、循环如何展平，以及归约采用持久化还是循环方式，也都可能变。
+[02:06.36]Ava: So the written computation stays readable, while Helion experiments with how the machine carries it out.
+[02:06.36]Ava：所以写出来的计算逻辑依然易读，Helion 则尝试不同的机器执行方式。
+[02:13.72]Brian: Right.
+[02:13.72]Brian：对。
+[02:14.11]Think of giving a cook the recipe and letting them test different pan sizes and preparation orders for each batch.
+[02:14.11]就像把食谱交给厨师，让他针对每一批菜尝试不同的锅具大小和备菜顺序。
+[02:21.90]Ava: Does that search really matter, or is it mainly a convenience for the person writing the kernel?
+[02:21.90]Ava：这样的搜索真能提升性能，还是主要方便写内核的人？
+[02:29.04]Brian: The authors say a Helion kernel can often beat a hand-written lower-level kernel across many shapes.
+[02:29.04]Brian：作者说，在多种数据形状下，Helion 内核往往能胜过手写的底层内核。
+[02:35.57]They don't claim that happens every time.
+[02:35.57]他们并没有说每次都如此。
+[02:38.60]Ava: Here's the catch: trying lots of implementations sounds expensive before the user gets any work done.
+[02:38.60]Ava：但问题是，用户还没开始干活，就要尝试大量实现，听起来很耗时。
+[02:45.72]Brian: It can take a while.
+[02:45.72]Brian：确实可能要花不少时间。
+[02:47.01]That's why the article focuses on tuning ahead of time and shipping the chosen configurations with the kernel.
+[02:47.01]所以文章重点讲提前调优，并把选好的配置随内核一起发布。
+[02:54.47]Ava: Before we tune it, how does this kernel reach someone else's machine?
+[02:54.47]Ava：说到调优之前，这个内核怎么送到别人的机器上？
+[02:59.57]Brian: Through the Kernels project.
+[02:59.57]Brian：通过 Kernels 项目。
+[03:01.68]Its developer tool, kernel-builder, gives packages a consistent structure and build process.
+[03:01.68]它的开发工具 kernel-builder 为软件包提供统一的结构和构建流程。
+[03:08.62]Its Python library loads published kernels.
+[03:08.62]它的 Python 库负责加载已发布的内核。
+[03:12.21]Ava: Why did Hugging Face need that shared process?
+[03:12.21]Ava：Hugging Face 为什么需要这样一套统一流程？
+[03:16.04]Brian: The article describes fragmented source layouts, tooling, and compatibility support.
+[03:16.04]Brian：文章提到，各项目的源码布局、工具和兼容性支持都不统一。
+[03:22.23]Users can face long builds even when a project offers prebuilt packages.
+[03:22.23]即使项目提供预构建软件包，用户也可能遇到漫长的构建过程。
+[03:27.89]Ava: What's the user experience supposed to be?
+[03:27.89]Ava：理想的使用体验是什么样？
+[03:30.81]Brian: You request a named kernel and version from the Hugging Face Hub, then call an exported function.
+[03:30.81]Brian：从 Hugging Face Hub 获取指定名称和版本的内核，再调用它导出的函数。
+[03:37.90]The article uses Flash Attention three as an example.
+[03:37.90]文章以 Flash Attention 3 为例。
+[03:42.12]Ava: Does Kernels only handle source that compiles when somebody calls it?
+[03:42.12]Ava：Kernels 只支持调用时才编译源码的内核吗？
+[03:47.32]Brian: No. It supports ahead-of-time and just-in-time kernels.
+[03:47.32]Brian：不是。它支持提前编译和即时编译的内核。
+[03:51.48]For some ahead-of-time kernels, the project provides prebuilt binaries across a compatibility matrix.
+[03:51.48]对于一些提前编译的内核，项目会按兼容性矩阵提供预构建二进制文件。
+[03:59.46]Ava: And where does Helion fit? Do authors have to publish binaries for every machine?
+[03:59.46]Ava：那 Helion 怎么融入其中？作者得为每种机器发布二进制文件吗？
+[04:05.54]Brian: Helion kernels are Python source.
+[04:05.54]Brian：Helion 内核是 Python 源码。
+[04:08.06]They're described as noarch: authors ship the source, and Helion compiles it on the user's machine at first call.
+[04:08.06]它们被称为 noarch，即不限定架构：作者发布源码，Helion 在用户首次调用时于本机编译。
+[04:17.03]Ava: So what does kernel-builder contribute when there's no binary to compile in advance?
+[04:17.03]Ava：既然不用提前编译二进制文件，kernel-builder 又起什么作用？
+[04:23.26]Brian: It still provides the package layout, metadata, build, and upload workflow.
+[04:23.26]Brian：它仍提供包结构、元数据，以及构建和上传流程。
+[04:28.89]The author declares Helion as a Python dependency and marks the package noarch.
+[04:28.89]作者将 Helion 声明为 Python 依赖，并把包标记为 noarch。
+[04:35.18]Ava: What does that dependency declaration do for a user?
+[04:35.18]Ava：这个依赖声明对用户有什么用？
+[04:39.17]Brian: When the kernel loads, the Kernels library checks whether Helion can be imported.
+[04:39.17]Brian：加载内核时，Kernels 库会检查能否导入 Helion。
+[04:44.67]If it can't, the user gets a clear dependency error.
+[04:44.67]如果不能，用户会收到明确的依赖错误提示。
+[04:48.55]Ava: Can you walk through the article's vector addition example without reading code aloud?
+[04:48.55]Ava：能不念代码，讲讲文章里的向量加法示例吗？
+[04:54.03]Brian: The developer starts from a scaffold, removes pieces meant for compiled extensions, and keeps a small Python package.
+[04:54.03]Brian：开发者从项目模板入手，删去编译扩展所需的部分，保留一个精简的 Python 包。
+[05:02.78]Its kernel adds matching tensor tiles.
+[05:02.78]其中的内核会将对应的张量分块相加。
+[05:05.98]Ava: The example lists CUDA, ROCm, and XPU backends. Is that the portability part?
+[05:05.98]Ava：示例列出了 CUDA、ROCm 和 XPU 后端。可移植性就体现在这里吗？
+[05:12.88]Brian: That's how the example declares its backends.
+[05:12.88]Brian：示例就是这样声明支持的后端的。
+[05:16.05]The generated packages carry the source and dependency metadata, with a build directory for each backend.
+[05:16.05]生成的包包含源码和依赖元数据，每个后端各有一个构建目录。
+[05:23.79]Ava: Then the developer checks the configuration, builds it, and uploads it to the Hub?
+[05:23.79]Ava：然后开发者检查配置、构建包，再上传到 Hub？
+[05:29.37]Brian: Yes. A consumer loads the named package, then calls its vector addition function.
+[05:29.37]Brian：对。使用者按名称加载这个包，再调用它的向量加法函数。
+[05:35.68]The article's loading example also enables trust for remote code.
+[05:35.68]文章的加载示例还启用了对远程代码的信任。
+[05:41.10]Ava: All right. That gets us a working package. Where do the fast settings come from?
+[05:41.10]Ava：好，这样包就能用了。高性能的配置从哪儿来？
+[05:47.18]Brian: The simplest example pins one configuration.
+[05:47.18]Brian：最简单的示例固定使用一套配置。
+[05:50.49]For multiple input shapes, the article moves to pre-tuning: measure candidate settings before publishing.
+[05:50.49]对于多种输入形状，文章改用预调优：发布前先测量候选配置。
+[05:58.74]Ava: Let's slow that down. If one configuration works, why bother with several?
+[05:58.74]Ava：我们说慢一点。一套配置能用，为什么还要准备多套？
+[06:04.80]Brian: Different shapes and GPU generations may favor different choices.
+[06:04.80]Brian：不同形状和不同代的 GPU，适合的配置可能不同。
+[06:09.36]The workflow aims to ship configurations that perform well across the shapes the author tests.
+[06:09.36]这个流程旨在发布一组配置，让它们在作者测试的各种形状上都有较好表现。
+[06:16.31]Ava: What does the developer change in the kernel?
+[06:16.31]Ava：开发者要怎么修改内核？
+[06:19.21]Brian: They mark it for Helion's ahead-of-time tuning with static shapes.
+[06:19.21]Brian：他们把内核标记为使用 Helion 针对静态形状进行提前调优。
+[06:23.82]Then they run a small script that calls it on representative sizes.
+[06:23.82]然后运行一个小脚本，用有代表性的尺寸调用它。
+[06:28.84]Ava: Representative is doing some work there. The developer has to choose the sizes?
+[06:28.84]Ava：这里的“有代表性”很关键。尺寸得由开发者来选？
+[06:34.79]Brian: Yes. In the vector addition walkthrough, the script calls the kernel on four sizes.
+[06:34.79]Brian：对。在向量加法示例中，脚本用四种尺寸调用内核。
+[06:40.73]Those calls become the workload for the tuning runner.
+[06:40.73]这些调用就成了调优程序的工作负载。
+[06:44.95]Ava: What does that runner actually do? I saw three phases and lost the thread.
+[06:44.95]Ava：调优程序具体做什么？我看到三个阶段，就有点跟不上了。
+[06:50.85]Brian: First, collect: it autotunes each shape on its own.
+[06:50.85]Brian：第一步是收集：分别对每种形状进行自动调优。
+[06:55.18]Then, measure: it tests every discovered configuration again on every shape.
+[06:55.18]接着是测量：把找到的每套配置再拿到每种形状上测试。
+[07:02.00]Ava: That second pass sounds useful.
+[07:02.00]Ava：第二轮测试听起来很有用。
+[07:04.51]A setting discovered for one size might work well for another.
+[07:04.51]针对一种尺寸找到的配置，可能也适合另一种。
+[07:09.88]Brian: Exactly.
+[07:09.88]Brian：没错。
+[07:10.54]Finally, build: the runner chooses a small set of configurations that stays close to each shape's own best result.
+[07:10.54]最后是构建：调优程序选出少量配置，让每种形状的性能都接近各自的最佳结果。
+[07:20.34]Ava: How close is close in the article's example?
+[07:20.34]Ava：文章里的“接近”具体是多少？
+[07:23.90]Brian: Its threshold is one point zero one, described as within one percent.
+[07:23.90]Brian：阈值是 1.01，文章解释为差距在 1% 以内。
+[07:29.33]The example allows up to eight configurations.
+[07:29.33]示例最多允许八套配置。
+[07:33.30]Ava: Does eight mean everybody downloads eight?
+[07:33.30]Ava：八套是说每个人都要下载八套吗？
+[07:36.63]Brian: No. That's a limit in the example.
+[07:36.63]Brian：不是。那只是示例设置的上限。
+[07:39.31]If one configuration meets the threshold for every tested shape, one is enough.
+[07:39.31]如果一套配置在所有测试形状上都达到阈值，一套就够了。
+[07:45.90]Ava: And if the shapes disagree, we get several settings.
+[07:45.90]Ava：如果不同形状适合的配置不一样，就会有好几套。
+[07:49.61]How does a runtime call choose among them?
+[07:49.61]运行时调用怎么从中选择？
+[07:52.95]Brian: Helion builds a decision tree.
+[07:52.95]Brian：Helion 会构建一棵决策树。
+[07:55.04]It's stored as a plain Python file beside the kernel source and maps an input shape to a configuration.
+[07:55.04]它以普通 Python 文件的形式存放在内核源码旁，根据输入形状匹配配置。
+[08:02.56]Ava: Put another way, it's like packing a route guide with the recipe.
+[08:02.56]Ava：换句话说，就像给配方附上一份路线指南。
+[08:07.09]Brian: Yes.
+[08:07.09]Brian：对。
+[08:07.36]When someone calls the shipped kernel, Helion reads that guide and selects a pre-tuned setting for the runtime shape.
+[08:07.36]有人调用发布后的内核时，Helion 会读取这份指南，为运行时的输入形状选择预调优配置。
+[08:15.50]Ava: Does that mean a user waits for another full tuning search?
+[08:15.50]Ava：这意味着用户还得等待一次完整的调优搜索吗？
+[08:19.60]Brian: The article says the shipped tree avoids tuning on the user's machine.
+[08:19.60]Brian：文章说，随包发布的决策树让用户无需在自己的机器上调优。
+[08:24.58]Helion still compiles the Python kernel source on its first call.
+[08:24.58]不过，Helion 在首次调用时仍会编译 Python 内核源码。
+[08:29.55]Ava: That makes sense.
+[08:29.55]Ava：这样就说得通了。
+[08:30.71]Shipping decisions saves the search, even though the source still has to become a runnable kernel.
+[08:30.71]随内核发布调优结果，就省去了搜索步骤，但源码仍需编译成可运行的内核。
+[08:37.77]Brian: Right.
+[08:37.77]Brian：对。
+[08:38.25]The example file layout shows separate pre-tuned files for H100 and B200 devices beside the same kernel source.
+[08:38.25]示例文件布局中，同一份内核源码旁分别放着为 H100 和 B200 预调优的文件。
+[08:47.58]Ava: We've got the mechanism. Did the article test whether these shipped settings help?
+[08:47.58]Ava：机制讲清楚了。文章有没有测试这些随内核发布的配置是否有效？
+[08:53.13]Brian: It gives two groups of results.
+[08:53.13]Brian：文章给出了两组结果。
+[08:55.65]The first is a pre-tuned attention kernel on an NVIDIA H100.
+[08:55.65]第一组是在 NVIDIA H100 上预调优的注意力内核。
+[09:00.88]Ava: What's the comparison?
+[09:00.88]Ava：拿什么作对比？
+[09:02.86]Brian: PyTorch's scaled dot product attention, or SDPA, using its FLASH backend.
+[09:02.86]Brian：PyTorch 的缩放点积注意力，也就是 SDPA，使用的是 FLASH 后端。
+[09:08.57]On all nineteen pre-tuned shapes, the shipped kernel was faster.
+[09:08.57]在全部 19 种预调优形状上，发布的内核都更快。
+[09:13.94]Ava: All nineteen? What's the overall speed-up, rather than just the count?
+[09:13.94]Ava：全部 19 种？除了胜出的数量，整体加速比是多少？
+[09:19.64]Brian: The geomean, or geometric mean of the speed-up ratios, was one point two zero.
+[09:19.64]Brian：加速比的几何平均值是 1.20。
+[09:25.69]That's across those tested shapes on the H100.
+[09:25.69]这是 H100 上这些测试形状的结果。
+[09:29.61]Ava: What about shapes the tuning runner hadn't seen?
+[09:29.61]Ava：那调优程序没见过的形状呢？
+[09:33.15]Brian: On ten held-out shapes, the kernel beat that SDPA baseline on nine.
+[09:33.15]Brian：在 10 种留出形状中，有 9 种比 SDPA 基线更快。
+[09:38.39]Their geomean speed-up was one point one seven.
+[09:38.39]几何平均加速比是 1.17。
+[09:42.41]Ava: Good. Held-out shapes tell us more than repeating the tuning examples.
+[09:42.41]Ava：很好。留出形状比重复测试调优样例更有参考价值。
+[09:47.18]What's the second group?
+[09:47.18]第二组是什么？
+[09:49.17]Brian: Seven linear-attention variants shipped with pre-tuned settings for NVIDIA B200s.
+[09:49.17]Brian：七种线性注意力变体，都附带了针对 NVIDIA B200 的预调优配置。
+[09:55.20]The comparison there is flash-linear-attention, called FLA in the article.
+[09:55.20]这里的对比对象是 flash-linear-attention，文章简称 FLA。
+[10:01.06]Ava: Seven variants is a lot to hear in one breath. Do we need every name?
+[10:01.06]Ava：七种变体一口气说完太多了。每个名字都要讲吗？
+[10:07.70]Brian: The article names linear attention, simple GLA, retention, GLA, delta rule, gated delta rule, and KDA.
+[10:07.70]Brian：文章列出的是线性注意力、simple GLA、retention、GLA、delta rule、gated delta rule 和 KDA。
+[10:16.11]Let's focus on their shared results.
+[10:16.11]我们重点看它们的共同结果。
+[10:19.42]Ava: I'm listening. How did they do on the shapes used for tuning?
+[10:19.42]Ava：好。它们在用于调优的形状上表现如何？
+[10:23.93]Brian: Across six pre-tuned shapes, all seven variants were faster than FLA.
+[10:23.93]Brian：在六种预调优形状上，七种变体都比 FLA 快。
+[10:29.35]The geomean was one point four one for device time.
+[10:29.35]设备端耗时的几何平均加速比是 1.41。
+[10:33.71]Ava: And device time means the GPU-side measurement here?
+[10:33.71]Ava：这里的设备端耗时，是指在 GPU 端测得的时间吗？
+[10:38.21]Brian: Yes. The article measured it with CUDA-graph replay.
+[10:38.21]Brian：是的。文章用 CUDA 图重放来测量。
+[10:41.92]End to end, including central processing unit, or CPU, dispatch, the geomean was one point three three.
+[10:41.92]端到端计算包含中央处理器（CPU）调度，几何平均加速比是 1.33。
+[10:49.62]Ava: Does the held-out result tell the same story?
+[10:49.62]Ava：留出形状的结果也类似吗？
+[10:53.02]Brian: For six held-out shapes, the geomean was one point three five on device time and one point three one end to end.
+[10:53.02]Brian：在六种留出形状上，设备端耗时的几何平均加速比是 1.35，端到端是 1.31。
+[11:00.48]Ava: There was also a result combining forward and backward work, wasn't there?
+[11:00.48]Ava：还有一项把前向和反向计算合在一起的结果，对吧？
+[11:05.77]Brian: Yes.
+[11:05.77]Brian：对。
+[11:06.06]For forward and backward together on the pre-tuned shapes, the reported geomean speed-up was one point five five.
+[11:06.06]在预调优形状上，前向和反向计算合计的几何平均加速比为 1.55。
+[11:14.66]Ava: Those results sound promising.
+[11:14.66]Ava：这些结果听起来很有希望。
+[11:16.56]What should a listener keep in mind before applying them everywhere?
+[11:16.56]在把它们推广到各种场景前，听众该注意什么？
+[11:21.21]Brian: The attention comparison is on an H100; the linear-attention comparison is on B200s.
+[11:21.21]Brian：注意力内核是在 H100 上比较的，线性注意力是在 B200 上比较的。
+[11:28.31]The article reports particular shapes and baselines.
+[11:28.31]文章报告的是特定形状和基线下的结果。
+[11:33.05]Ava: So the numbers describe those measurements.
+[11:33.05]Ava：所以这些数字只描述了那些测量结果。
+[11:36.15]They don't tell us the speed-up for every GPU or every input.
+[11:36.15]它们不能说明每种 GPU、每种输入的加速比。
+[11:40.89]Brian: Correct.
+[11:40.89]Brian：没错。
+[11:41.48]The author also has to spend time pre-tuning and choose representative workloads.
+[11:41.48]作者还需要花时间预调优，并选择有代表性的工作负载。
+[11:47.48]The post doesn't quantify that tuning time.
+[11:47.48]文章没有量化调优所需的时间。
+[11:51.01]Ava: Any practical loading detail that could trip someone up?
+[11:51.01]Ava：加载时有什么容易踩的坑吗？
+[11:54.79]Brian: Users need Helion installed and a Kernels version that recognizes it.
+[11:54.79]Brian：用户需要安装 Helion，并使用能识别它的 Kernels 版本。
+[11:60.00]The article says older releases reject Helion as an unsupported dependency.
+[11:60.00]文章说，旧版会把 Helion 判为不受支持的依赖而拒绝加载。
+[12:06.01]Ava: What if someone's device or shape isn't covered by the shipped tree?
+[12:06.01]Ava：如果发布的配置树没有覆盖某人的设备或形状呢？
+[12:10.66]Brian: The post doesn't explain the full fallback behavior for that case.
+[12:10.66]Brian：文章没有完整说明这种情况下的回退行为。
+[12:15.12]I'd check that before promising the same first-call experience everywhere.
+[12:15.12]在承诺各种场景都有相同的首次调用体验前，我会先核实这一点。
+[12:20.46]Ava: Let's end with three points.
+[12:20.46]Ava：最后总结三点。
+[12:22.75]First: Helion lets authors express tiled tensor work while its autotuner explores implementation choices.
+[12:22.75]第一，Helion 让作者表达分块张量计算，并由自动调优器探索实现方案。
+[12:31.66]Brian: Second: Kernels packages and distributes the Python source, dependency information, and pre-tuned decision files through the Hub.
+[12:31.66]Brian：第二，Kernels 通过 Hub 打包并分发 Python 源码、依赖信息和预先调优的决策文件。
+[12:41.08]Ava: Third: the reported speed-ups are strong on the tested H100 and B200 workloads, with clear limits on what they establish.
+[12:41.08]Ava：第三，报告显示，在测试过的 H100 和 B200 工作负载上，速度提升显著，但这些结果的适用范围有明确限制。
+[12:51.51]Brian: That's the episode. Thanks for listening, and see you next time.
+[12:51.51]Brian：本期节目就到这里。感谢收听，下次见。

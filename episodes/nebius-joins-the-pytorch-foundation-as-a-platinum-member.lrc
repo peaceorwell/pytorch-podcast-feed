@@ -1,0 +1,213 @@
+[ti:Nebius Joins the PyTorch Foundation: What Engineers Should Watch]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: A team can train a model with PyTorch and still face a lot of work before serving it.
+[00:00.00]Ava：团队可以用 PyTorch 训练模型，但要将模型投入服务，仍有大量工作要做。
+[00:05.78]That's why this membership announcement caught my attention.
+[00:05.78]所以这则成员资格公告引起了我的注意。
+[00:09.86]Nebius has joined the PyTorch Foundation as a Platinum member, and its work touches both training and inference.
+[00:09.86]Nebius 已作为白金成员加入 PyTorch 基金会，其工作涉及训练和推理。
+[00:17.82]Brian: The useful question is what Nebius already does and what it plans to do through the Foundation.
+[00:17.82]Brian：关键是看 Nebius 已经在做什么，以及计划通过基金会做什么。
+[00:24.95]Startups and enterprises use PyTorch to train and fine-tune models at scale on Nebius AI Cloud.
+[00:24.95]初创企业和大型企业在 Nebius AI Cloud 上使用 PyTorch，大规模训练和微调模型。
+[00:32.07]Nebius also supports work on vLLM, a Foundation project concerned with inference.
+[00:32.07]Nebius 也支持基金会旗下的推理项目 vLLM。
+[00:38.50]Ava: Let's make that concrete.
+[00:38.50]Ava：说具体一点。
+[00:40.21]Imagine a team fine-tuning a model for a product, then preparing to serve it.
+[00:40.21]假设一个团队为产品微调模型，接着准备将其投入服务。
+[00:45.48]They'd have questions at more than one stage.
+[00:45.48]他们在多个阶段都会遇到问题。
+[00:48.55]The announcement connects Nebius to that broad workflow, though it doesn't say every customer uses every part of its platform.
+[00:48.55]公告将 Nebius 与这一完整流程联系起来，但没有说每位客户都会使用其平台的所有部分。
+[00:57.52]Brian: Nebius describes its AI cloud platform as covering data and model training through production deployment.
+[00:57.52]Brian：Nebius 称，其 AI 云平台覆盖从数据处理、模型训练到生产部署的流程。
+[01:04.68]That's the company's scope.
+[01:04.68]这是该公司所说的平台覆盖范围。
+[01:06.52]The more specific statement is that customers train and fine-tune with PyTorch on its cloud.
+[01:06.52]更具体的说法是，客户在其云平台上使用 PyTorch 训练和微调模型。
+[01:12.79]Its inference and post-training contributions are another part of the story.
+[01:12.79]它在推理和后训练方面的贡献，则是另一部分。
+[01:18.32]Ava: I want to understand why the Foundation is the setting for this announcement.
+[01:18.32]Ava：我想弄清楚，为什么这项公告是在基金会的背景下发布的。
+[01:23.57]Nebius runs a cloud, but the software involved reaches well beyond one cloud.
+[01:23.57]Nebius 运营云平台，但相关软件的应用远不止于一家云服务商。
+[01:28.82]The Foundation calls itself vendor-neutral.
+[01:28.82]基金会称自己是供应商中立的组织。
+[01:31.76]How does that shape the role of a Platinum member?
+[01:31.76]这会如何影响白金成员的角色？
+[01:35.52]Brian: The PyTorch Foundation is a community-driven hub hosted by the Linux Foundation.
+[01:35.52]Brian：PyTorch 基金会由 Linux 基金会托管，是一个由社区驱动的协作平台。
+[01:41.74]It supports the core PyTorch framework and projects including vLLM, DeepSpeed, Ray, Helion, and Safetensors.
+[01:41.74]它支持 PyTorch 核心框架，以及 vLLM、DeepSpeed、Ray、Helion 和 Safetensors 等项目。
+[01:50.14]Its stated scope covers training, optimizing, serving, and running models across chips and clouds.
+[01:50.14]按其说法，工作范围涵盖跨芯片和云平台的模型训练、优化、服务和运行。
+[01:58.12]Ava: So membership puts Nebius in a community that works on several parts of our imagined team's path.
+[01:58.12]Ava：也就是说，加入基金会让 Nebius 进入了一个参与我们设想的团队多个工作阶段的社区。
+[02:05.03]That doesn't turn a membership into a software feature.
+[02:05.03]但成为成员本身并不等于增加了一项软件功能。
+[02:08.95]I find the existing work more useful for understanding what Nebius brings to the table.
+[02:08.95]我觉得现有工作更能说明 Nebius 能带来什么。
+[02:15.51]Brian: One example is vLLM.
+[02:15.51]Brian：vLLM 就是一个例子。
+[02:17.05]Nebius has long provided compute for its development, testing, and benchmarking.
+[02:17.05]Nebius 长期为它的开发、测试和基准测试提供算力。
+[02:23.22]The announcement includes multi-node work on large models such as DeepSeek R1.
+[02:23.22]公告还提到针对 DeepSeek R1 等大型模型开展的多节点工作。
+[02:29.24]Providing compute for those activities is a concrete form of support; it isn't itself a benchmark result.
+[02:29.24]为这些活动提供算力是具体的支持，但这本身不是基准测试结果。
+[02:37.70]Ava: That distinction matters.
+[02:37.70]Ava：这个区别很重要。
+[02:39.34]If I hear that a company helped with benchmarking, I might expect a speed comparison.
+[02:39.34]听说一家公司协助做基准测试，我可能会期待看到速度对比。
+[02:44.93]But the statement we can use here establishes the support and the kind of work involved.
+[02:44.93]但这里的表述只说明它提供了支持，以及涉及哪类工作。
+[02:50.72]It doesn't give our imagined team a number for its own workload.
+[02:50.72]它没有给我们设想的团队提供适用于自身工作负载的数字。
+[02:55.28]Brian: There's work beyond supplying compute.
+[02:55.28]Brian：它做的不只是提供算力。
+[02:58.14]Nebius's Applied AI team contributes inference and post-training optimizations to open-source projects.
+[02:58.14]Nebius 的应用 AI 团队还为开源项目贡献推理和后训练优化。
+[03:05.89]The announcement also says Nebius's open-source work has been incorporated into the PyTorch Ecosystem.
+[03:05.89]公告还说，Nebius 的开源工作已被纳入 PyTorch 生态系统。
+[03:13.56]Those are existing activities, distinct from the performance work Nebius now plans.
+[03:13.56]这些都是现有工作，有别于 Nebius 现在计划开展的性能优化工作。
+[03:20.16]Ava: For a framework engineer, that distinction is practical.
+[03:20.16]Ava：对框架工程师来说，这个区别有实际意义。
+[03:24.01]Compute support can help a project develop and test.
+[03:24.01]算力支持能帮助项目开发和测试。
+[03:27.58]An optimization contribution can change software people use.
+[03:27.58]优化贡献则可能改变人们使用的软件。
+[03:31.71]Here, we know the contribution areas, so we can discuss the engineering direction without assigning a particular mechanism to the work.
+[03:31.71]这里我们知道贡献涉及哪些领域，因此可以讨论工程方向，无须推断具体实现机制。
+[03:41.34]Brian: It gives us a starting point.
+[03:41.34]Brian：这给了我们一个讨论的起点。
+[03:43.42]Nebius has experience with PyTorch training workloads, vLLM development support, and open-source work around inference and post-training.
+[03:43.42]Nebius 有支持 PyTorch 训练任务、vLLM 开发，以及参与推理和后训练开源工作的经验。
+[03:53.25]Those activities make its plans easier to place.
+[03:53.25]这些工作让它的计划更容易理解。
+[03:56.69]They don't mean every stage of a customer's workflow uses the same project.
+[03:56.69]但这不意味着客户流程的每个阶段都使用同一个项目。
+[04:02.42]Ava: The new plan is about performance on the latest hardware platforms.
+[04:02.42]Ava：新计划聚焦于在最新硬件平台上的性能。
+[04:06.91]I hear two project names in that plan: PyTorch and vLLM.
+[04:06.91]我听到了两个项目名称：PyTorch 和 vLLM。
+[04:10.66]That seems relevant to teams working from model training toward serving, but the two projects would give an engineer different things to examine.
+[04:10.66]这似乎与从模型训练走向服务的团队有关，但工程师对这两个项目的考察重点会不同。
+[04:20.73]Brian: Yes. Nebius plans to contribute to PyTorch and vLLM performance on those platforms.
+[04:20.73]Brian：是的。Nebius 计划为提升 PyTorch 和 vLLM 在这些平台上的性能作出贡献。
+[04:26.80]It also plans to share what it learns from running inference and post-training at production scale.
+[04:26.80]它还计划分享大规模生产环境中运行推理和后训练任务的经验。
+[04:34.04]That's a statement of intended work.
+[04:34.04]这些说的是计划开展的工作。
+[04:36.68]A future contribution would let engineers examine the actual change.
+[04:36.68]未来若有具体贡献，工程师就能审视实际改动。
+[04:42.00]Ava: The production experience interests me.
+[04:42.00]Ava：我对生产环境中的经验很感兴趣。
+[04:44.66]A team running inference repeatedly can encounter problems that weren't obvious during model development.
+[04:44.66]反复运行推理的团队，可能遇到模型开发阶段未显现的问题。
+[04:51.80]If Nebius shares what it learns, that could help frame work in an open-source project.
+[04:51.80]如果 Nebius 分享经验，就能帮助开源项目确定工作重点。
+[04:57.65]I'm treating that as a possibility, not an announced result.
+[04:57.65]我说的只是一种可能，并非已公布的成果。
+[05:02.08]Brian: That's a fair reading.
+[05:02.08]Brian：这样理解很公允。
+[05:03.55]The announcement names production-scale inference and post-training as sources of lessons to share.
+[05:03.55]公告提到，将分享生产规模推理和后训练中获得的经验。
+[05:10.15]It also names performance as a contribution area.
+[05:10.15]公告还将性能列为贡献领域。
+[05:13.41]For our imagined team, the next question would be which project receives a change and what problem that change addresses.
+[05:13.41]对我们设想的团队来说，接下来要问的是：改动会落在哪个项目，解决什么问题。
+[05:21.82]Ava: Before we look ahead, there's a second kind of contribution in this membership: governance.
+[05:21.82]Ava：展望未来之前，先说说这次会员身份涉及的另一类贡献：治理。
+[05:28.16]A cloud provider can provide compute and code, while a Foundation member can also take part in setting direction.
+[05:28.16]云服务商可以提供算力和代码；作为基金会成员，还能参与制定方向。
+[05:36.04]What formal role does Platinum membership give Nebius?
+[05:36.04]白金会员身份正式赋予 Nebius 什么角色？
+[05:40.15]Brian: Nebius gets 1 seat on the PyTorch Foundation Governing Board.
+[05:40.15]Brian：Nebius 获得 PyTorch 基金会理事会的一个席位。
+[05:44.76]The Board sets policy through the Foundation's bylaws, mission, and vision statements.
+[05:44.76]理事会依据基金会章程、使命宣言和愿景声明制定政策。
+[05:51.25]Those describe the broad scope of Foundation initiatives, its technical vision, and its direction.
+[05:51.25]这些文件界定基金会各项计划的总体范围、技术愿景和发展方向。
+[05:58.65]That's a broad policy role.
+[05:58.65]这是一个范围广泛的政策制定角色。
+[06:01.04]Ava: It's useful to keep that role in proportion.
+[06:01.04]Ava：也要恰当看待这个角色。
+[06:04.29]A board seat tells us Nebius can participate in Foundation governance.
+[06:04.29]理事会席位说明 Nebius 可以参与基金会治理。
+[06:09.46]By itself, it doesn't tell us what a future PyTorch or vLLM contribution will contain.
+[06:09.46]单凭这一点，无法知道它未来对 PyTorch 或 vLLM 的贡献具体是什么。
+[06:15.80]There's also a Technical Advisory Council role in the announcement.
+[06:15.80]公告还提到了技术咨询委员会的角色。
+[06:21.10]Brian: Ryan Hanrui Wang will join the board and represent Nebius on the Technical Advisory Council, or TAC.
+[06:21.10]Brian：Ryan Hanrui Wang 将加入理事会，并代表 Nebius 进入技术咨询委员会（TAC）。
+[06:28.70]At Nebius, he leads inference, post-training, and agentic systems.
+[06:28.70]在 Nebius，他负责推理、后训练和智能体系统。
+[06:33.71]Those responsibilities connect directly to the production experience the company says it plans to share.
+[06:33.71]这些职责与公司计划分享的生产实践经验直接相关。
+[06:41.97]Ava: His technical background adds context.
+[06:41.97]Ava：他的技术经历也提供了更多背景。
+[06:44.59]The announcement says he created the SpAtten sparse-attention framework and Hardware-Aware Transformers at MIT.
+[06:44.59]公告称，他在 MIT 创建了 SpAtten 稀疏注意力框架和 Hardware-Aware Transformers。
+[06:52.25]That work sounds relevant to model systems, but it would be a leap to predict a specific project change from his earlier research.
+[06:52.25]这些研究与模型系统有关，但不能据此预测他会对某个项目做出什么具体改动。
+[07:01.57]Brian: He also co-founded Eigen AI, which Nebius acquired in 2026.
+[07:01.57]Brian：他还联合创办了 Eigen AI，Nebius 于 2026 年收购了这家公司。
+[07:06.00]The announcement says his open-source work has passed 1 million downloads and is part of the PyTorch Ecosystem.
+[07:06.00]公告称，他的开源成果下载量已超过 100 万次，且属于 PyTorch 生态系统的一部分。
+[07:14.34]Those details explain his connection to the community; the download count isn't a measure of performance.
+[07:14.34]这些信息说明了他与社区的联系；下载量并不代表性能。
+[07:22.58]Ava: So we have people, governance, and existing technical activity in one announcement.
+[07:22.58]Ava：这份公告同时涉及人员、治理和已有的技术工作。
+[07:28.49]Ryan Hanrui Wang says Nebius wants deeper collaboration and an easier path from experimentation to production.
+[07:28.49]Ryan Hanrui Wang 说，Nebius 希望深化合作，让实验成果更容易进入生产环境。
+[07:36.33]I read that as the company's aim, rather than a claim about any particular customer's transition.
+[07:36.33]我把这理解为公司的目标，而非对任何特定客户转型情况的断言。
+[07:43.59]Brian: Mark Collier, the Foundation's Executive Director, frames the collaboration around scaling challenges.
+[07:43.59]Brian：基金会执行董事 Mark Collier 从规模化挑战的角度谈这项合作。
+[07:50.98]He points to PyTorch and vLLM, high-throughput inference performance, and large-scale model training.
+[07:50.98]他提到了 PyTorch 和 vLLM、高吞吐量推理性能，以及大规模模型训练。
+[07:58.29]That explains why the Foundation welcomes Nebius's participation across both training and serving work.
+[07:58.29]这说明基金会为何欢迎 Nebius 同时参与训练和模型服务工作。
+[08:06.10]Ava: For our imagined team, the announcement is useful as a map of activity.
+[08:06.10]Ava：对我们设想的团队来说，这份公告有助于看清相关工作的分布。
+[08:11.21]They can see where Nebius already provides cloud capacity or contributes to open source, and where it intends to work next.
+[08:11.21]他们能看到 Nebius 已在哪些方面提供云算力或参与开源，以及接下来计划做什么。
+[08:20.08]It isn't enough on its own to choose a serving setup.
+[08:20.08]但仅凭这份公告，还不足以选择模型服务方案。
+[08:24.25]Brian: Right. A technical choice would depend on the team's model and workload.
+[08:24.25]Brian：没错。技术选择取决于团队的模型和工作负载。
+[08:29.31]The compute support for multi-node DeepSeek R1 work tells us Nebius has supported a particular kind of large-model work.
+[08:29.31]对多节点 DeepSeek R1 工作的算力支持，说明 Nebius 曾支持这类大模型工作。
+[08:37.73]It doesn't transfer a performance result to a different model or deployment.
+[08:37.73]这并不意味着其他模型或部署也能取得相同的性能。
+[08:43.42]Ava: What would you look for next?
+[08:43.42]Ava：接下来你会关注什么？
+[08:45.32]I'd start with a concrete contribution to PyTorch or vLLM and the problem it addresses.
+[08:45.32]我会先看对 PyTorch 或 vLLM 的具体贡献，以及它解决的问题。
+[08:51.02]Then I'd ask whether it applies to my workload.
+[08:51.02]然后再看它是否适用于我的工作负载。
+[08:54.10]That feels more actionable than trying to infer an improvement from the membership itself.
+[08:54.10]这比仅凭会员身份推测会有什么改进更有实际参考价值。
+[09:00.35]Brian: I'd also watch how Nebius shares lessons from production-scale inference and post-training.
+[09:00.35]Brian：我也会关注 Nebius 如何分享生产规模推理和后训练的经验。
+[09:06.61]The value for other engineers will depend on the details it can share and the changes that follow.
+[09:06.61]这些经验对其他工程师有多大价值，取决于它能分享的细节和后续的改动。
+[09:13.34]That's a question for future work.
+[09:13.34]这还要看今后的工作。
+[09:15.68]Today's announcement establishes the plan and the formal roles.
+[09:15.68]今天的公告确定了计划和正式角色。
+[09:20.36]Ava: Here's my recap.
+[09:20.36]Ava：我来总结一下。
+[09:21.59]Nebius already supports PyTorch training and fine-tuning on its cloud, provides compute for vLLM work, and contributes open-source optimizations.
+[09:21.59]Nebius 已在其云平台支持 PyTorch 训练和微调，为 vLLM 相关工作提供算力，并贡献开源优化成果。
+[09:32.78]Platinum membership adds a Governing Board seat, with Ryan Hanrui Wang also representing Nebius on the Technical Advisory Council.
+[09:32.78]成为白金会员后，Nebius 将获得一个理事会席位，Ryan Hanrui Wang 也将代表 Nebius 加入技术咨询委员会。
+[09:43.15]Brian: And the next areas to watch are PyTorch and vLLM performance on the latest hardware platforms, plus lessons from production-scale inference and post-training.
+[09:43.15]Brian：接下来值得关注的是 PyTorch 和 vLLM 在最新硬件平台上的性能，以及生产规模推理和后训练的实践经验。
+[09:53.67]Specific contributions will show what that means for engineers.
+[09:53.67]具体贡献将让工程师看清这意味着什么。
+[09:57.87]Thanks for listening; we'll see you next time.
+[09:57.87]感谢收听，我们下次再见。
