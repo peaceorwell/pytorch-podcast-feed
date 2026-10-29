@@ -1,0 +1,609 @@
+1
+00:00:00,000 --> 00:00:08,848
+Ava: If Inductor has already decided which core owns each piece of work, what still stands between that decision and a running kernel?
+Ava：如果 Inductor 已经决定每块工作由哪个核心负责，要让内核运行起来还缺什么？
+
+2
+00:00:08,848 --> 00:00:16,742
+That's the question this Spyre backend answers, and it matters whenever data placement is part of performance.
+这正是 Spyre 后端要解决的问题；数据放置影响性能时，这一步尤其重要。
+
+3
+00:00:16,742 --> 00:00:23,368
+Brian: Exactly. Inductor chooses the layout, tiling, core split, and scratchpad residency.
+Brian：没错。Inductor 决定布局、分块、核心分工，以及哪些数据常驻片上暂存内存。
+
+4
+00:00:23,368 --> 00:00:25,524
+KTIR records those choices.
+KTIR 会记录这些决定。
+
+5
+00:00:25,524 --> 00:00:36,412
+Then the Dataflow Scheduler builds a schedule the hardware can run, before device-specific stages produce SpyreCode for the runtime.
+然后，数据流调度器生成硬件可执行的调度，再由设备专属阶段生成供运行时使用的 SpyreCode。
+
+6
+00:00:36,412 --> 00:00:43,863
+Ava: Let's make that concrete. The post shows an elementwise add over 96 × 64 fp16 tensors.
+Ava：来看个具体例子。文章展示了两个 96 × 64 的 fp16 张量逐元素相加。
+
+7
+00:00:43,863 --> 00:00:47,848
+It assigns 3 rows to each of 32 compute tiles.
+它把每 3 行分配给一个计算块，共 32 个计算块。
+
+8
+00:00:47,848 --> 00:00:54,090
+So the backend receives a work split; it doesn't need to invent one.
+所以后端接收的是已划分好的工作，无须自行分配。
+
+9
+00:00:54,090 --> 00:01:00,228
+Brian: Right. Spyre has 32 cores on a ring, each with 2 MB of scratchpad.
+Brian：对。Spyre 有 32 个环形互连的核心，每个核心都有 2 MB 片上暂存内存。
+
+10
+00:01:00,228 --> 00:01:10,365
+Device memory holds data off-chip, and transfers use sticks: fixed 128-byte chunks containing 64 fp16 values.
+设备内存存放片外数据，传输以 stick 为单位：每块固定 128 字节，包含 64 个 fp16 值。
+
+11
+00:01:10,365 --> 00:01:16,016
+KTIR presents a simpler view of those memories and cores.
+KTIR 为这些内存和核心提供了更简单的表示。
+
+12
+00:01:16,016 --> 00:01:18,818
+Ava: That simplified view seems useful.
+Ava：这种简化的表示很有用。
+
+13
+00:01:18,818 --> 00:01:26,399
+A compute tile can refer to its own scratchpad, another core's scratchpad, or device memory.
+计算块可以引用本核心、其他核心的片上暂存内存，或设备内存。
+
+14
+00:01:26,399 --> 00:01:32,168
+But KTIR doesn't yet say which load engine or FIFO will move the data.
+但 KTIR 尚未指定由哪个加载引擎或 FIFO 队列搬运数据。
+
+15
+00:01:32,168 --> 00:01:34,990
+Is that the intended boundary?
+这就是预期的职责边界吗？
+
+16
+00:01:34,990 --> 00:01:40,001
+Brian: Yes. KTIR describes what a tile computes and where its data lives.
+Brian：是的。KTIR 描述计算块要算什么，以及数据存在哪里。
+
+17
+00:01:40,001 --> 00:01:46,378
+The scheduler decides how data reaches the compute engine. That distinction matters.
+调度器决定数据如何送达计算引擎。这个区别很重要。
+
+18
+00:01:46,378 --> 00:01:53,940
+Inductor's placement stays binding, while the backend still has room to build a legal pipeline.
+Inductor 指定的数据位置必须遵守，后端仍可据此构建可执行的流水线。
+
+19
+00:01:53,940 --> 00:01:58,003
+Ava: The add example separates those concerns quite neatly.
+Ava：加法示例把这两件事分得很清楚。
+
+20
+00:01:58,003 --> 00:02:04,399
+A memory view describes how to interpret storage. An access tile selects coordinates.
+内存视图描述如何解释存储数据，访问块则选定坐标。
+
+21
+00:02:04,399 --> 00:02:08,763
+Loads and stores move data. Then linalg does the addition.
+加载和存储操作负责搬运数据，然后由 linalg 执行加法。
+
+22
+00:02:08,763 --> 00:02:13,778
+Changing the schedule shouldn't change which rows a tile owns.
+改变调度不应改变每个计算块负责的行。
+
+23
+00:02:13,778 --> 00:02:17,719
+Brian: And access tiles can express more than rectangles.
+Brian：访问块也不局限于矩形。
+
+24
+00:02:17,719 --> 00:02:21,108
+They can be strided, skewed, or triangular.
+它们还可以是带步长、倾斜或三角形的区域。
+
+25
+00:02:21,108 --> 00:02:27,177
+KTIR also has indirect access tiles for cases such as paged KV-cache gathers.
+KTIR 还支持间接访问块，可用于分页 KV 缓存的数据聚集等场景。
+
+26
+00:02:27,177 --> 00:02:34,936
+Those operations give the backend precise coordinates without prescribing every transfer step.
+这些操作向后端提供精确坐标，同时不规定每一步如何传输。
+
+27
+00:02:34,936 --> 00:02:39,850
+Ava: I'm especially interested in tensors that stay on-chip across operations.
+Ava：我特别关注跨操作留在片上的张量。
+
+28
+00:02:39,850 --> 00:02:46,311
+If a producer leaves an intermediate in scratchpad, a consumer needs to know its exact location.
+如果生产者把中间结果留在片上暂存内存，消费者就需要知道它的确切位置。
+
+29
+00:02:46,311 --> 00:02:53,190
+Otherwise the compiler could accidentally turn a cheap handoff into a trip through device memory.
+否则，编译器可能把一次低成本的交接变成经由设备内存的往返。
+
+30
+00:02:53,190 --> 00:02:58,674
+Brian: KTIR handles that with explicit memory spaces and distributed memory views.
+Brian：KTIR 用显式内存空间和分布式内存视图处理这种情况。
+
+31
+00:02:58,674 --> 00:03:04,816
+Several per-core scratchpad views can form one logical tensor in global coordinates.
+多个核心各自的片上暂存内存视图，可以在全局坐标中组成一个逻辑张量。
+
+32
+00:03:04,816 --> 00:03:13,868
+A consumer then loads the coordinates it needs, even when its access crosses from one core's scratchpad into another's.
+消费者随后加载所需坐标，即使访问范围跨越不同核心的片上暂存内存也一样。
+
+33
+00:03:13,868 --> 00:03:21,702
+Ava: So a different core split for the next operation becomes a question of which scratchpad locations its access tile covers.
+Ava：所以，如果下一个操作采用不同的核心分工，关键就是它的访问块覆盖了哪些暂存内存位置。
+
+34
+00:03:21,702 --> 00:03:24,033
+The scheduler can route those reads.
+调度器可以安排这些读取的路径。
+
+35
+00:03:24,033 --> 00:03:28,786
+That's a strong reason to keep physical placement visible in the IR.
+这充分说明了为什么要在中间表示中保留物理位置。
+
+36
+00:03:28,786 --> 00:03:29,243
+Brian: It is.
+Brian：确实如此。
+
+37
+00:03:29,243 --> 00:03:35,485
+Spyre doesn't have a hardware-managed cache to cover for an unspecified placement.
+Spyre 没有硬件管理的缓存来弥补未指定的数据位置。
+
+38
+00:03:35,485 --> 00:03:43,402
+Inductor's scratchpad allocator chooses which buffers remain resident, their addresses, and their cores.
+Inductor 的暂存内存分配器决定哪些缓冲区常驻、位于什么地址、分配给哪些核心。
+
+39
+00:03:43,402 --> 00:03:48,624
+KTIR writes those choices down so later stages can respect them.
+KTIR 把这些决定记录下来，供后续阶段遵循。
+
+40
+00:03:48,624 --> 00:03:53,848
+Ava: What about computations that aren't named by ordinary arithmetic operations?
+Ava：那普通算术操作无法直接表示的计算呢？
+
+41
+00:03:53,848 --> 00:03:59,142
+A normalization or activation kernel might need a Spyre-specific instruction.
+归一化或激活内核可能需要 Spyre 专属指令。
+
+42
+00:03:59,142 --> 00:04:04,166
+I'd expect the scheduling interface to preserve that intent as well.
+我想调度接口也应保留这种意图。
+
+43
+00:04:04,166 --> 00:04:06,887
+Brian: That's what the spyreop dialect does.
+Brian：这正是 spyreop 方言的作用。
+
+44
+00:04:06,887 --> 00:04:12,256
+It includes intrinsics such as gelu and operations used in normalization.
+它包含 gelu 等内建操作，以及归一化所需的操作。
+
+45
+00:04:12,256 --> 00:04:19,096
+They appear inside linalg.generic bodies, so they can fuse with surrounding elementwise work.
+它们出现在 linalg.generic 的主体中，因此能与周围的逐元素计算融合。
+
+46
+00:04:19,096 --> 00:04:26,212
+Their final instruction sequences come from device patterns in the architecture description.
+最终指令序列由架构描述中的设备模式生成。
+
+47
+00:04:26,212 --> 00:04:31,777
+Ava: Now we have a mapped kernel, with explicit data locations and computation.
+Ava：现在我们有了映射好的内核，数据位置和计算内容也都明确了。
+
+48
+00:04:31,777 --> 00:04:34,860
+Where does the scheduler first cut it up?
+调度器从哪里开始拆分它？
+
+49
+00:04:34,860 --> 00:04:41,226
+I assume a whole KTIR kernel isn't necessarily one configuration for the device.
+我猜整个 KTIR 内核未必只对应一种设备配置。
+
+50
+00:04:41,226 --> 00:04:47,244
+Brian: Correct. It traces backward from each store through its compute to the loads it needs.
+Brian：没错。它从每个存储操作出发，沿着计算向前追溯到所需的加载操作。
+
+51
+00:04:47,244 --> 00:04:53,192
+Each connected load, compute, and store group becomes a separately scheduled program.
+每组相连的加载、计算和存储操作都会成为独立调度的程序。
+
+52
+00:04:53,192 --> 00:05:00,680
+The original kernel becomes an orchestrator that keeps control flow and calls those programs in order.
+原始内核则成为协调程序，保留控制流，并依次调用这些程序。
+
+53
+00:05:00,680 --> 00:05:02,886
+Ava: There's a practical consequence.
+Ava：这会带来一个实际影响。
+
+54
+00:05:02,886 --> 00:05:10,538
+Loops supplied by Inductor for coarse tiling stay in that orchestrator and lead to program launches over tiles.
+Inductor 为粗粒度分块提供的循环留在协调程序中，按块启动程序。
+
+55
+00:05:10,538 --> 00:05:17,782
+Loops created inside a program are different: the scheduler can reshape those to match the hardware.
+程序内部创建的循环则不同：调度器可以调整它们以适配硬件。
+
+56
+00:05:17,782 --> 00:05:18,080
+Brian: Yes.
+Brian：对。
+
+57
+00:05:18,080 --> 00:05:24,863
+Within a program, elementwise operations are generalized and fused into one linalg.generic.
+在程序内部，逐元素运算会被泛化，并融合为一个 linalg.generic 操作。
+
+58
+00:05:24,863 --> 00:05:33,957
+The scheduler tiles that fused compute to the default unit's SIMD width, which it reads from the architecture description.
+调度器按默认单元的 SIMD 宽度对融合计算分块；这个宽度来自架构描述。
+
+59
+00:05:33,957 --> 00:05:37,140
+That creates the first small pipeline.
+这就形成了第一条小型流水线。
+
+60
+00:05:37,140 --> 00:05:42,844
+Ava: The first version is load, compute, store, with FIFOs between stages.
+Ava：初版是加载、计算、存储三个阶段，阶段之间用 FIFO 连接。
+
+61
+00:05:42,844 --> 00:05:51,441
+But if its endpoints imply device memory feeding compute directly, that isn't yet a legal hardware path.
+但如果这意味着设备内存直接向计算单元供数，就还不是合法的硬件路径。
+
+62
+00:05:51,441 --> 00:05:54,602
+How does that change the pipeline?
+流水线会怎样变化？
+
+63
+00:05:54,602 --> 00:05:59,616
+Brian: Path expansion searches the architecture's routing graph.
+Brian：路径扩展会搜索架构的路由图。
+
+64
+00:05:59,616 --> 00:06:03,223
+It inserts the required hops and buffers.
+它会插入必需的中转步骤和缓冲区。
+
+65
+00:06:03,223 --> 00:06:17,824
+In the article's sample device, the 3 stages become 5: DMA into scratchpad, scratchpad load into a FIFO, compute, scratchpad store, and DMA back to device memory.
+在文章的示例设备中，3 个阶段变成了 5 个：DMA 搬入暂存区、从暂存区加载到 FIFO、计算、存入暂存区，以及通过 DMA 搬回设备内存。
+
+66
+00:06:17,824 --> 00:06:23,421
+Ava: And if Inductor placed an input in scratchpad already, that route starts there.
+Ava：如果 Inductor 已把输入放在暂存区，路径就从那里开始。
+
+67
+00:06:23,421 --> 00:06:30,434
+The scheduler doesn't insert a device-memory transfer just because its initial pipeline was simple.
+调度器不会仅因初始流水线简单，就插入设备内存传输。
+
+68
+00:06:30,434 --> 00:06:35,814
+Residency from the frontend has now changed the actual transfer stages.
+前端确定的数据驻留位置，现在改变了实际的传输阶段。
+
+69
+00:06:35,814 --> 00:06:36,437
+Brian: Exactly.
+Brian：没错。
+
+70
+00:06:36,437 --> 00:06:45,935
+The same architecture description supplies memory sizes, datapaths, access granularities, FIFO depths, and compute widths.
+同一份架构描述还提供内存容量、数据通路、访问粒度、FIFO 深度和计算宽度。
+
+71
+00:06:45,935 --> 00:06:49,594
+It also holds device-specific rewrite patterns.
+其中也包含设备专用的重写模式。
+
+72
+00:06:49,594 --> 00:06:58,820
+The scheduler runs against Spyre's description, while its tests use a separate sample device with the same passes.
+调度器使用 Spyre 的架构描述运行，测试则用另一台示例设备执行相同的处理流程。
+
+73
+00:06:58,820 --> 00:07:04,652
+Ava: Once transfers are legal, one vector at a time sounds inefficient for DMA.
+Ava：传输路径合法后，每次只传一个向量，对 DMA 来说似乎效率不高。
+
+74
+00:07:04,652 --> 00:07:09,853
+The scratchpad should hold a larger tile before compute drains it.
+暂存区应该先容纳更大的数据块，再由计算阶段逐步取用。
+
+75
+00:07:09,853 --> 00:07:15,010
+Does the scheduler give those two parts different loop sizes?
+调度器会给这两部分设置不同的循环块大小吗？
+
+76
+00:07:15,010 --> 00:07:17,048
+Brian: It builds nested pipelines.
+Brian：它会构建嵌套流水线。
+
+77
+00:07:17,048 --> 00:07:22,559
+An outer pipeline moves whole tiles between device memory and scratchpad.
+外层流水线在设备内存和暂存区之间搬运整块数据。
+
+78
+00:07:22,559 --> 00:07:30,788
+Inside its compute stage, another pipeline works at vector granularity through scratchpad, FIFO, and compute.
+其计算阶段内部还有一条流水线，按向量粒度经过暂存区、FIFO 和计算单元。
+
+79
+00:07:30,788 --> 00:07:36,120
+Tile sizes begin as constrained placeholders and are chosen later.
+块大小起初是带约束的占位值，稍后才确定。
+
+80
+00:07:36,120 --> 00:07:39,683
+Ava: That also gives it a place to avoid repeated transfers.
+Ava：这样也有机会避免重复传输。
+
+81
+00:07:39,683 --> 00:07:46,745
+If an operand is broadcast and doesn't change along a loop, loading it once before the loop should be enough.
+如果某个操作数是广播值，且在循环中不变，在循环前加载一次就够了。
+
+82
+00:07:46,745 --> 00:07:48,974
+What happens with reductions?
+归约又怎么处理？
+
+83
+00:07:48,974 --> 00:07:53,530
+Brian: Invariant transfers move into a sibling pipeline before the loop.
+Brian：不变数据的传输会移到循环前的并列流水线中。
+
+84
+00:07:53,530 --> 00:07:59,979
+Large reductions are chunked to fit scratchpad, with an outer loop carrying the accumulator.
+大型归约会分块以适配暂存区，由外层循环传递累加值。
+
+85
+00:07:59,979 --> 00:08:06,988
+The innermost, stick-width reduction is left for a device pattern to map onto hardware support.
+最内层、宽度为 stick 的归约，则留给设备专用模式映射到硬件支持的操作。
+
+86
+00:08:06,988 --> 00:08:11,557
+Ava: So far, the stages have a useful shape. How do they overlap?
+Ava：目前各阶段的结构已经合适。它们怎样重叠执行？
+
+87
+00:08:11,557 --> 00:08:21,882
+If a DMA stage has to wait until compute finishes with the only scratchpad buffer, the nested structure alone won't hide that wait.
+如果 DMA 阶段必须等计算用完唯一的暂存区缓冲区，光有嵌套结构也无法掩盖这段等待。
+
+88
+00:08:21,882 --> 00:08:27,657
+Brian: The scheduler double-buffers scratchpad data shared by stages across loop iterations.
+Brian：调度器会对跨循环迭代共享的暂存区数据使用双缓冲。
+
+89
+00:08:27,657 --> 00:08:33,296
+One buffer can hold the tile being computed while the other receives the next tile.
+一个缓冲区存放正在计算的数据块，另一个接收下一块。
+
+90
+00:08:33,296 --> 00:08:41,120
+It also distributes suitable parallel loops across corelets, the sub-core instances inside each assigned core.
+它还会把适合并行的循环分配给 corelet，也就是每个已分配核心内的子核心实例。
+
+91
+00:08:41,120 --> 00:08:45,184
+Ava: That adds parallelism inside Inductor's existing core split.
+Ava：这在 Inductor 现有的核心划分之内增加了并行度。
+
+92
+00:08:45,184 --> 00:08:50,129
+But are the buffer depth, corelet split, and tile size searched together?
+但缓冲区深度、corelet 划分和块大小会一起搜索吗？
+
+93
+00:08:50,129 --> 00:08:53,662
+Their best values could depend on the workload.
+它们的最佳值可能取决于工作负载。
+
+94
+00:08:53,662 --> 00:08:59,935
+Brian: In version 1, local heuristics make those choices. There's no search or cost model yet.
+Brian：在第 1 版中，这些选择由局部启发式规则决定，尚无搜索或成本模型。
+
+95
+00:08:59,935 --> 00:09:06,785
+The choices remain explicit in the IR, though, including buffering factors and instance counts.
+不过，这些选择仍明确记录在 IR 中，包括缓冲系数和实例数量。
+
+96
+00:09:06,785 --> 00:09:10,956
+That leaves a clear place for later performance work.
+这为后续性能优化留下了明确的位置。
+
+97
+00:09:10,956 --> 00:09:14,588
+Ava: We still need real addresses and particular engines.
+Ava：我们还需要实际地址和具体的执行引擎。
+
+98
+00:09:14,588 --> 00:09:22,970
+At what point does this schedule stop describing kinds of resources and start describing a program for each engine?
+调度方案何时不再只描述资源类型，而开始为每个引擎指定程序？
+
+99
+00:09:22,970 --> 00:09:25,350
+Brian: In the final scheduling steps.
+Brian：在调度的最后几步。
+
+100
+00:09:25,350 --> 00:09:29,950
+Buffers receive addresses checked against memory capacity.
+缓冲区会获得地址，并按内存容量进行校验。
+
+101
+00:09:29,950 --> 00:09:37,168
+Unit kinds become specific units for each core or corelet, and dependencies become signals.
+单元类型变成每个核心或 corelet 的具体单元，依赖关系变成信号。
+
+102
+00:09:37,168 --> 00:09:40,896
+DataflowIR then holds per-engine program units.
+DataflowIR 随后保存各引擎的程序单元。
+
+103
+00:09:40,896 --> 00:09:45,688
+Tensor addresses and runtime shapes can remain symbolic.
+张量地址和运行时形状仍可保留为符号值。
+
+104
+00:09:45,688 --> 00:09:49,401
+Ava: That symbolic part is important for PyTorch tensors.
+Ava：符号值对 PyTorch 张量很重要。
+
+105
+00:09:49,401 --> 00:09:56,400
+Their addresses come from the allocator, and some shapes are known only at runtime within a bound.
+它们的地址由分配器确定，有些形状虽有上界，却只能在运行时确定。
+
+106
+00:09:56,400 --> 00:10:03,534
+The compiler can still prepare a reusable artifact if it records how to calculate those values.
+只要记录这些值的计算方式，编译器仍能生成可复用的产物。
+
+107
+00:10:03,534 --> 00:10:08,201
+Brian: The device-specific stages turn DataflowIR into SpyreCode.
+Brian：设备专属的编译阶段将 DataflowIR 转换为 SpyreCode。
+
+108
+00:10:08,201 --> 00:10:15,120
+It contains a symbolic SpyreBinary, metadata for substituting symbols, and a job plan.
+它包含符号化的 SpyreBinary、用于替换符号的元数据和作业计划。
+
+109
+00:10:15,120 --> 00:10:18,580
+The preparation part loads the binary once.
+准备阶段只需加载一次二进制文件。
+
+110
+00:10:18,580 --> 00:10:27,620
+On each call, the execution part resolves needed addresses and shapes, transfers those values, and launches.
+每次调用时，执行阶段解析所需的地址和形状，传输这些值，然后启动执行。
+
+111
+00:10:27,620 --> 00:10:30,966
+Ava: One last question. What has this delivered so far?
+Ava：最后一个问题。目前取得了什么成果？
+
+112
+00:10:30,966 --> 00:10:40,282
+I'd separate evidence that the compiler path works from evidence about runtime speed, because those tell an engineer different things.
+我会把编译链路可行性的证据和运行速度的证据分开看，因为它们对工程师的意义不同。
+
+113
+00:10:40,282 --> 00:10:47,074
+Brian: Version 1 handles elementwise work with broadcast and reduction dimensions across multiple cores.
+Brian：版本 1 支持在多个核心上处理带广播和归约维度的逐元素计算。
+
+114
+00:10:47,074 --> 00:10:54,635
+The team validated the path through scheduling and code generation on representative transformer operations.
+团队用有代表性的 Transformer 算子验证了调度和代码生成链路。
+
+115
+00:10:54,635 --> 00:11:03,037
+They report that bringing up the first op was about 4x faster than on the previous stack, and later ops about 8x faster.
+据团队报告，首个算子的跑通速度约为旧技术栈的 4 倍，后续算子约为 8 倍。
+
+116
+00:11:03,037 --> 00:11:06,048
+Those figures describe developer time.
+这些数字反映的是开发效率。
+
+117
+00:11:06,048 --> 00:11:16,265
+Ava: So the useful takeaways are the explicit placement contract, the step-by-step pipeline construction, and symbolic values that survive until launch.
+Ava：所以关键是明确的计算与数据放置约定、逐步构建的流水线，以及一直保留到启动时的符号值。
+
+118
+00:11:16,265 --> 00:11:21,408
+The open scheduler also has paths from both Inductor and Triton frontends.
+这个开放式调度器也能接入 Inductor 和 Triton 前端。
+
+119
+00:11:21,408 --> 00:11:23,078
+What's next for it?
+接下来有什么计划？
+
+120
+00:11:23,078 --> 00:11:32,489
+Brian: The team is completing matrix multiplication support and adding cost-model-driven optimizations, aiming to run LLMs end to end.
+Brian：团队正在完善矩阵乘法支持，并加入由成本模型驱动的优化，目标是让 LLM 端到端运行。
+
+121
+00:11:32,489 --> 00:11:44,346
+For now, KTIR says where work and data belong; the scheduler says how they flow; and SpyreCode lets the runtime prepare once and launch with each call's values.
+目前，KTIR 指定计算和数据的放置位置；调度器决定它们如何流转；SpyreCode 让运行时只需准备一次，再用每次调用的值启动执行。
+
+122
+00:11:44,346 --> 00:11:46,252
+Thanks for listening.
+感谢收听。

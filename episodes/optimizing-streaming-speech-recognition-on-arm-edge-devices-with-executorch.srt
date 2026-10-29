@@ -1,0 +1,559 @@
+1
+00:00:00,000 --> 00:00:05,484
+Ava: When I speak to a device, I expect words to appear while I'm still talking.
+Ava：我对着设备说话时，希望还没说完，文字就能显示出来。
+
+2
+00:00:05,484 --> 00:00:09,578
+Strong batch accuracy doesn't guarantee that experience.
+批量识别准确率高，并不保证能做到这一点。
+
+3
+00:00:09,578 --> 00:00:17,678
+Streaming gives the model only a piece of audio at a time, so both accuracy and response delay can change.
+流式识别每次只给模型一段音频，因此准确率和响应延迟都可能变化。
+
+4
+00:00:17,678 --> 00:00:18,426
+Brian: Exactly.
+Brian：没错。
+
+5
+00:00:18,426 --> 00:00:32,457
+In a cross-model study cited here, Qwen3-ASR-1.7B had the best batch accuracy among the tested models, yet its WER rose by 77% with 2.4-second chunks.
+这里引用的一项跨模型研究中，Qwen3-ASR-1.7B 的批量识别准确率在受测模型中最高，但使用 2.4 秒音频块时，WER 上升了 77%。
+
+6
+00:00:32,457 --> 00:00:43,564
+In that study's streaming comparison, Nemotron Speech Streaming 0.6B had the lowest average WER with 560 ms chunks.
+在该研究的流式识别对比中，使用 560 毫秒音频块的 Nemotron Speech Streaming 0.6B 平均 WER 最低。
+
+7
+00:00:43,564 --> 00:00:47,754
+Ava: So the chunk cadence has to be part of the accuracy test.
+Ava：所以，音频块的更新频率也得纳入准确率测试。
+
+8
+00:00:47,754 --> 00:00:52,606
+The case study then moves to the newer, multilingual Nemotron 3.5.
+接下来，案例研究转向更新的多语言模型 Nemotron 3.5。
+
+9
+00:00:52,606 --> 00:01:01,410
+It asks a practical question: which chunk size and precision give useful transcripts soon enough on an edge device?
+它要回答一个实际问题：在边缘设备上，哪种音频块大小和数值精度能及时产出可用的转写文本？
+
+10
+00:01:01,410 --> 00:01:06,500
+Brian: The route starts with ExecuTorch, PyTorch's edge inference framework.
+Brian：这条路线从 PyTorch 的边缘推理框架 ExecuTorch 开始。
+
+11
+00:01:06,500 --> 00:01:11,295
+Export prepares the model for inference and produces a .pte file.
+导出过程将模型准备好用于推理，并生成一个 .pte 文件。
+
+12
+00:01:11,295 --> 00:01:13,877
+The device runtime loads that file.
+设备端运行时会加载这个文件。
+
+13
+00:01:13,877 --> 00:01:20,792
+This gives the authors a way to run the model through a lightweight runtime on the phone.
+这样，作者就能通过轻量级运行时在手机上运行模型。
+
+14
+00:01:20,792 --> 00:01:25,898
+Ava: The exported model still needs CPU implementations for its operations.
+Ava：导出的模型仍需要 CPU 实现来执行各项运算。
+
+15
+00:01:25,898 --> 00:01:34,126
+How does it reach the optimized Arm routines, and what happens when an operation isn't delegated to XNNPACK?
+它怎样调用经过优化的 Arm 例程？如果某项运算没有委派给 XNNPACK，又会怎样执行？
+
+16
+00:01:34,126 --> 00:01:38,302
+Brian: Operations supported for delegation go to XNNPACK.
+Brian：支持委派的运算会交给 XNNPACK。
+
+17
+00:01:38,302 --> 00:01:46,069
+On Android, XNNPACK can select KleidiAI microkernels for supported inner matrix calculations.
+在 Android 上，XNNPACK 可以为受支持的内部矩阵计算选择 KleidiAI 微内核。
+
+18
+00:01:46,069 --> 00:01:52,249
+Operations not delegated to XNNPACK use ExecuTorch's portable CPU kernels.
+未委派给 XNNPACK 的运算则使用 ExecuTorch 的通用 CPU 内核。
+
+19
+00:01:52,249 --> 00:02:01,284
+So export gets the model onto the device, while delegation determines which implementations do the work.
+因此，导出让模型能够在设备上运行，而委派决定由哪些实现来执行运算。
+
+20
+00:02:01,284 --> 00:02:06,121
+Ava: And SME2 is one possible acceleration path for matrix work.
+Ava：SME2 也是加速矩阵运算的一条路径。
+
+21
+00:02:06,121 --> 00:02:12,597
+But merely enabling it in a build doesn't prove every matrix operation used it.
+但在构建时启用它，并不能证明每项矩阵运算都用到了它。
+
+22
+00:02:12,597 --> 00:02:18,194
+We'd need native samples to see which microkernels actually ran.
+我们需要查看原生采样数据，才能知道实际运行了哪些微内核。
+
+23
+00:02:18,194 --> 00:02:25,273
+Brian: Right. SME2 extends Arm's instruction set for matrix calculations, including GEMM.
+Brian：对。SME2 扩展了 Arm 的指令集，用于包括 GEMM 在内的矩阵计算。
+
+24
+00:02:25,273 --> 00:02:33,301
+In the Arm C1 CPU cluster described here, its matrix unit is shared by cores in that cluster.
+在这里描述的 Arm C1 CPU 集群中，矩阵运算单元由集群内的核心共享。
+
+25
+00:02:33,301 --> 00:02:40,384
+KleidiAI provides microkernels that can use the unit for supported operations.
+KleidiAI 提供的微内核可以在受支持的运算中使用这一单元。
+
+26
+00:02:40,384 --> 00:02:42,786
+Ava: Let's follow one streaming call.
+Ava：我们来看一次流式调用。
+
+27
+00:02:42,786 --> 00:02:52,392
+Nemotron 3.5 uses an RNN-T architecture, so the model has to represent the incoming audio and the tokens it has already emitted.
+Nemotron 3.5 采用 RNN-T 架构，因此模型既要表征传入的音频，也要表征已输出的词元。
+
+28
+00:02:52,392 --> 00:02:54,918
+Where are those jobs handled?
+这些工作分别由哪里完成？
+
+29
+00:02:54,918 --> 00:03:01,031
+Brian: The encoder represents audio using FastConformer attention and convolution layers.
+Brian：编码器通过 FastConformer 的注意力层和卷积层表征音频。
+
+30
+00:03:01,031 --> 00:03:05,132
+The predictor is an LSTM that represents token history.
+预测器是一个表征词元历史的 LSTM。
+
+31
+00:03:05,132 --> 00:03:10,201
+Then the joiner combines those representations and predicts a token.
+然后，联合网络结合这两种表征，预测一个词元。
+
+32
+00:03:10,201 --> 00:03:16,292
+It can also produce a blank, which moves decoding to the next audio position.
+它也可能输出空白符，让解码移到下一个音频位置。
+
+33
+00:03:16,292 --> 00:03:27,792
+Ava: Before the encoder, the frontend makes one log-mel feature vector every 10 ms. The encoder reduces the number of time positions by a factor of 8.
+Ava：进入编码器前，前端每 10 毫秒生成一个对数梅尔特征向量。编码器将时间位置数缩减至八分之一。
+
+34
+00:03:27,792 --> 00:03:35,914
+That means each encoder output position represents 80 ms of audio, with fewer positions to decode.
+这意味着编码器的每个输出位置代表 80 毫秒音频，需要解码的位置也更少。
+
+35
+00:03:35,914 --> 00:03:42,921
+Brian: At lookahead 13, a call collects 1,120 ms of audio and produces 14 encoder positions.
+Brian：前瞻步数为 13 时，一次调用收集 1,120 毫秒音频，产生 14 个编码器位置。
+
+36
+00:03:42,921 --> 00:03:50,752
+The predictor and joiner process all 14 valid positions and add their tokens to the transcript.
+预测器和联合网络处理全部 14 个有效位置，并将输出的词元加入转写文本。
+
+37
+00:03:50,752 --> 00:03:57,120
+That amount of audio must arrive before this call can produce its update.
+这段音频必须先全部到达，本次调用才能给出更新。
+
+38
+00:03:57,120 --> 00:04:02,641
+Ava: Lookaheads 0, 3, and 6 instead give 80, 320, and 560 ms chunks.
+Ava：前瞻步数为 0、3 和 6 时，音频块分别为 80、320 和 560 毫秒。
+
+39
+00:04:02,641 --> 00:04:07,987
+Shorter chunks let the system collect fresh audio more often.
+音频块越短，系统就能越频繁地收集新音频。
+
+40
+00:04:07,987 --> 00:04:18,590
+Longer chunks give the model more future context, but the listener waits longer for the first text and later updates.
+音频块越长，模型获得的后续上下文越多，但听众也要等更久才能看到首段文字和后续更新。
+
+41
+00:04:18,590 --> 00:04:23,096
+Brian: Preprocessing and inference add time after collection, too.
+Brian：音频收集完成后，预处理和推理也需要时间。
+
+42
+00:04:23,096 --> 00:04:32,337
+So the authors measure two different things: transcription quality at each chunk size, and processing time on the device.
+因此，作者分别测量每种音频块大小下的转写质量，以及设备上的处理时间。
+
+43
+00:04:32,337 --> 00:04:36,964
+A good WER result alone won't tell us when text appears.
+单凭好的 WER 结果，无法判断文字何时出现。
+
+44
+00:04:36,964 --> 00:04:43,827
+Ava: For quality, they run the ExecuTorch runtime with its XNNPACK CPU backend on a host.
+Ava：评估质量时，他们在主机上运行 ExecuTorch，并使用其 XNNPACK CPU 后端。
+
+45
+00:04:43,827 --> 00:04:55,428
+A local streaming adapter uses the Open ASR Leaderboard evaluation harness for dataset preparation, transcript normalization, and WER scoring.
+本地流式适配器使用 Open ASR Leaderboard 的评测框架准备数据集、规范化转写文本并计算 WER。
+
+46
+00:04:55,428 --> 00:05:01,170
+That's a streaming test rather than a whole-recording batch score.
+这是流式测试，而非对整段录音进行批量识别的评分。
+
+47
+00:05:01,170 --> 00:05:11,770
+Brian: Each point covers 14,019 utterances across LibriSpeech Other, AMI Cleaned, Earnings22, and VoxPopuli Cleaned AA.
+Brian：每个数据点涵盖 LibriSpeech Other、AMI Cleaned、Earnings22 和 VoxPopuli Cleaned AA 四个语料库中的 14,019 条语音。
+
+48
+00:05:11,770 --> 00:05:19,719
+WER is total word errors divided by total reference words across those four corpora.
+WER 等于这四个语料库的总词错误数除以参考文本的总词数。
+
+49
+00:05:19,719 --> 00:05:24,896
+They test FP32, FP16, and INT8 at four chunk sizes.
+他们在四种音频块大小下测试 FP32、FP16 和 INT8。
+
+50
+00:05:24,896 --> 00:05:28,258
+Ava: The INT8 choice needs a little care.
+Ava：INT8 的选择需要仔细斟酌。
+
+51
+00:05:28,258 --> 00:05:39,467
+Here it's QC8W: eligible linear operations use dynamic INT8 activations and per-channel INT8 weights, with FP32 outputs.
+这里的 QC8W 指：符合条件的线性运算使用动态 INT8 激活值和逐通道 INT8 权重，输出为 FP32。
+
+52
+00:05:39,467 --> 00:05:46,822
+So a QC8W run isn't a claim that every operation executes entirely in INT8.
+因此，运行 QC8W 并不意味着所有运算都完全以 INT8 执行。
+
+53
+00:05:46,822 --> 00:05:55,456
+Brian: Across these corpora, longer chunks improve final-transcript accuracy.
+Brian：在这些语料上，分块越长，最终转写越准确。
+
+54
+00:05:55,456 --> 00:06:06,311
+From 80 to 1,120 ms, FP16 WER falls from 15.2% to 11.5%. QC8W falls from 15.5% to 11.7%.
+分块从 80 毫秒增至 1,120 毫秒时，FP16 的 WER 从 15.2% 降至 11.5%，QC8W 从 15.5% 降至 11.7%。
+
+55
+00:06:06,311 --> 00:06:13,692
+That's a meaningful quality change from chunk size alone.
+仅改变分块大小，质量就有明显提升。
+
+56
+00:06:13,692 --> 00:06:28,593
+Ava: FP16 differs from FP32 by less than 0.03 percentage points at every chunk size, so the authors leave FP32 out of the later performance analysis.
+Ava：在所有分块大小下，FP16 与 FP32 的差距都不到 0.03 个百分点，因此作者在后续性能分析中省略了 FP32。
+
+57
+00:06:28,593 --> 00:06:35,319
+QC8W adds 0.21 to 0.31 percentage points of WER relative to FP32.
+相较 FP32，QC8W 的 WER 高出 0.21 至 0.31 个百分点。
+
+58
+00:06:35,319 --> 00:06:40,946
+That makes the precision trade-off fairly specific.
+这样，精度上的取舍就很明确了。
+
+59
+00:06:40,946 --> 00:06:46,755
+Brian: But those host scores don't measure when text first appears on the device.
+Brian：但这些主机端分数并未衡量文字何时首次出现在设备上。
+
+60
+00:06:46,755 --> 00:06:57,430
+Separately, the authors measure whole-recording processing time on a Google Pixel 11, using a 24.9-second recording and 1,120 ms chunks.
+另外，作者用一段 24.9 秒的录音和 1,120 毫秒的分块，在 Google Pixel 11 上测量整段录音的处理时间。
+
+61
+00:06:57,430 --> 00:07:05,944
+One inference thread is pinned to a mid-core CPU, chosen as a representative sustained streaming target.
+一个推理线程固定在 CPU 中核上，以代表持续流式处理的运行条件。
+
+62
+00:07:05,944 --> 00:07:13,114
+Ava: They compare two ExecuTorch 1.3.1 builds, with SME2 support switched on or off.
+Ava：他们比较了两个 ExecuTorch 1.3.1 构建版本，分别开启和关闭 SME2 支持。
+
+63
+00:07:13,114 --> 00:07:19,739
+Both retain XNNPACK and KleidiAI, and both use identical model artifacts.
+两者都保留 XNNPACK 和 KleidiAI，并使用相同的模型文件。
+
+64
+00:07:19,739 --> 00:07:29,982
+Each configuration has two warm-ups and one measured tracing run, so these totals describe that measured run.
+每种配置先预热两次，再进行一次带跟踪的测量，因此这些总耗时描述的是那次测量。
+
+65
+00:07:29,982 --> 00:07:40,279
+Brian: With SME2 enabled, FP16 processing falls from 9.79 to 4.61 seconds, a 2.12-times speedup.
+Brian：开启 SME2 后，FP16 的处理时间从 9.79 秒降至 4.61 秒，速度提升 2.12 倍。
+
+66
+00:07:40,279 --> 00:07:47,106
+QC8W falls from 5.20 to 3.24 seconds, a 1.61-times speedup.
+QC8W 从 5.20 秒降至 3.24 秒，速度提升 1.61 倍。
+
+67
+00:07:47,106 --> 00:07:58,100
+The totals cover the loaded recording from audio preprocessing through final detokenization.
+总耗时涵盖已加载录音从音频预处理到最终解码为文字的全过程。
+
+68
+00:07:58,100 --> 00:08:05,511
+Ava: Those processing times are well below the recording's 24.9-second duration.
+Ava：这些处理时间都远低于录音本身的 24.9 秒。
+
+69
+00:08:05,511 --> 00:08:12,626
+With SME2 on, the real-time factors are 0.19 for FP16 and 0.13 for QC8W.
+开启 SME2 时，FP16 和 QC8W 的实时因子分别为 0.19 和 0.13。
+
+70
+00:08:12,626 --> 00:08:21,178
+That leaves room for other CPU work between chunks, even with one inference thread.
+即使用单个推理线程，分块之间仍有余量处理其他 CPU 工作。
+
+71
+00:08:21,178 --> 00:08:24,534
+Brian: There's an important limit to that interpretation.
+Brian：但这一解读有个重要限制。
+
+72
+00:08:24,534 --> 00:08:28,092
+Audio still has to arrive before decoding can use it.
+音频必须先到达，解码才能使用。
+
+73
+00:08:28,092 --> 00:08:39,384
+Faster processing creates headroom and may help manage thermal load during sustained transcription, but it doesn't erase the wait imposed by the chosen chunk size.
+更快的处理速度增加了余量，也可能有助于控制持续转写时的发热，但无法消除所选分块大小带来的等待。
+
+74
+00:08:39,384 --> 00:08:44,235
+Ava: To locate the gain, the authors use ETDump operator timings.
+Ava：为找出性能提升来自哪里，作者使用了 ETDump 的算子耗时数据。
+
+75
+00:08:44,235 --> 00:08:56,443
+They group work across the encoder, predictor, and joiner into GEMM, data movement, elementwise work, convolution, normalization, and other operations.
+他们将编码器、预测器和联合网络中的工作分为 GEMM、数据搬运、逐元素运算、卷积、归一化和其他运算。
+
+76
+00:08:56,443 --> 00:09:01,886
+Time outside those grouped events appears as residual overhead.
+这些分组事件之外的时间计为剩余开销。
+
+77
+00:09:01,886 --> 00:09:05,727
+Brian: GEMM is the main source of the speedup.
+Brian：GEMM 是加速的主要来源。
+
+78
+00:09:05,727 --> 00:09:13,310
+For FP16, its summed time drops from 8.2 to 3.1 seconds when SME2 is enabled.
+开启 SME2 后，FP16 的 GEMM 累计耗时从 8.2 秒降至 3.1 秒。
+
+79
+00:09:13,310 --> 00:09:23,212
+Its share of total processing time falls from 84% to 67%, though it remains the largest category.
+它在总处理时间中的占比从 84% 降至 67%，但仍是耗时最多的一类。
+
+80
+00:09:23,212 --> 00:09:32,892
+Ava: QC8W shows the same shape: GEMM time drops from 4.1 to 2.0 seconds, and its share falls from 78% to 62%.
+Ava：QC8W 呈现相同趋势：GEMM 耗时从 4.1 秒降至 2.0 秒，占比从 78% 降至 62%。
+
+81
+00:09:32,892 --> 00:09:44,226
+That explains why speeding up matrix work has a large effect, while also showing that matrix work isn't the whole run.
+这解释了为何加快矩阵运算效果显著，也表明整次运行还有其他耗时。
+
+82
+00:09:44,226 --> 00:09:49,644
+Brian: Data movement takes roughly the same time in both builds.
+Brian：两个构建版本的数据搬运耗时大致相同。
+
+83
+00:09:49,644 --> 00:09:59,436
+As GEMM gets faster, data movement grows from 8% to 17% of FP16 processing and from 9% to 17% for QC8W.
+随着 GEMM 加快，数据搬运在 FP16 处理时间中的占比从 8% 升至 17%，在 QC8W 中从 9% 升至 17%。
+
+84
+00:09:59,436 --> 00:10:06,440
+It's a clearer target for further optimization after the matrix gains.
+矩阵运算加速后，数据搬运成了更明确的后续优化目标。
+
+85
+00:10:06,440 --> 00:10:13,453
+Ava: ETDump tells us which operator family costs time, but not which native microkernel executed it.
+Ava：ETDump 能告诉我们哪类算子耗时，却不能指出实际运行的是哪个原生微内核。
+
+86
+00:10:13,453 --> 00:10:20,374
+How do we know SME2 code ran on the phone, rather than only being available in the build?
+我们怎么知道 SME2 代码确实在手机上运行，而不只是被编进了程序？
+
+87
+00:10:20,374 --> 00:10:27,432
+Brian: Arm Streamline samples native call paths and hardware counters.
+Brian：Arm Streamline 会采样原生调用路径和硬件计数器。
+
+88
+00:10:27,432 --> 00:10:39,195
+The sampled GEMM functions confirm SME2-targeted KleidiAI kernels for both FP16 and QC8W on the Pixel 11.
+采样到的 GEMM 函数证实，Pixel 11 上的 FP16 和 QC8W 都运行了面向 SME2 的 KleidiAI 内核。
+
+89
+00:10:39,195 --> 00:10:50,748
+The captures also show other paths: some FP16 GEMM uses NEON, and some QC8W GEMM still runs in FP32.
+采样结果也显示了其他路径：部分 FP16 GEMM 使用 NEON，部分 QC8W GEMM 仍以 FP32 运行。
+
+90
+00:10:50,748 --> 00:10:56,703
+Ava: Streamline reports 38.4% SME utilization for FP16 and 53.7% for QC8W.
+Ava：Streamline 报告的 SME 使用率，FP16 为 38.4%，QC8W 为 53.7%。
+
+91
+00:10:56,703 --> 00:11:03,004
+That measures how much of each capture the matrix hardware was allocated.
+它衡量的是每次采样期间矩阵硬件被分配使用的时间占比。
+
+92
+00:11:03,004 --> 00:11:13,538
+It isn't a measure of peak arithmetic throughput, so I wouldn't read those percentages as achieved compute efficiency.
+这不是峰值算术吞吐量指标，因此不能把这些百分比理解为实际计算效率。
+
+93
+00:11:13,538 --> 00:11:15,649
+Brian: There's still a tooling gap.
+Brian：工具方面仍有一个缺口。
+
+94
+00:11:15,649 --> 00:11:21,981
+ETDump names model operators and their timings; Streamline samples native functions.
+ETDump 给出模型算子名称及耗时；Streamline 则采样原生函数。
+
+95
+00:11:21,981 --> 00:11:28,540
+Neither directly maps an individual model layer to the kernel function observed for it.
+两者都无法直接将单个模型层与执行它的内核函数对应起来。
+
+96
+00:11:28,540 --> 00:11:32,584
+The authors identify that mapping as future work.
+作者将建立这种对应关系列为未来工作。
+
+97
+00:11:32,584 --> 00:11:35,397
+Ava: Now we can choose an operating point.
+Ava：现在可以选择一个运行配置了。
+
+98
+00:11:35,397 --> 00:11:40,185
+The article pairs host WER with a Pixel 11 component benchmark.
+文章将主机端 WER 与 Pixel 11 上的组件基准测试结合起来。
+
+99
+00:11:40,185 --> 00:11:49,003
+Its first-token number is an estimate: audio collection time plus the median encoder–predictor–joiner sequence time.
+其中的首个 token 时间是估算值：音频采集时间加上编码器、预测器和联合网络序列耗时的中位数。
+
+100
+00:11:49,003 --> 00:11:53,382
+It assumes that the first output actually emits text.
+这一估算假定首次输出确实会产生文字。
+
+101
+00:11:53,382 --> 00:12:09,402
+Brian: The component benchmark uses synthetic input, fresh stream state, and 75 measured samples per configuration across three rounds.
+Brian：组件基准测试使用合成输入和全新的流状态，每种配置分三轮采集75个测量样本。
+
+102
+00:12:09,402 --> 00:12:27,524
+For an illustrative 13% WER ceiling, both precisions qualify at 320, 560, and 1,120 ms. At 320 ms, WER is 12.67% for FP16 and 12.97% for QC8W.
+以13%的WER上限为例，两种精度在320、560和1,120毫秒时均达标。在320毫秒时，FP16的WER为12.67%，QC8W为12.97%。
+
+103
+00:12:27,524 --> 00:12:38,784
+Ava: At 1,120 ms, those WERs improve to 11.50% and 11.72%, but audio collection alone takes longer.
+Ava：在1,120毫秒时，两者的WER分别降至11.50%和11.72%，但仅音频采集就需要更长时间。
+
+104
+00:12:38,784 --> 00:12:54,466
+If the application has an 800 ms latency budget as well as that 13% WER ceiling, the 320 and 560 ms choices fit both conditions.
+如果应用还有800毫秒的延迟预算，320和560毫秒的选项就能同时满足这两项要求。
+
+105
+00:12:54,466 --> 00:13:19,324
+Brian: At 560 ms, FP16 pairs 12.01% WER with an estimated 691 ms delay; QC8W pairs 12.26% with 660 ms. The 80 ms choices miss the illustrated WER target, while the 1,120 ms choices miss the latency budget.
+Brian：在560毫秒时，FP16的WER为12.01%，估计延迟691毫秒；QC8W的WER为12.26%，估计延迟660毫秒。80毫秒的选项达不到示例中的WER目标，1,120毫秒的选项则超出延迟预算。
+
+106
+00:13:19,324 --> 00:13:26,328
+It depends on which limits the application must meet.
+具体选择取决于应用必须满足哪些限制。
+
+107
+00:13:26,328 --> 00:13:35,202
+Ava: The useful lesson is to test streaming quality at the chunk cadence you'll deploy, then measure device processing separately.
+Ava：关键是按实际部署的分块节奏测试流式处理质量，再单独测量设备处理耗时。
+
+108
+00:13:35,202 --> 00:13:42,656
+ExecuTorch can reach optimized Arm kernels, and SME2 gives this workload substantial processing headroom.
+ExecuTorch可以调用优化的Arm内核，而SME2为这项任务提供了充足的处理余量。
+
+109
+00:13:42,656 --> 00:13:46,982
+ETDump and Streamline explain where that gain came from.
+ETDump和Streamline可以帮助分析性能提升来自哪里。
+
+110
+00:13:46,982 --> 00:13:50,419
+Brian: And choose chunk size together with precision.
+Brian：分块大小也要和精度一起选。
+
+111
+00:13:50,419 --> 00:13:57,145
+The accuracy numbers, collection wait, and compute delay all matter to what the user sees.
+准确率、音频采集等待时间和计算延迟，都会影响用户的实际体验。
+
+112
+00:13:57,145 --> 00:14:01,156
+That's it for this episode. Thanks for listening.
+本期节目就到这里。感谢收听。

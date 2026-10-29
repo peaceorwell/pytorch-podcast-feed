@@ -1,0 +1,253 @@
+[ti:One Search, Two Layers: Tuning Helion Below the Kernel]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: If a GPU kernel is already tuned, where can more speed come from?
+[00:00.00]Ava：GPU 内核已经调优了，还能从哪里提速？
+[00:04.68]That sounds like trying to squeeze water from a dry sponge.
+[00:04.68]这听起来像是要从干海绵里挤水。
+[00:09.28]Brian: Surprisingly, from the compiler.
+[00:09.28]Brian：没想到吧，还能从编译器入手。
+[00:11.62]This article shows how Helion searches settings below the kernel itself.
+[00:11.62]这篇文章介绍了 Helion 如何搜索内核本身之外的配置。
+[00:16.90]On an already tuned kernel, that produced measurable gains.
+[00:16.90]即使内核已经调优，也取得了可测量的性能提升。
+[00:21.58]Ava: Okay, let's start with Helion.
+[00:21.58]Ava：好，那先说说 Helion。
+[00:23.72]What's already been tuned before the compiler gets its turn?
+[00:23.72]轮到编译器之前，哪些地方已经调优了？
+[00:28.34]Brian: Helion lets developers write GPU kernels in PyTorch-native Python.
+[00:28.34]Brian：Helion 让开发者用 PyTorch 原生 Python 编写 GPU 内核。
+[00:33.61]A kernel is a program for work on the graphics processing unit, or GPU.
+[00:33.61]内核是在图形处理器（GPU）上执行任务的程序。
+[00:39.28]Helion's autotuner tries many ways to run that work.
+[00:39.28]Helion 的自动调优器会尝试多种执行方式。
+[00:43.78]Ava: And these weren't weak examples picked to make a speedup look impressive?
+[00:43.78]Ava：这些例子不是故意挑的弱基线，好让提速显得惊人吧？
+[00:48.77]Brian: Right. The article starts from Helion's pretuned kernels.
+[00:48.77]Brian：没错。文章以 Helion 预先调优的内核为起点。
+[00:53.00]There are roughly twenty-seven, covering work such as quantization, normalization, grouped matrix multiplication, and model decode.
+[00:53.00]大约有 27 个，涵盖量化、归一化、分组矩阵乘法和模型解码等任务。
+[01:02.74]Their kernel configurations were tuned offline.
+[01:02.74]这些内核的配置已经离线调优。
+[01:06.59]Ava: So someone running one of those kernels doesn't wait for a search?
+[01:06.59]Ava：所以运行这些内核时，不用再等它搜索？
+[01:11.11]Brian: Exactly. Each ships with an ahead-of-time configuration for its target architecture.
+[01:11.11]Brian：对。每个内核都附带针对目标架构预先确定的配置。
+[01:17.41]Helion selects that configuration at runtime.
+[01:17.41]Helion 会在运行时选用该配置。
+[01:20.79]The user gets the result of earlier tuning without paying the search cost then.
+[01:20.79]用户能享受先前调优的成果，当时无需承担搜索开销。
+[01:27.06]Ava: Good baseline. Now, what does Helion's usual autotuner actually change?
+[01:27.06]Ava：基线不错。Helion 通常的自动调优器会调整什么？
+[01:33.63]Brian: Think of a large job split into tiles, like dividing a floor into sections to clean.
+[01:33.63]Brian：想象把一项大任务分成许多块，就像把地板分区清扫。
+[01:39.59]Helion decides each tile's size and how the GPU's thread groups work on it.
+[01:39.59]Helion 决定每块的大小，以及 GPU 线程组如何处理它。
+[01:45.26]Ava: So the developer marks the work as tiled, and Helion picks the details?
+[01:45.26]Ava：开发者只需指定分块处理，细节交给 Helion 选？
+[01:50.77]Brian: Yes. It can search block sizes, warp counts, pipeline stages, memory indexing, and more.
+[01:50.77]Brian：对。它可以搜索块大小、warp 数量、流水线阶段数、内存索引方式等。
+[01:58.43]A warp is a group of GPU threads.
+[01:58.43]warp 是一组 GPU 线程。
+[02:01.30]Helion compiles candidates, times them, and keeps the winner.
+[02:01.30]Helion 编译各个候选方案、测量耗时，然后选出最快的。
+[02:06.96]Ava: Where does the new layer begin?
+[02:06.96]Ava：新的调优层从哪里开始？
+[02:09.57]Brian: After Helion lowers the kernel through TorchInductor to Triton, the winning candidate reaches ptxas, NVIDIA's PTX assembler.
+[02:09.57]Brian：Helion 通过 TorchInductor 将内核降级到 Triton 后，胜出的候选方案会交给 NVIDIA 的 PTX 汇编器 ptxas。
+[02:18.62]It turns that lower-level program into machine instructions.
+[02:18.62]它把这个更底层的程序转换成机器指令。
+[02:23.00]Traditionally, its controls stayed at their defaults.
+[02:23.00]过去，它的控制选项通常保持默认值。
+[02:27.22]Ava: What kind of controls are we talking about? More tile sizes?
+[02:27.22]Ava：这些选项控制什么？也是块大小吗？
+[02:32.20]Brian: No. These affect choices such as register allocation, instruction scheduling, and code-generation heuristics.
+[02:32.20]Brian：不是。它们影响寄存器分配、指令调度和代码生成启发式策略等选择。
+[02:40.16]Registers are fast storage on the GPU.
+[02:40.16]寄存器是 GPU 上的高速存储。
+[02:42.93]The kernel's tile can stay the same while the compiler handles its instructions differently.
+[02:42.93]内核的分块可以不变，但编译器处理其指令的方式会改变。
+[02:50.00]Ava: That sounds hard to set by hand.
+[02:50.00]Ava：听起来很难手动设置。
+[02:52.87]Brian: It is.
+[02:52.87]Brian：确实。
+[02:53.34]One register decision can change occupancy, meaning how much work is active on the GPU.
+[02:53.34]一个寄存器分配决定就可能改变占用率，也就是 GPU 上同时运行的工作量。
+[03:00.16]That can change whether another scheduling decision helps.
+[03:00.16]这又会影响另一项调度决策是否奏效。
+[03:04.70]The best settings depend on the workload.
+[03:04.70]最佳设置取决于具体任务。
+[03:08.27]Ava: So how does Helion receive a chosen set of compiler controls?
+[03:08.27]Ava：Helion 怎么接收选好的编译器控制选项？
+[03:13.47]Brian: Through an Advanced Control File, or ACF. It's a file applied at compile time.
+[03:13.47]Brian：通过高级控制文件（Advanced Control File，ACF），在编译时应用。
+[03:19.68]Helion offers one setting to pin a chosen ACF and another to give its autotuner several ACFs to test.
+[03:19.68]Helion 提供一个选项来固定使用指定的 ACF，另一个选项让自动调优器测试多个 ACF。
+[03:28.07]Ava: If I give it a list, could every file lose to the compiler's normal settings?
+[03:28.07]Ava：如果我提供一个列表，会不会所有文件都比不上编译器的默认设置？
+[03:33.65]Brian: Absolutely. Helion adds a no-ACF candidate automatically.
+[03:33.65]Brian：完全可能。Helion 会自动加入一个不使用 ACF 的候选方案。
+[03:38.32]That means the default compiler settings stay in the race.
+[03:38.32]这样，编译器的默认设置也会参与比较。
+[03:43.07]The tuner selects an ACF only if its measured result wins.
+[03:43.07]只有实测结果胜出，调优器才会选择某个 ACF。
+[03:48.16]Ava: Why test kernel settings and compiler settings together?
+[03:48.16]Ava：为什么要一起测试内核设置和编译器设置？
+[03:52.21]Couldn't I finish one search, then start the other?
+[03:52.21]我不能先完成一轮搜索，再开始另一轮吗？
+[03:56.24]Brian: You could, but you'd freeze the first choice too early.
+[03:56.24]Brian：可以，但这样会过早固定第一轮的选择。
+[03:59.86]Imagine choosing a delivery route before learning which vehicle you'll use.
+[03:59.86]就像还不知道用什么车，就先选好送货路线。
+[04:04.78]The best route for one vehicle might be poor for another.
+[04:04.78]适合一种车的最佳路线，换辆车可能就不合适了。
+[04:08.88]Ava: What's the GPU version of that problem?
+[04:08.88]Ava：这个问题在 GPU 上是怎样的？
+[04:11.92]Brian: Block size and pipeline stages affect register pressure and shared-memory use.
+[04:11.92]Brian：块大小和流水线阶段数会影响寄存器压力和共享内存用量。
+[04:17.51]A compiler control can change how that pressure plays out.
+[04:17.51]编译器控制项会改变这些资源压力的影响。
+[04:21.66]If you only test controls on one fixed block size, you may miss a better pairing.
+[04:21.66]如果只在固定的块大小下测试控制项，可能会错过更好的组合。
+[04:27.82]Ava: Right. So the joint search considers pairings that a two-step search might never see.
+[04:27.82]Ava：明白了。联合搜索能考虑到分两步搜索可能遗漏的组合。
+[04:34.58]Brian: That's the key idea.
+[04:34.58]Brian：这就是关键。
+[04:36.13]It doesn't promise the perfect answer, but it avoids that particular ordering problem.
+[04:36.13]它不保证找到最优解，但能避免这个搜索顺序带来的问题。
+[04:42.78]The price is more trials: each extra ACF expands the compile-and-measure search.
+[04:42.78]代价是要测试更多配置：每增加一个 ACF，编译和测量的搜索范围就会扩大。
+[04:49.33]Ava: Where do the ACFs come from? Do users need to learn every ptxas control?
+[04:49.33]Ava：这些 ACF 从哪里来？用户需要了解 ptxas 的每个控制项吗？
+[04:55.13]Brian: Usually, no. NVIDIA's CompileIQ searches those controls.
+[04:55.13]Brian：通常不用。NVIDIA 的 CompileIQ 会搜索这些控制项。
+[04:59.44]It proposes candidate settings, compiles them, checks correctness against a reference, times the valid candidates, and carries strong candidates into later rounds.
+[04:59.44]它提出候选配置、编译并与参考结果核对正确性，再对正确的候选配置计时，把表现好的带入后续轮次。
+[05:12.35]Ava: That sounds like an evolutionary search. What does a typical user start with?
+[05:12.35]Ava：听起来像进化搜索。一般用户从哪里入手？
+[05:18.55]Brian: CompileIQ publishes pre-tuned catalogs called Booster Packs.
+[05:18.55]Brian：CompileIQ 发布了预先调优的配置集，叫作 Booster Packs。
+[05:22.79]The article's Helion pack has twenty-four ACFs, tuned across Helion kernels and validated against ptxas from CUDA thirteen point four for B two hundred.
+[05:22.79]文章中的 Helion 配置包含 24 个 ACF，针对多个 Helion 内核调优，并用面向 B200 的 CUDA 13.4 版 ptxas 做了验证。
+[05:33.86]Ava: Then I let Helion test that pack, and pin the winner for later runs?
+[05:33.86]Ava：那我让 Helion 测试这套配置，再把胜出的配置固定下来供以后运行？
+[05:38.93]Brian: Exactly.
+[05:38.93]Brian：没错。
+[05:39.52]If the pack doesn't cover your workload, the article also describes running a targeted CompileIQ search.
+[05:39.52]如果这套配置不适合你的工作负载，文章也介绍了如何运行有针对性的 CompileIQ 搜索。
+[05:47.20]Either way, correctness checks matter before timing a candidate.
+[05:47.20]无论哪种方式，候选配置都要先检查正确性，再计时。
+[05:52.27]Ava: Let's get to the evidence.
+[05:52.27]Ava：来看看证据。
+[05:54.14]Did their main experiment actually perform the full joint search?
+[05:54.14]他们的主要实验真的做了完整的联合搜索吗？
+[05:59.17]Brian: The detailed case study fixes an existing Helion configuration and searches compiler controls beneath it.
+[05:59.17]Brian：详细案例固定了一个现有的 Helion 配置，然后搜索其底层的编译器控制项。
+[06:06.53]That's a useful distinction.
+[06:06.53]这个区别值得注意。
+[06:08.49]It tests whether the second layer has headroom even after Helion's first layer was tuned.
+[06:08.49]它检验的是：Helion 的第一层调优完成后，第二层是否还有提升空间。
+[06:15.07]Ava: Which kernel did they use?
+[06:15.07]Ava：他们用了哪个内核？
+[06:17.39]Brian: A pretuned NVFP4 decode kernel that multiplies packed weights by an activation vector and scales the output.
+[06:17.39]Brian：一个预先调优的 NVFP4 解码内核，它将打包权重乘以激活向量，再对输出进行缩放。
+[06:24.97]It already had a checked-in configuration for the shape they tested.
+[06:24.97]针对测试的形状，它已有提交到代码库的配置。
+[06:30.10]Ava: And where was it measured?
+[06:30.10]Ava：在哪里测的？
+[06:32.20]Brian: On a GB two hundred system with Blackwell hardware.
+[06:32.20]Brian：在采用 Blackwell 硬件的 GB200 系统上。
+[06:35.78]This experiment used ptxas from CUDA thirteen point three, which differs from the Booster Pack's stated validation version.
+[06:35.78]这项实验使用 CUDA 13.3 版 ptxas，与 Booster Pack 标明的验证版本不同。
+[06:44.41]They locked the GPU clock for timing.
+[06:44.41]他们锁定了 GPU 时钟频率进行计时。
+[06:47.36]Ava: What happened when CompileIQ optimized for runtime?
+[06:47.36]Ava：CompileIQ 以运行时间为目标优化后，结果怎样？
+[06:51.69]Brian: Its search found an ACF that cut the measured time from about zero point zero nine seven one milliseconds to zero point zero nine two eight milliseconds.
+[06:51.69]Brian：搜索找到一个 ACF，将测得的运行时间从约 0.0971 毫秒降至 0.0928 毫秒。
+[07:01.91]That's about four point seven percent faster in the search.
+[07:01.91]在搜索测量中，速度提高了约 4.7%。
+[07:06.20]Ava: Search measurements can be lucky. Did they check again?
+[07:06.20]Ava：搜索测量可能碰巧偏好。他们重新验证了吗？
+[07:10.66]Brian: Yes.
+[07:10.66]Brian：验证了。
+[07:10.94]They independently remeasured the result twice, checked numerical output against a PyTorch reference, and applied statistical tests.
+[07:10.94]他们独立重复测量了两次，用 PyTorch 参考结果核对数值输出，并进行了统计检验。
+[07:20.35]Both reruns showed a speedup of about four point eight percent.
+[07:20.35]两次复测都显示速度提高了约 4.8%。
+[07:25.19]Ava: Could they aim the search at something other than runtime?
+[07:25.19]Ava：搜索目标可以不是运行时间吗？
+[07:29.00]Brian: They did.
+[07:29.00]Brian：他们也试了。
+[07:29.65]A profiler suggested the kernel was limited by registers, with achieved occupancy around twenty-one point six percent.
+[07:29.65]性能分析工具显示，该内核可能受寄存器限制，实际占用率约为 21.6%。
+[07:38.17]It estimated possible headroom from occupancy, but that estimate wasn't a measured speedup.
+[07:38.17]它估算了提高占用率可能带来的提升空间，但那不是实测加速。
+[07:45.09]Ava: So they searched for higher occupancy directly?
+[07:45.09]Ava：所以他们直接搜索更高的占用率？
+[07:48.63]Brian: Yes. The chosen ACF raised achieved occupancy by zero point one six percentage points.
+[07:48.63]Brian：对。选出的 ACF 将实际占用率提高了 0.16 个百分点。
+[07:55.18]Independent timing then showed a smaller runtime gain, roughly one point seven five to two percent.
+[07:55.18]随后独立计时显示，运行时间的改善较小，约为 1.75% 至 2%。
+[08:03.07]Ava: That's modest. What about optimizing two measures at once?
+[08:03.07]Ava：提升不算大。同时优化两个指标呢？
+[08:08.05]Brian: CompileIQ can score candidates on multiple measures.
+[08:08.05]Brian：CompileIQ 可以根据多个指标给候选配置评分。
+[08:11.95]They paired runtime with L1TEX cache throughput.
+[08:11.95]他们同时考察运行时间和 L1TEX 缓存吞吐量。
+[08:15.55]The search looks for a Pareto frontier: candidates where improving one measure might require giving up another.
+[08:15.55]搜索会寻找帕累托前沿：在这些候选配置中，改善一个指标可能要牺牲另一个。
+[08:24.22]Ava: Did they have to make that trade?
+[08:24.22]Ava：他们需要做这种取舍吗？
+[08:26.71]Brian: In this search, no. One candidate beat the other evaluated candidates on both measures.
+[08:26.71]Brian：这次不用。有一个候选配置在两个指标上都优于其他接受评估的配置。
+[08:32.95]Fresh validation found a six point nine percent runtime speedup and a four point five percentage-point rise in L1TEX throughput.
+[08:32.95]新一轮验证发现，运行速度提升了 6.9%，L1TEX 吞吐率提高了 4.5 个百分点。
+[08:42.49]Ava: I also saw two input shapes. Was that one ACF for both?
+[08:42.49]Ava：我还看到两种输入形状。它们用的是同一个 ACF 吗？
+[08:47.97]Brian: Yes. They searched for a shared ACF across two shapes.
+[08:47.97]Brian：对。他们为两种形状搜索共用的 ACF。
+[08:51.68]One candidate beat the default on both in independent validation: about five percent faster on the down-projection shape and about one percent on the other.
+[08:51.68]独立验证中，一个候选方案在两种形状上都优于默认配置：下投影形状快约 5%，另一种快约 1%。
+[09:02.72]Ava: Does that mean an entire model gets six point nine percent faster?
+[09:02.72]Ava：这意味着整个模型会快 6.9% 吗？
+[09:07.87]Brian: The article doesn't claim that. These are kernel results.
+[09:07.87]Brian：文章没有这么说。这些是内核的测试结果。
+[09:11.98]For a model, you'd first profile which kernels dominate its work, then tune those.
+[09:11.98]对于模型，得先分析哪些内核占用时间最多，再针对它们调优。
+[09:17.90]The model-level gain depends on how much time those kernels take.
+[09:17.90]整个模型能快多少，取决于这些内核占用多少时间。
+[09:22.94]Ava: What would the practical workflow look like for someone using Helion today?
+[09:22.94]Ava：现在用 Helion 的人，实际该怎么做？
+[09:27.75]Brian: Pick a kernel that matters, search offline with matching ACFs, verify correctness and timing, then pin the winner.
+[09:27.75]Brian：选一个关键内核，用匹配的 ACF 离线搜索，验证正确性和耗时，然后固定表现最好的配置。
+[09:35.97]The pinned file can travel with the kernel and be reapplied during later builds.
+[09:35.97]固定下来的配置文件可以随内核一起保存，在之后的构建中重新应用。
+[09:42.09]Ava: You said matching ACFs. What's the risk if they don't match?
+[09:42.09]Ava：你说 ACF 要匹配。不匹配有什么风险？
+[09:47.29]Brian: ACFs are specific to hardware and toolkit versions.
+[09:47.29]Brian：ACF 与硬件和工具包版本有关。
+[09:50.89]The article warns that using one for the wrong architecture can cause wrong results or runtime errors.
+[09:50.89]文章警告说，用在错误的架构上可能导致结果错误或运行时出错。
+[09:58.08]It's more serious than losing a little speed.
+[09:58.08]这比损失一点速度严重得多。
+[10:01.61]Ava: And the search itself sounds expensive.
+[10:01.61]Ava：而且搜索本身听起来很耗资源。
+[10:04.93]Brian: It can be.
+[10:04.93]Brian：确实可能如此。
+[10:05.65]Every ACF adds trials, and gains depend on the shape, workload, architecture, and remaining headroom.
+[10:05.65]每个 ACF 都会增加试验次数，收益则取决于形状、负载、架构和剩余的优化空间。
+[10:12.93]The measured result on your own kernel is the one to trust.
+[10:12.93]最可信的，还是你在自己的内核上测得的结果。
+[10:17.52]Ava: Give me the three-point recap before we go.
+[10:17.52]Ava：结束前，请用三点总结一下。
+[10:20.83]Brian: First, Helion tunes the kernel's work plan.
+[10:20.83]Brian：第一，Helion 会调优内核的执行方案。
+[10:24.36]Second, ACFs let it explore compiler choices underneath, and joint search can find useful pairings.
+[10:24.36]第二，ACF 让它探索底层编译器选项，联合搜索可能找到有效的组合。
+[10:32.48]Third, validate on your target hardware, then pin the measured winner.
+[10:32.48]第三，在目标硬件上验证，再固定实测表现最好的配置。
+[10:38.58]Ava: A few percent can hide below a well-tuned kernel.
+[10:38.58]Ava：即使内核已经调得很好，底下也可能还藏着几个百分点的提升空间。
+[10:41.89]Thanks for listening, and we'll see you next time.
+[10:41.89]感谢收听，我们下期再见。

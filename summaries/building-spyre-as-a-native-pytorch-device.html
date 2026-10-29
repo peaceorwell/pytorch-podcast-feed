@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Spyre 如何接入原生 PyTorch 设备</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/building-spyre-as-a-native-pytorch-device/">原视频 / 原文</a></p><h1>Spyre 如何接入原生 PyTorch 设备</h1>
+<p>依据：原文</p>
+<p>来源：https://pytorch.org/blog/building-spyre-as-a-native-pytorch-device/</p>
+<p>IBM 的 torch-spyre 将 Spyre 的运行时接入 PyTorch 的设备、内存分配、流和编译接口，让张量以 device="spyre" 常驻加速器，并让 eager 操作与编译模型共用执行路径。文章讨论的是设备与运行时的衔接。</p>
+<h3>硬件约束与原有问题</h3>
+<p>Spyre 面向推理，卡上有 32 个核心，每核有 2 MB 本地暂存空间，最多配备 128 GB LPDDR5。编译器预先安排数据在两级内存间的移动，并确定布局；运行时负责提交完整的计算操作。独立提交的计算共用一条队列，但传输可与计算重叠。旧方案在每次启动和复制时构建运行时图，还让 PyTorch 无法识别已驻留设备的普通张量。</p>
+<h3>设备身份与张量存储</h3>
+<p>torch-spyre 用 PrivateUse1 注册 spyre 设备身份；分配器、复制内核和分派注册使 tensor.to("spyre") 及张量操作接入后端，实现 device-guard hooks 则让原生 torch.Stream 和 torch.stream 可用。设备内存按区域管理，分配器在少量大区域内切分对齐空间，以适应共享卡的 VF 模式下更紧的区域句柄预算。分配信息可包含多个“区域、偏移、长度”片段，用于单个内存域或跨域交错放置；PyTorch 通过张量存储的引用计数管理其生命周期。布局和放置仍须符合已编译程序的约定。</p>
+<h3>编译产物与启动</h3>
+<p>FX 图留在 Inductor 编译路径中。torch-spyre 首次见到编译产物时解析它、准备程序二进制和有序操作计划，后续启动只绑定实参并提交主机工作、传输与计算等类型化操作。当前通用方案在启动时修补调用方张量的地址：主机回调将地址写入固定页主机缓冲区，传输将其送到程序指定位置，设备随后读取并修补操作数。程序分发单元还需屏障，防止提前取到修补前的内容。</p>
+<h3>流与重叠执行</h3>
+<p>初始设计用准备流处理主机工作及传输，用设备流执行计算；事件保证计算等待所需传输完成。下一次启动的主机准备可与当前计算重叠，传输只有在目标存储独立时才能重叠。复用同一设备修补区时，传输必须等前一次计算读完。运行时可根据设备内存读写范围推导跨流依赖，但主机缓冲区复用仍需单流顺序或完成后才回收的缓冲池。</p>
+<h3>结果、限制与意义</h3>
+<p>在 Granite 3.3 8B、批量为 1、序列长度为 1024 的测试中，仅移除传输路径的图构建，prefill 提升 9.9%，decode 提升 13.6%；再移除计算派发路径的图构建，总体分别达到原来的 1.7 倍和 2.4 倍，作者称约四分之三的收益来自计算路径。这些是所述条件下的测量结果。基于编译的 eager 操作首次调用仍需编译，不同张量尺寸可能需要新产物；算子覆盖、用户可调用的事件及模型专用内核仍待完善。该设计为模型和推理流程复用 PyTorch 的张量与流接口提供了基础。Spyre 也说明 PyTorch 的扩展接口能接纳数据流硬件。文章强调，后端团队可通过 openreg 改进和技术咨询委员会传递设备约束；Spyre 的 CRCR 集成持续测试上游变更，并向 PyTorch CI 面板回传兼容性结果。</p></body></html>

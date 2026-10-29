@@ -1,0 +1,226 @@
+# TorchTitan: From New Models to Training at Scale
+
+原文：[TorchTitan Update: New SOTA Models, Performance at Scale, TitanRL - PyTorch](https://pytorch.org/blog/torchtitan-update-new-sota-models-performance-at-scale-titanrl/)
+
+## 摘要
+
+本期讨论 TorchTitan 如何用原生 PyTorch 的配置和训练栈支持新模型，并让同一模型贯穿预训练、后训练和 TitanRL。两位主持人解释了异步 rollout、数值一致性检查，以及编译、重计算和通信计算重叠带来的工程价值。节目选取文章中的吞吐量、FlexShard 和检查点数据，说明这些改进在具体硬件与配置下的表现。最后也提醒听众注意各项结果和功能的适用范围。
+
+## 对话
+
+Ava: Suppose you're moving a new model from pretraining into agentic RL, then scaling it across hundreds of GPUs. A small mismatch in model code or numerics can make debugging difficult. That's why this TorchTitan update caught my eye.
+
+Ava：假设你要把一个新模型从预训练转入智能体强化学习，再扩展到数百块 GPU。模型代码或数值计算上一个小小的不一致，就可能让调试变得困难。这也是这次 TorchTitan 更新引起我注意的原因。
+
+Brian: TorchTitan is a PyTorch-native platform for experimenting with and training generative models at scale. This update keeps its small, extensible design while adding model support, reinforcement learning, performance work, and communication features.
+
+Brian：TorchTitan 是一个基于 PyTorch 原生能力的平台，用于大规模试验和训练生成式模型。这次更新保留了它小巧、易扩展的设计，同时增加了模型支持、强化学习能力、性能优化和通信功能。
+
+Ava: The model list is striking: Qwen3.5, Qwen3-VL, Kimi K3, and DeepSeek-V4 are among the additions. Are these just model definitions, or can the training stack actually scale them?
+
+Ava：新增的模型名单很抢眼，包括 Qwen3.5、Qwen3-VL、Kimi K3 和 DeepSeek-V4。这些只是模型定义，还是说训练技术栈真的能支撑它们的大规模训练？
+
+Brian: They're full training-stack integrations across TorchTitan's 5D parallelism stack. The team also introduced typed Python recipes, model-config transforms, and targeted component overrides. Those let users change a training setup without maintaining a separate model fork.
+
+Brian：它们与 TorchTitan 的 5D 并行技术栈完成了完整的训练集成。团队还引入了带类型标注的 Python 训练配置、模型配置变换和针对特定组件的覆盖机制。用户可以借此调整训练设置，而不必维护一个单独的模型分支。
+
+Ava: So if a hardware change calls for another parallelization strategy, the recipe can express it. If a model needs a different component or kernel, an override can target that part. The model implementation stays reusable.
+
+Ava：所以，如果硬件变化需要另一种并行策略，训练配置就能表达出来。如果模型需要不同的组件或内核，覆盖机制就能只针对那个部分。模型实现仍然可以复用。
+
+Brian: Exactly. The interfaces also accept optimized Attention Gym kernels, including Gated DeltaNet, Kimi Delta Attention, and sparse-attention kernels. Opt-in Helion kernels include fused RoPE. These choices remain compatible with torch.compile.
+
+Brian：正是这样。这些接口也支持优化过的 Attention Gym 内核，包括 Gated DeltaNet、Kimi Delta Attention 和稀疏注意力内核。可按需启用的 Helion 内核则包括融合 RoPE。这些选择仍与 torch.compile 兼容。
+
+Ava: That raises a question: beyond the model code, what carries over to the next architecture? A team bringing in a multimodal model would still need data handling, checkpoints, sharding, and a way to check the numerics.
+
+Ava：这就引出一个问题：除了模型代码，还有哪些东西能沿用到下一个架构？一个团队即使引入了多模态模型，仍然需要处理数据、检查点、分片，以及验证数值计算的方法。
+
+Brian: The reusable pieces include multimodal data pipelines, sample packing, shared vision components, Hugging Face checkpoint interoperability, declarative sharding, and numerical validation. The aim is to make a new architecture ready for validated, scalable training sooner.
+
+Brian：可复用的部分包括多模态数据流水线、样本打包、共享视觉组件、与 Hugging Face 检查点的互操作能力、声明式分片和数值验证。目标是让新架构更快具备经过验证的大规模训练能力。
+
+Ava: Now take that model into RL. Some stacks maintain separate training and inference implementations. An architecture change has to land in both places, and a reward shift becomes hard to diagnose if those implementations quietly diverge.
+
+Ava：现在把这个模型带入强化学习。有些技术栈分别维护训练和推理实现。架构变更必须同时落实到两处；如果两种实现悄悄出现分歧，奖励变化也会变得难以诊断。
+
+Brian: TitanRL addresses that by keeping the same model from pretraining through post-training and inside vLLM. You work in one codebase. That doesn't settle every RL question, but it removes one source of model drift.
+
+Brian：TitanRL 的做法是从预训练到后训练，再到 vLLM 内部，始终使用同一个模型。你只需要在一个代码库中工作。这不能解决强化学习的所有问题，但消除了模型发生偏离的一个来源。
+
+Ava: Agentic workloads add another pressure point: generation can take time while training needs fresh rollouts. TitanRL runs rollouts asynchronously, and both generation and training can scale through multiple forms of parallelism.
+
+Ava：智能体任务还带来另一个压力点：生成可能很耗时，而训练需要新鲜的采样轨迹。TitanRL 异步运行采样，生成和训练也都可以通过多种并行方式扩展。
+
+Brian: The team reports stable training for hundreds of steps on dense and MoE models. The tested tasks include long context, code execution, compaction, harness work, and self-play. The figure captions identify Qwen3.5-35B-A3B base runs with 64K and 128K contexts.
+
+Brian：团队报告称，稠密模型和 MoE 模型都能稳定训练数百步。测试任务包括长上下文、代码执行、上下文压缩、测试框架相关工作和自我博弈。图注标明了上下文长度为 64K 和 128K 的 Qwen3.5-35B-A3B 基础模型运行。
+
+Ava: Let's make that concrete. Suppose rewards change after you enable a kernel. You'd want to know whether the trainer and generator assign the same log probabilities before blaming the algorithm. Can TitanRL check that directly?
+
+Ava：说得具体一点。假设你启用一个内核后，奖励发生了变化。在归咎于算法之前，你会想知道训练器和生成器给出的对数概率是否一致。TitanRL 能直接检查这一点吗？
+
+Brian: In supported on-policy configurations, batch-invariant mode makes their log probabilities bitwise identical. The gap is exactly zero at every step. That gives you a precise check on this part of the training and generation path.
+
+Brian：在受支持的同策略配置中，批次不变模式会让两者的对数概率在位级别完全一致。每一步的差距都恰好为零。这为训练和生成路径的这一部分提供了精确的检查手段。
+
+Ava: That changes the diagnosis. If the log probabilities match under that mode, you can focus on other possible causes of a reward change. The guarantee is specific to supported on-policy configurations; it doesn't promise identical rewards for every run.
+
+Ava：这就改变了排查方向。如果在该模式下对数概率一致，你就可以关注奖励变化的其他可能原因。这个保证只适用于受支持的同策略配置；它并不保证每次运行的奖励都相同。
+
+Brian: And once a run is behaving correctly, where would you look if it's still slow? TorchTitan's performance work groups the problem into faster kernels, more communication and compute overlap, and finer control of memory.
+
+Brian：而当一次运行的行为已经正确，却仍然很慢时，你该从哪里入手？TorchTitan 的性能工作把问题归为几方面：更快的内核、更多通信与计算重叠，以及对内存更精细的控制。
+
+Ava: One interesting choice is local_compile. It applies native torch.compile selectively to important regions, without requiring full-graph or full-block tracing. That sounds useful when a small part of a model deserves optimization, but you want to preserve its numerics.
+
+Ava：一个有意思的选择是 local_compile。它有选择地对重要区域应用原生 torch.compile，不要求追踪整个计算图或整个计算块。当模型的一小部分值得优化，而你又想保持其数值表现时，这听起来很有用。
+
+Brian: For memory, torch_remat gives fine-grained control over which activation regions get recomputed. It's an activation checkpointing API that avoids the CPU overhead and custom operator wrappers described for earlier approaches.
+
+Brian：在内存方面，torch_remat 可以精细控制哪些激活区域需要重新计算。它是一个激活检查点 API，避免了此前方法中描述的 CPU 开销和自定义算子包装器。
+
+Ava: Recomputation trades extra work for less stored activation data. The control matters because the best region to recompute can depend on the model and memory budget. What does the update do for distributed MoE communication?
+
+Ava：重新计算是用额外计算换取更少的激活数据存储。这种控制很重要，因为最适合重新计算的区域可能取决于模型和内存预算。这次更新又如何处理分布式 MoE 通信？
+
+Brian: Dist-MoE fuses communication with expert compute on NVIDIA SM100+ GPUs. It also packs activations for dynamic tensors so execution can remain CUDA-graphable. The idea is to overlap token movement and computation rather than treating them as separate stages.
+
+Brian：Dist-MoE 在 NVIDIA SM100+ GPU 上将通信与专家计算融合。它还会为动态张量打包激活，使执行过程仍可纳入 CUDA 图。其思路是让 token 传输与计算重叠，而不是把它们当作两个独立阶段。
+
+Ava: Pipeline parallelism got a rewrite too. It offers deterministic, CUDA-graphable execution and controls for overlap when combined with FSDP. That gives users another place to tune the schedule instead of relying on one fixed execution pattern.
+
+Ava：流水线并行也经过了重写。它提供确定性的、可纳入 CUDA 图的执行方式，并在与 FSDP 结合时提供控制重叠执行的选项。这样用户就多了一个调整调度的地方，不必依赖单一固定的执行模式。
+
+Brian: And TorchTitan overrides can bring in specialized model kernels, such as fused MLA, fused SwiGLU, and fused Complex RoPE. The configuration and override system is what lets those optimizations fit without spreading model-specific code through the trainer.
+
+Brian：TorchTitan 的覆盖机制还可以引入专门的模型内核，比如融合 MLA、融合 SwiGLU 和融合 Complex RoPE。配置与覆盖系统让这些优化得以接入，而不必把模型专用代码散布到训练器各处。
+
+Ava: Let's put numbers on it. For DeepSeek V3 671B with its MTP1 module, the team evaluated performance on the MLPerf training benchmark on an internal GB300 cluster using MXFP8. The report says it scaled the PP, DP, and EP axes.
+
+Ava：我们来看具体数字。对于带有 MTP1 模块的 DeepSeek V3 671B，团队在内部 GB300 集群上使用 MXFP8，按 MLPerf 训练基准测试评估了性能。报告称，他们扩展了 PP、DP 和 EP 这几个并行维度。
+
+Brian: With PP at 2, the 256-GPU run reports 5,324.21 tokens per second per GPU and 1,362,998 globally. At 512 GPUs, it reports 5,262.68 per GPU and 2,694,493 globally.
+
+Brian：当 PP 为 2 时，256 块 GPU 的运行结果为每块 GPU 每秒 5,324.21 个 token，全局每秒 1,362,998 个 token。使用 512 块 GPU 时，结果为每块 GPU 每秒 5,262.68 个 token，全局每秒 2,694,493 个 token。
+
+Ava: Here's the catch: the local batch size and microbatch count also change between those runs. The higher global throughput is real for the reported configurations, but those numbers alone don't establish a fixed-workload scaling curve.
+
+Ava：但有一点要注意：这两次运行之间，本地批大小和微批次数量也发生了变化。对于报告中的配置，更高的全局吞吐量是真实的，但仅凭这些数字还无法得出固定工作负载下的扩展曲线。
+
+Brian: The Muse Spark Open table shows why configuration details matter. On the same setup, at 256 GPUs and 96K context, learned routing reports 1,500.61 tokens per second per GPU. Forced balanced routing reports 1,839.52.
+
+Brian：Muse Spark Open 的表格说明了配置细节为何重要。在相同设置下，使用 256 块 GPU、96K 上下文时，学习式路由的结果为每块 GPU 每秒 1,500.61 个 token；强制均衡路由的结果为 1,839.52 个。
+
+Ava: And the table also has 512-GPU runs at 192K context, with more context parallelism. I'd keep the routing choice, context length, and parallelism visible when comparing those rows. A single throughput figure would hide useful engineering detail.
+
+Ava：表格里还有使用 512 块 GPU、192K 上下文的运行，其上下文并行程度更高。比较这些行时，我会把路由选择、上下文长度和并行配置都摆出来。单一的吞吐量数字会掩盖有用的工程细节。
+
+Brian: TorchTitan is also showing up outside its own training recipes. The update names veRL and Miles as integrations, says it's Meshy's default training backend, and says it inspires Archon, the training engine in Areal.
+
+Brian：TorchTitan 也开始出现在自身训练配置之外。这次更新提到它与 veRL 和 Miles 的集成，称它是 Meshy 的默认训练后端，还称 Areal 中的训练引擎 Archon 受到它的启发。
+
+Ava: Another scaling issue sits below the model: how parameters and optimizer state are sharded. FSDP2 supports row-wise and column-wise sharding, but distributed Muon and blockwise parameter quantization benefit from other placements. That's where FlexShard enters.
+
+Ava：另一个扩展问题位于模型的更底层：参数和优化器状态如何分片。FSDP2 支持按行和按列分片，但分布式 Muon 和分块参数量化能从其他放置方式中获益。FlexShard 就是在这里派上用场。
+
+Brian: FlexShard works with buckets of parameters. Each bucket gets a Placement policy, and its runtime overlaps bucket communication with computation. Owned gives one rank an entire parameter. BlockShard uses two-dimensional tiles aligned with the sharding scheme.
+
+Brian：FlexShard 按参数桶工作。每个桶都有一项 Placement 策略，其运行时会让桶的通信与计算重叠。Owned 将整个参数交给一个 rank。BlockShard 则使用与分片方案对齐的二维分块。
+
+Ava: For distributed Muon, those placements avoid All Gather before the optimizer update. On DeepSeek V3 at 256 H100 GPUs, the reported optimizer time improves by up to 79% against an equivalent FSDP-only implementation.
+
+Ava：对于分布式 Muon，这些放置方式避免了优化器更新前的 All Gather。在使用 256 块 H100 GPU 运行 DeepSeek V3 时，据报告，相比等效的纯 FSDP 实现，优化器耗时最多改善 79%。
+
+Brian: BlockShard also aligns sharding with blockwise quantization. It allows FP8-quantized parameter AllGathers without extra communication for scaling factors. Gathering parameters in FP8 reduces communication volume by about 50% compared with gathering them in BF16. On Llama3 405B at 256 H100 GPUs, step time improves by up to 20%.
+
+Brian：BlockShard 还让分片与分块量化保持一致。它允许对 FP8 量化参数执行 AllGather，而无需为缩放因子增加额外通信。与以 BF16 聚合参数相比，以 FP8 聚合参数使通信量减少约 50%。在使用 256 块 H100 GPU 运行 Llama3 405B 时，单步耗时最多改善 20%。
+
+Ava: GraphTrainer takes a different route: it builds an explicit training graph. TorchTitan says its graph-based and eager-based paths produce bitwise-matching numerical results. The graph path can support cross-module fusions, graph-level debugging, and tailored hardware support.
+
+Ava：GraphTrainer 走的是另一条路线：它构建显式训练图。TorchTitan 表示，其基于图和基于 eager 的两条路径产生的数值结果在位级别一致。图路径可以支持跨模块融合、图级调试和针对特定硬件的支持。
+
+Brian: Communication infrastructure changed as well. In PyTorch 2.14, an opt-in NCCL backend from torchcomms was ported into c10d. It registers under the usual nccl name and adds features including one-sided RMA windows and in-place process-group reconfiguration.
+
+Brian：通信基础设施也有变化。在 PyTorch 2.14 中，一个来自 torchcomms、可选择启用的 NCCL 后端被移植到 c10d。它以常用的 nccl 名称注册，并增加了单边 RMA 窗口和原位进程组重配置等功能。
+
+Ava: Symmetric memory connects that infrastructure to training. Dist-MoE moves tokens between experts through it and fuses that movement with expert compute. TorchTitan's FSDP can also place communication buffers in a symmetric memory pool for NCCL kernels.
+
+Ava：对称内存把这套基础设施与训练连接起来。Dist-MoE 通过对称内存在专家之间传输 token，并将传输与专家计算融合。TorchTitan 的 FSDP 也可以把通信缓冲区放进对称内存池，供 NCCL 内核使用。
+
+Brian: At that scale, checkpoint coordination matters too. The new torch_checkpointing library shares metadata with one collective before the first save and uses a lightweight barrier per save. The older GLOO-based synchronization approach scales poorly past 16K ranks.
+
+Brian：在这样的规模下，检查点协调也很重要。新的 torch_checkpointing 库在首次保存前通过一次集合通信共享元数据，并在每次保存时使用一个轻量级屏障。旧的基于 GLOO 的同步方法在超过 16K 个 rank 后扩展效果很差。
+
+Ava: In the reported 512-H100-GPU DeepSeek V3 671B run with checkpoint interval 50, average trainer blocking time falls from 841.2 ms with DCPv1 to 34.1 ms with torch_checkpointing. Average checkpoint write time falls from 384.4 s to 13.1 s.
+
+Ava：在报告的使用 512 块 H100 GPU、检查点间隔为 50 的 DeepSeek V3 671B 运行中，训练器的平均阻塞时间从使用 DCPv1 时的 841.2 ms 降至使用 torch_checkpointing 时的 34.1 ms。平均检查点写入时间从 384.4 s 降至 13.1 s。
+
+Brian: Average non-resharding load time falls too, from 194.7 s to 79 s in that setup. Those are substantial measured changes. They also come from a named model, GPU count, and checkpoint configuration, so I'd keep that context attached.
+
+Brian：在该设置下，不重新分片的平均加载时间也从 194.7 s 降至 79 s。这些都是幅度很大的实测变化。同时，它们对应特定模型、GPU 数量和检查点配置，所以我会在引用这些数字时保留这些背景。
+
+Ava: The useful takeaway for me is how the pieces fit: reusable model integrations, one model path into TitanRL, checks for numerical agreement, and more control over compute, memory, and sharding. The qualifications matter: batch-invariant mode has supported on-policy configurations, and Dist-MoE targets SM100+ GPUs.
+
+Ava：对我来说，有用的结论是这些部分如何结合起来：可复用的模型集成、通往 TitanRL 的统一模型路径、检查数值一致性的手段，以及对计算、内存和分片更强的控制。适用条件也很重要：批次不变模式仅适用于受支持的同策略配置，而 Dist-MoE 面向 SM100+ GPU。
+
+Brian: And the performance tables give concrete configurations to study, rather than one universal speed claim. TorchTitan's team invites feedback as people try these features. That's our look at the update. Thanks for listening.
+
+Brian：性能表格提供了值得研究的具体配置，而不是一个放之四海而皆准的速度承诺。TorchTitan 团队欢迎大家试用这些功能后提供反馈。以上就是我们对这次更新的介绍。感谢收听。
+
+## 术语
+
+| Term | 释义 |
+|---|---|
+| 5D parallelism | TorchTitan 支持的五维并行训练体系。 |
+| typed Python recipes | 用带类型的 Python 配方描述训练配置。 |
+| model-config transforms | 对模型配置进行组合式变换的机制。 |
+| TitanRL | TorchTitan 的强化学习训练能力。 |
+| batch-invariant mode | 在受支持的同策略配置下，使训练端与生成端的对数概率逐位一致的模式。 |
+| local_compile | 选择性编译关键代码区域的功能。 |
+| torch_remat | 细粒度控制激活重计算的 API。 |
+| Dist-MoE | 将专家间通信与计算融合的分布式混合专家库。 |
+| FlexShard | 按参数桶指定放置与切分策略的数据并行库。 |
+| Owned | 由一个 rank 持有完整参数的放置策略。 |
+| BlockShard | 按二维块切分、可与分块量化边界对齐的放置策略。 |
+| GraphTrainer | 基于显式训练图的 TorchTitan 训练执行路径。 |
+| symmetric memory | 供分布式通信使用、可支持相应 NCCL 内核的对称内存。 |
+| torch_checkpointing | 减少保存时同步开销的分布式检查点库。 |
+
+## 口语表达
+
+| Phrase | 释义 |
+|---|---|
+| caught my eye | 引起了我的注意 |
+| That raises a question | 这就引出了一个问题 |
+| Let's make that concrete | 我们用具体情况来说 |
+| That changes the diagnosis | 这会改变排查问题的方向 |
+| Let's put numbers on it | 我们来看具体数字 |
+| Here's the catch | 这里有个需要注意的地方 |
+| On the same setup | 在相同配置下 |
+| At that scale | 到了那个规模 |
+| The useful takeaway | 值得记住的实用结论 |
+
+## 中文内容总结
+
+TorchTitan是基于原生PyTorch的生成式模型预训练和后训练平台。这次更新扩展了模型、强化学习和分布式训练能力，并报告了特定硬件与配置下的性能测试结果。
+
+### 模型支持与配置
+
+新增Muse Spark Open、Muse Glimmer、Qwen3-VL、Qwen3.5、Kimi K2.7、Kimi K3和DeepSeek-V4的完整训练集成，覆盖五维并行。类型化Python配置、模型配置变换和组件覆盖机制，让用户调整并行策略或替换内核，而无须维护模型分支。可选用Attention Gym及Helion内核，并保持与torch.compile兼容。
+
+### 强化学习与正确性
+
+TitanRL让同一模型实现贯穿预训练、后训练和vLLM生成，异步执行采样，并分别扩展训练与生成。团队称，MoE和稠密模型已在长上下文、代码执行等任务上稳定训练数百步；文中列出Qwen3.5-35B-A3B在40张GB300、64K上下文，以及20张GB300、128K上下文的测试配置。在受支持的同策略配置中，批次不变模式使训练器与生成器的对数概率逐位一致，便于排查数值差异。
+
+### 性能机制与实测
+
+local_compile可选择性编译关键区域，torch_remat细化激活重计算；面向NVIDIA SM100及更新GPU的Dist-MoE融合通信与计算，流水线并行组件支持CUDA图。内部GB300集群的MLPerf测试使用MXFP8训练DeepSeek V3 671B加MTP1，仅扩展流水线、数据和专家并行轴：PP2配置在256张GPU上达到每卡每秒5324.21个token，在512张GPU上达到5262.68个token，总吞吐量为每秒2694493个token。Muse Spark Open 1.2在256张GPU、96K上下文下，强制均衡路由与学习路由分别达到每卡每秒1839.52和1500.61个token；路由方式会影响结果。
+
+### 分片与图训练
+
+FlexShard按参数桶指定分片位置。相较等效的纯FSDP实现，分布式Muon在256张H100上训练DeepSeek V3时，优化器耗时最多降低79%；块对齐的FP8参数聚合在同规模H100上训练Llama3 405B时，单步训练时间最多缩短20%。GraphTrainer提供显式训练图，团队称其与即时执行路径的数值结果逐位一致，并可用于跨模块融合和图级调试。
+
+### 通信、检查点与适用范围
+
+PyTorch 2.14提供在TorchTitan上验证过的可选NCCL后端；通信器的提前初始化计划用于2.15。Dist-MoE通过对称内存在专家间传输token，TorchTitan的FSDP也可从对称内存池分配通信缓冲区。torch_checkpointing减少保存时的同步：在512张H100、DeepSeek V3 671B、每50步保存一次的测试中，平均训练阻塞从841.2毫秒降至34.1毫秒，平均写入时间从384.4秒降至13.1秒。上述加速均有指定模型、硬件和配置条件，不能直接推及其他负载。TorchTitan也已作为veRL、Miles等项目的训练后端。

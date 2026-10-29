@@ -1,0 +1,175 @@
+# PyTorch 2.15: Distributed Training, Decode, and Platform Updates
+
+原文：[PyTorch 2.15 Release Blog - PyTorch](https://pytorch.org/blog/pytorch-2-15-release-blog/)
+
+## 摘要
+
+PyTorch 2.15 将重写的 NCCL 后端设为默认，并加入可在集合通信卡住时记录各 rank 状态的 flight recorder；旧后端仍有回退路径。分布式训练方面，单边传输、FSDP2 和流水线并行获得更细的传输、精度、内存与通信控制。推理方面，NVGEMM 减少 NVIDIA Blackwell 上 NVFP4 解码的额外 kernel 启动；在 M3 Ultra 上，新的 MPS grouped_mm 路径使 MoE 解码吞吐达到原来的 1.32–1.34 倍。版本还扩展了 AMD 和 Intel GPU 支持，并要求 Python 3.11 或更新版本；MPS 加速要求 macOS 15 或更新版本。
+
+## 对话
+
+Ava: If your training job hangs across GPUs, PyTorch 2.15 changes both the default communication backend and how you investigate the hang.
+
+Ava：如果你的训练任务在多个 GPU 上卡住，PyTorch 2.15 改变了默认通信后端，也改变了排查卡住原因的方式。
+
+Brian: It also brings changes for low-precision decode and several GPU platforms. Let's start with distributed training, because the NCCL switch can affect an existing job without a code change.
+
+Brian：它还带来了低精度解码和多个 GPU 平台方面的变化。我们先说分布式训练，因为切换 NCCL 后端可能在不改代码的情况下影响现有任务。
+
+Ava: A single stalled GPU can stop a whole run. If a collective hangs, what can I see now about the other ranks?
+
+Ava：只要一个 GPU 停滞，整个训练就可能停下来。如果某个集合通信操作卡住，现在我能看到其他 rank 的哪些信息？
+
+Brian: A backend-agnostic flight recorder writes a post-mortem to disk when a collective hangs. Watchdog health reaches the debug server, so a timeout on any rank triggers dumps from every rank. Those dumps capture what each rank was doing at the moment of the hang.
+
+Brian：一个不依赖具体后端的飞行记录器会在集合通信操作卡住时将事后诊断信息写入磁盘。看门狗的健康状态会传到调试服务器，因此任意 rank 超时都会触发所有 rank 导出诊断信息。这些信息会记录每个 rank 在卡住那一刻正在做什么。
+
+Ava: I also noticed that communicators are created with the process group. Reconfiguration can opt into a shrink/grow fast path with NCCL 2.29 or newer, so surviving ranks skip a full bootstrap. How can a team roll back if the new default causes trouble?
+
+Ava：我还注意到，通信器现在会随进程组一起创建。重新配置时，如果使用 NCCL 2.29 或更新版本，可以选择启用缩减或扩展规模的快速路径，让仍在运行的 rank 跳过完整的初始化流程。如果新默认设置引起问题，团队该如何回退？
+
+Brian: Set TORCH_DIST_USE_NCCL2=0 or select nccl-legacy. The rewritten backend was opt-in in PyTorch 2.14; now every nccl process group uses it by default. The backend changes are marked API unstable.
+
+Brian：设置 TORCH_DIST_USE_NCCL2=0，或者选择 nccl-legacy。重写后的后端在 PyTorch 2.14 中需要主动启用；现在所有 nccl 进程组默认都使用它。这些后端改动被标记为 API 不稳定。
+
+Ava: One-sided transfers sound useful when a peer needs data without making every rank join a collective. Is a process group still needed?
+
+Ava：当一个对等端需要数据，又不想让所有 rank 都参与集合通信时，单边传输听起来很有用。还需要进程组吗？
+
+Brian: No. torch.distributed now has a Python transport API, with NIXL as its first backend. Peers connect through a store. Transport.read_stream and Transport.write_stream enqueue transfers on a CUDA stream, so torch.cuda.graph can capture them.
+
+Brian：不需要。torch.distributed 现在提供 Python 传输 API，首个后端是 NIXL。对等端通过 store 建立连接。Transport.read_stream 和 Transport.write_stream 会在 CUDA stream 上将传输加入队列，因此 torch.cuda.graph 可以捕获这些操作。
+
+Ava: For FSDP2, I can see a mixed-precision issue in an MoE model. Router gates and norm weights may need fp32, while the rest of the model trains in bf16.
+
+Ava：对于 FSDP2，我在 MoE 模型中看到了一个混合精度问题。路由器门控参数和归一化权重可能需要保持 fp32，而模型其余部分用 bf16 训练。
+
+Brian: FSDP2 can keep those selected parameters in fp32 and still use one all-gather per fully_shard. It also supports per-parameter gradient precision, and a full gradient-accumulation step can be captured in one CUDA graph. Gradients now accumulate directly in .grad, which changes the default behavior when reduce_dtype=None.
+
+Brian：FSDP2 可以让这些选定参数保持 fp32，同时每次 fully_shard 仍只使用一次 all-gather。它还支持为每个参数指定梯度精度，并且可以用一张 CUDA graph 捕获完整的梯度累积步骤。现在梯度会直接累积到 .grad 中，这会改变 reduce_dtype=None 时的默认行为。
+
+Ava: Pipeline parallelism has a different memory issue. Receive buffers are now allocated just before each receive, instead of for every microbatch up front. What happens to outputs waiting for a send?
+
+Ava：流水线并行有另一种内存问题。现在接收缓冲区会在每次接收前才分配，而不是预先为所有微批次分配。等待发送的输出会怎样？
+
+Brian: Forward outputs are released once their sends finish. A schedule can set a max_outstanding_sends budget, and FSDP unshards are staggered across each rank's startup bubble. Gradient reduction can overlap subsequent compute. Each unique edge between pipeline ranks also gets a dedicated P2P communicator.
+
+Brian：前向传播的输出会在发送完成后释放。调度可以设置 max_outstanding_sends 预算，而 FSDP 的参数解分片操作会错开安排在各个 rank 的启动空档中。梯度归约可以与后续计算重叠。流水线 rank 之间的每条不同连接也会获得专用的 P2P 通信器。
+
+Ava: For NVFP4 decoding on NVIDIA Blackwell, launch overhead matters. A separate pointwise dequantization launch per ModelOpt NVFP4 linear layer adds up across layers.
+
+Ava：在 NVIDIA Blackwell 上进行 NVFP4 解码时，启动开销很重要。如果每个 ModelOpt NVFP4 线性层都要单独启动一次逐元素反量化操作，跨多个层累积起来就很可观。
+
+Brian: NVGEMM folds that layer's scalar dequantization factor into the GEMM, removing the separate launch. It also has a shape-aware candidate policy for Blackwell NVFP4 decode shapes. Programmatic dependent launch can overlap a Triton consumer with the tail of the producer GEMM.
+
+Brian：NVGEMM 将该层的标量反量化因子融合进 GEMM，省去了单独启动的操作。它还针对 Blackwell NVFP4 解码所用的张量形状提供按形状选择候选实现的策略。可编程依赖启动可以让 Triton 消费端与生产端 GEMM 的尾段重叠执行。
+
+Ava: Apple Silicon has a measured decode result too. The new MPS grouped_mm path gives 1.32–1.34x higher MoE decode throughput on an M3 Ultra.
+
+Ava：Apple Silicon 也有实测的解码结果。在 M3 Ultra 上，新的 MPS grouped_mm 路径使 MoE 解码吞吐量提高到原来的 1.32–1.34 倍。
+
+Brian: That path uses gemv for decode. Separately, F.linear uses existing gemv kernels, with a 1.23x geometric-mean speedup and up to 5x on small projections. Those are different measurements. MPS also supports torch.float8_e4m3fn and _scaled_mm with tensorwise or rowwise scaling.
+
+Brian：这条路径使用 gemv 进行解码。另外，F.linear 使用现有的 gemv 内核，几何平均加速比为 1.23 倍，在小规模投影上最高达到 5 倍。这是两组不同的测量结果。MPS 还支持 torch.float8_e4m3fn，以及采用逐张量或逐行缩放的 _scaled_mm。
+
+Ava: The MPS kernel work goes beyond decode. A single-row softmax over a 128,256-entry vocabulary drops by 8x. QR of a 512 x 512 matrix falls from about 7 seconds to 1.5 ms.
+
+Ava：MPS 的内核改进不止于解码。对包含 128,256 个词条的词表执行单行 softmax，耗时降低了 8 倍。对 512 × 512 矩阵做 QR 分解，耗时从约 7 秒降至 1.5 毫秒。
+
+Brian: MPS also gains public stream APIs, including torch.mps.Stream, current_stream, set_stream, a stream context manager, and Tensor.record_stream. For MPS acceleration, PyTorch 2.15 requires macOS 15 or newer.
+
+Brian：MPS 还新增了公开的 stream API，包括 torch.mps.Stream、current_stream、set_stream、stream 上下文管理器和 Tensor.record_stream。要使用 MPS 加速，PyTorch 2.15 要求 macOS 15 或更新版本。
+
+Ava: AMD support spans kernel authoring and packaging. What do the new gfx targets actually get?
+
+Ava：AMD 支持涵盖内核编写和软件包发布。新的 gfx 目标具体获得了哪些能力？
+
+Brian: On gfx950, Inductor autotunes optional FlyDSL templates for GEMM, ragged F.grouped_mm, and MXFP4/MXFP8 scaled_mm alongside Triton and ATen. FlyDSL requires version 0.3.x. On gfx1250, or MI450, Inductor uses the Tensor Data Mover for dense mm/addmm, pointwise and reduction code generation, and FlexAttention forward and decode. PyTorch 2.15 also adds ROCm 10.0 wheels.
+
+Brian：在 gfx950 上，Inductor 会将用于 GEMM、处理不规则分组的 F.grouped_mm，以及 MXFP4/MXFP8 scaled_mm 的可选 FlyDSL 模板，与 Triton 和 ATen 实现一起进行自动调优。FlyDSL 要求版本为 0.3.x。在 gfx1250，也就是 MI450 上，Inductor 使用 Tensor Data Mover 为稠密 mm/addmm、逐元素运算和归约生成代码，并支持 FlexAttention 的前向传播和解码。PyTorch 2.15 还增加了 ROCm 10.0 wheel 包。
+
+Ava: On Intel GPUs, the change seems useful for kernel authors. Free-function SYCL kernels replace more verbose functor-based implementations, and most existing SYCL kernels have moved to that model.
+
+Ava：在 Intel GPU 上，这项变化似乎对内核开发者很有用。自由函数形式的 SYCL 内核取代了更冗长的基于仿函数的实现，而且大多数现有 SYCL 内核已迁移到这种形式。
+
+Brian: Profiling now shows kernels in XPU Graph replay, correlates XCCL collectives across ranks, and collects per-kernel hardware counters across Intel GPUs in multi-GPU workloads. There's also IPC support for torch.xpu.Event and new allocation policies for torch.xpu.MemPool.
+
+Brian：现在，性能分析可以显示 XPU Graph 重放中的内核，关联不同 rank 上的 XCCL 集合通信操作，并在多 GPU 工作负载中收集 Intel GPU 上每个内核的硬件计数器数据。此外，torch.xpu.Event 新增了 IPC 支持，torch.xpu.MemPool 也有了新的分配策略。
+
+Ava: Compatibility could be the first thing teams feel. CUDA 13.2 is the default wheel, with CUDA 13.4 wheels alongside it. Python 3.10 is no longer supported.
+
+Ava：团队可能最先感受到的是兼容性变化。CUDA 13.2 是默认的 wheel 包，同时还提供 CUDA 13.4 wheel 包。Python 3.10 已不再受支持。
+
+Brian: The CUDA 13.4 wheels cover Linux x86_64, Linux aarch64, and Windows, with experimental support for NVIDIA Rubin GPUs. PyTorch 2.15 supports Python 3.11 through 3.15, including the free-threaded 3.14t and 3.15t builds. torch.compile also works on Python 3.15.
+
+Brian：CUDA 13.4 wheel 包覆盖 Linux x86_64、Linux aarch64 和 Windows，并对 NVIDIA Rubin GPU 提供实验性支持。PyTorch 2.15 支持 Python 3.11 至 3.15，包括自由线程构建版 3.14t 和 3.15t。torch.compile 也可以在 Python 3.15 上运行。
+
+Ava: There are two more developer details I'd watch. CUDA graph profiling can now link replayed kernels to the code that captured them. Extensions also get a compile-time error if TORCH_TARGET_VERSION is newer than their libtorch headers.
+
+Ava：还有两项开发者细节值得关注。现在，CUDA graph 性能分析可以把重放的内核关联到捕获它们的代码。如果 TORCH_TARGET_VERSION 比扩展所使用的 libtorch 头文件版本更新，扩展也会在编译时收到错误。
+
+Brian: The profiling path uses CUPTI node-creation callbacks. With record_py_stacks, CUDA graphs capture the Python launch stack for each node. The CUPTI monitor is now called Cuspy.
+
+Brian：这条性能分析路径使用 CUPTI 的节点创建回调。启用 record_py_stacks 后，CUDA graph 会为每个节点捕获启动操作的 Python 调用栈。CUPTI 监控工具现在叫 Cuspy。
+
+Ava: The practical takeaway is to check your NCCL path and version requirements, then focus on the changes that match your workload: distributed scheduling, low-precision decode, or GPU kernel tooling.
+
+Ava：实际要做的是检查自己的 NCCL 路径和版本要求，然后关注与自身工作负载相符的变化：分布式调度、低精度解码或 GPU 内核工具。
+
+Brian: There's a PyTorch 2.15 Q&A webinar on Thursday, November 5, 2026, at 11 AM PT. Thanks for listening.
+
+Brian：PyTorch 2.15 的问答网络研讨会将于 2026 年 11 月 5 日星期四太平洋时间上午 11 点举行。感谢收听。
+
+## 术语
+
+| Term | 释义 |
+|---|---|
+| NCCL backend | NVIDIA GPU 分布式通信所用的后端；PyTorch 2.15 默认使用重写版本。 |
+| flight recorder | 集合通信卡住时写出事后记录、帮助查看各 rank 当时活动的调试功能。 |
+| one-sided transport | 无需进程组或集合通信即可连接对端并传输数据的接口。 |
+| CUDA graph | 可捕获并重放 GPU 操作的机制；本版支持捕获文中所述传输及完整梯度累积步骤。 |
+| FSDP2 | 本版增加逐参数精度和梯度控制的分片数据并行方案。 |
+| gradient accumulation | 把多个步骤的梯度累积起来；本版可将一个完整累积步骤捕获进单个 CUDA graph。 |
+| pipeline parallelism | 把模型计算分配到多个流水线阶段；本版改进了接收缓冲区和通信调度。 |
+| NVGEMM | 文中用于 GEMM 的后端；本版针对 Blackwell 上的 NVFP4 解码减少额外启动并改进重叠。 |
+| NVFP4 | 文中 NVIDIA Blackwell 低精度解码路径使用的 4 位格式。 |
+| grouped_mm | 分组矩阵乘法；文中的 MPS 新路径在 M3 Ultra 上提高了 MoE 解码吞吐。 |
+| FlyDSL | PyTorch 可使用的可选 kernel DSL；gfx950 上的相关模板需要 FlyDSL 0.3.x。 |
+| Tensor Data Mover | gfx1250 上 Inductor 用于文中所列运算代码生成的机制。 |
+| Cuspy | CUPTI monitor 的新名称，用于文中所述 CUDA graph kernel 归因。 |
+
+## 口语表达
+
+| Phrase | 释义 |
+|---|---|
+| How can a team roll back if the new default causes trouble? | 如果新默认设置带来问题，团队如何回退？ |
+| What happens to outputs waiting for a send? | 等待发送的输出会怎样处理？ |
+| adds up across layers | 逐层累积起来。 |
+| Those are different measurements. | 那是两组不同的测量结果。 |
+| What do the new gfx targets actually get? | 新的 gfx 目标具体获得了哪些支持？ |
+| Compatibility could be the first thing teams feel. | 团队可能首先感受到兼容性变化。 |
+| The practical takeaway is to check your NCCL path and version requirements | 实际要点是检查 NCCL 路径和版本要求。 |
+
+## 中文内容总结
+
+PyTorch 2.15 汇集了自 2.14 以来 583 名贡献者的 3,117 次提交，重点更新分布式通信、训练内存控制、低精度推理和各硬件平台支持。
+
+### 分布式训练
+
+重写的 NCCL 后端现为所有 nccl 进程组的默认实现。通信器随进程组创建；在 NCCL 2.29 及以上版本，可选用更快的收缩和扩展重配置路径。集合通信卡住时，飞行记录器会保存各 rank 的现场信息。用户可通过 TORCH_DIST_USE_NCCL2=0 或 nccl-legacy 回退。新增的单边传输 API 以 NIXL 为首个后端，无需进程组即可连接对端，其 CUDA stream 传输可纳入 CUDA graph。
+
+### 内存与通信控制
+
+FSDP2 允许 MoE 路由门控等敏感参数保留 fp32，其余参数使用 bf16，并支持按参数设置梯度精度及将完整梯度累积步骤捕获到单个 CUDA graph。流水线并行改为按需分配接收缓冲区、发送完成后释放前向输出，还可限制未完成的发送数量，并让梯度归约与后续计算重叠。这些改动旨在降低内存占用和暴露的通信开销。
+
+### 推理性能
+
+在 NVIDIA Blackwell GPU 上，NVGEMM 将 ModelOpt NVFP4 线性层的标量反量化因子并入 GEMM，减少解码时每层的一次独立 kernel 启动，并改进与后续 Triton kernel 的重叠。在 Apple Silicon 上，MPS 增加 FP8、_scaled_mm、grouped_mm 的解码快路径及公开的 torch.mps.Stream API。文章报告，M3 Ultra 上的 MoE 解码吞吐量提高至原来的 1.32 至 1.34 倍；F.linear 的解码路径几何平均提速 1.23 倍。MPS 还加快了 softmax、上采样反向和 norm 归约，并优化了 QR 分解与三角方程求解。
+
+### 平台与开发工具
+
+默认安装包使用 CUDA 13.2，另提供 CUDA 13.4 安装包，后者实验性支持 NVIDIA Rubin。ROCm 10.0 安装包加入发行阵容；所有 ROCm 安装包现基于 AMD TheRock 构建，通过 pip 依赖安装匹配的 rocm 包，而不再内置 ROCm 库。AMD gfx950 可选用 FlyDSL 0.3.x，gfx1250（MI450）获得 Tensor Data Mover 代码生成支持。Intel XPU 增加更简洁的 SYCL 自由函数 kernel、跨进程事件共享和更细的多 GPU 性能分析。Cuspy 可把 CUDA graph 重放的 kernel 关联到捕获代码；C++ 稳定 ABI 和仅头文件接口也有所扩展。
+
+### 兼容性与适用范围
+
+2.15 支持 Python 3.11 至 3.15，torch.compile 支持 Python 3.15；Python 3.10 停止支持。MPS 加速要求 macOS 15 或更新版本。FSDP2 的分片与未分片梯度 dtype 行为发生变化，迁移时需检查精度设置。文中多项新 API 标为不稳定；所列性能数字来自特定算子、形状或硬件条件，不能直接推及所有工作负载。

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>2026 PyTorch 北美大会 Ray 主题导览</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/a-ray-focused-guide-to-pytorch-conference-north-america/">原视频 / 原文</a></p><h1>2026 PyTorch 北美大会 Ray 主题导览</h1>
+<p>依据：原文</p>
+<p>来源：https://pytorch.org/blog/a-ray-focused-guide-to-pytorch-conference-north-america/</p>
+<p>这篇活动导览面向使用 PyTorch 构建 AI 基础设施的开发者，介绍 2026 年 10 月 20 日至 21 日在圣何塞举行的 PyTorch 北美大会中与 Ray 相关的报告和交流活动。议程覆盖分布式计算、数据处理、模型训练、部署及后训练。</p>
+<h3>开源计算栈</h3>
+<p>10 月 20 日，Ray 联合创始人 Ion Stoica 将介绍 Ray 从早期支持强化学习，到编排当前强化学习框架的演进。同日另一场报告将讨论 Kubernetes 与 Ray 如何协同，让云原生基础设施与 PyTorch 生态中的项目共同支撑 AI 应用。</p>
+<h3>数据处理与训练</h3>
+<p>LinkedIn 将展示三层 Ray 训练栈：在专用 CPU 节点上读取 Avro、Parquet 和 Iceberg 数据，以 Ray Train 结合 FSDP、HSDP、弹性扩缩容和异步检查点，再按需提供集群。议程称，其数据加载器内存用量降低了 50% 至 70%，团队还通过绕开 Ray 的一处开销追回了 24% 的单步训练时间。10 月 21 日，Uber 将介绍把 Eats 推荐系统从 TensorFlow/Horovod 迁移到 PyTorch，并以 Ray Data 取代基于 Spark 的预处理。议程报告，这次改造使数据转换速度提高 5 倍、内存用量降低 90%，训练吞吐量提高 20 倍。</p>
+<h3>存储与模型部署</h3>
+<p>一场报告将介绍通过 fsspec 接入基于 gRPC 的 Rapid Storage，以缓解 GPU 等待数据的问题，并讨论其对 Ray 等工具的适用性。另一场报告以气候降尺度模型 PC-RF 为例，讲解 ONNX 导出、图外采样和推理时的物理约束。Ray 用于该模型的扩展训练，部署流程则涉及 ONNX Runtime、Temporal 和 vLLM 智能体。</p>
+<h3>后训练与强化学习</h3>
+<p>Pinterest 将介绍 PTEnv：平台负责数据、编排、扩展、评估和导出，把训练循环交给不同的开源框架；报告会涉及使用 Ray 执行强化学习任务，以及视觉语言模型训练中的权重同步问题。SkyRL 报告将介绍由 Ray 编排的训练、推理与环境模块，并展示面向超过 3500 亿参数 MoE 模型的全异步强化学习、让研究者用自有硬件训练的多租户 Tinker Engine，以及基于 HTTP 的推理接口。</p>
+<h3>演示与交流</h3>
+<p>10 月 21 日的演示将用后训练流程说明 Ray Core 的调度与权重传输，并介绍议程所称的万节点集群调度能力及 GPU 间直接传输 PyTorch 张量的 Ray Direct Transport。10 月 20 日下午还有与 Ray 开发者的小组交流，供参会者提问。</p></body></html>

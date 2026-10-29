@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Helion 内核在 Hugging Face Kernels 中的调优与发布</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/helion-x-%f0%9f%a4%97-hf-kernels-building-and-shipping-out-of-the-box-performant-kernels/">原视频 / 原文</a></p><h1>Helion 内核在 Hugging Face Kernels 中的调优与发布</h1>
+<p>依据：原文</p>
+<p>来源：https://pytorch.org/blog/helion-x-%f0%9f%a4%97-hf-kernels-building-and-shipping-out-of-the-box-performant-kernels/</p>
+<p>PyTorch 文章介绍如何通过 Hugging Face Kernels 打包、发布和调用 Helion 内核，并随源码提供预调优配置。Helion 负责根据输入与硬件选择实现，Kernels 提供统一的分发和加载方式。文章给出注意力内核的性能测量结果。</p>
+<h3>问题与分工</h3>
+<p>机器学习内核的源码结构、构建工具和兼容方式各异，用户常需处理依赖与构建问题。Helion 用接近 PyTorch 的张量操作编写分块内核；开发者指定分块的迭代空间，具体块大小、访存方式、循环顺序和归约策略交给自动调优器搜索。Kernels 项目则用 kernel-builder 统一打包与发布，让用户通过 kernels 库的 get_kernel 从 Hugging Face Hub 加载内核。</p>
+<h3>打包与预调优</h3>
+<p>Helion 内核是首次调用时编译的 Python 源码，发布时无需预先编译二进制文件。项目配置用 python-depends 声明 Helion 运行时依赖，用 torch-noarch 标明这种打包方式；用户仍需安装 Helion，并使用支持该依赖的 kernels 版本。为缩短用户端调优时间，开发者可将内核改为 @helion.aot_kernel(static_shapes=True)，在代表性的输入形状和目标 GPU 上运行调优脚本。AOT runner 先逐形状调优，再交叉测量候选配置，最后生成按形状选择配置的 Python 决策树。文中示例设置的阈值为 1.01，即目标性能与各形状最优值相差不超过 1%，配置数上限为 8。决策树可按设备随源码发布；加载后用户端仍会编译内核，但无需重新调优已覆盖的情形。</p>
+<h3>测量结果与适用范围</h3>
+<p>在 NVIDIA H100 上，预调优的 Helion 注意力内核以 PyTorch scaled_dot_product_attention 的 FLASH 后端为基线，在 19 个调优形状上全部更快，几何平均加速比为 1.20；在 10 个未参与调优的形状上有 9 个更快，几何平均为 1.17。在 NVIDIA B200 上，文章将七种预调优的线性注意力变体与 FLA 比较：六个调优形状中，七种变体均更快，设备时间和包含 CPU 分发的端到端几何平均加速比分别为 1.41 和 1.33；六个未调优形状上分别为 1.35 和 1.31。调优形状的前向与反向合计加速比为 1.55。这些结果对应文中的硬件、形状和基线，不能直接推广到其他配置。</p>
+<h3>实际意义</h3>
+<p>开发者可以把同一 Helion 源码及针对不同 GPU 生成的配置文件发布到 Hub；用户按版本加载后，由 Helion 在调用时选取匹配输入形状的配置。预调优减少了用户端的调参等待，但效果取决于预先覆盖的工作负载与硬件。</p></body></html>
