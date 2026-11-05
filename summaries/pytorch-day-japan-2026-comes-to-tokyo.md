@@ -1,0 +1,19 @@
+# PyTorch Day Japan 2026 将于东京举行
+
+依据：原文
+
+来源：https://pytorch.org/blog/pytorch-day-japan-2026-comes-to-tokyo/
+
+PyTorch Day Japan 2026 将于12月10日在东京举办。活动由 PyTorch Foundation、Hugging Face、IBM 和三菱电机共同主办，面向 PyTorch 用户、机器学习工程师、AI 研究人员及开源 AI 行业从业者，以全天技术演讲和互动讨论促进经验交流与合作。
+
+### 活动内容
+
+议程将讨论 PyTorch 及 PyTorch Foundation 托管的项目，包括 vLLM、DeepSpeed、Ray、Helion 和 Safetensors。其他主题涵盖模型训练与推理、负责任的 AI、物理 AI 与边缘 AI，以及开放模型开发。
+
+### 征稿方向与时间
+
+活动征集专题演讲和闪电演讲。建议主题包括在本地基础设施上构建和运行开放权重模型、将 PyTorch 模型部署到机器人及边缘设备，以及 PyTorch 2.x、torch.compile、领域库和生产工具链。征稿截止时间为日本时间9月27日23:59；征稿结果通知于10月13日发出，日程于10月14日公布，演示文稿提交截止日为12月9日。
+
+### 报名
+
+报名已开放。日本时间11月11日23:59前，票价为5,000日元，比常规价格优惠3,000日元；学生和教职人员还可使用学术优惠价。

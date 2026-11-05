@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shopify 的持续学习闭环</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/how-shopify-built-a-continual-learning-loop-with-pytorch-and-vllm/">原视频 / 原文</a></p><h1>Shopify 的持续学习闭环</h1>
+<p>依据：原文</p>
+<p>来源：https://pytorch.org/blog/how-shopify-built-a-continual-learning-loop-with-pytorch-and-vllm/</p>
+<p>Shopify 以服务商家的 GraphQL 智能体为例，介绍如何把生产环境中的失败对话转成训练数据，持续更新专用模型，并用 PyTorch 训练、vLLM 推理。文章称，该模型的任务表现超过其前沿模型基线，服务成本也明显下降。</p>
+<h3>问题与质量标准</h3>
+<p>前沿模型能帮助产品快速上线，但部署后的权重不会从用户纠正、拒绝的回答或重复故障中自行学习。Shopify 先用完整性、执行情况、回答质量和安全性等准则定义质量，并纳入随机抽取的真实流量。两名专家对 25 个随机样本盲评，用 Cohen’s kappa 检查一致性；若结果约为 0.2，就修改含糊的准则。标注还需记录评分理由，供后续校准使用。</p>
+<h3>校准评判器与改进基线</h3>
+<p>Shopify 用 DSPy、GEPA 和 ACE 根据人工标注校准评判器，再用既往 A/B 测试核对其评分方向，并通过定向降低某项行为的测试，检查对应指标是否响应。评判器是上线前的代理指标，不能直接等同于真实业务效果。在改动模型权重前，自动研究流程会尝试修改提示词、工具定义和编排代码，按评判器得分决定保留或撤销改动。</p>
+<h3>从失败对话到模型权重</h3>
+<p>当上述改进趋于停滞，系统从匿名生产流量中找出低分难例。多个前沿推理模型分析失败，仲裁模型合并修复指令并在用户消息前注入提示，随后重放对话。修复成功的轨迹进入训练集；仍失败的交给 Toloka 专家按同一准则标注。Shopify 先用包含推理过程的完整轨迹监督微调小模型，再以校准后的评判器为奖励信号运行 GRPO。该流程每天新增轨迹，并对累积数据做全参数微调和 GRPO；同时保留旧轨迹以限制遗忘。PyTorch 通过张量、上下文和数据并行支持训练。</p>
+<h3>提示压缩与部署结果</h3>
+<p>Shopify 固定模型权重，让使用约 1500 个可学习 gist token 的学生版本匹配读取约 6000 token 完整系统提示的教师版本。文章称评判器未测出质量损失。GraphQL 智能体通过 Shopify Admin GraphQL API 查询商店数据，生产流量最高达每分钟 2000 次请求，并由 vLLM 服务。在每分钟 350 次请求的负载测试中，压缩使首 token 时间下降约 19%，端到端延迟下降约 38%；相同 GPU 上每秒请求数增加约 16%，输出 token 数增加约 12%，据此估算同等流量所需 GPU 减少约 14%。</p>
+<h3>结果的适用范围</h3>
+<p>文章称，持续训练后的专用模型表现超过前沿模型基线，但没有给出具体质量分数。按平均 token 成本估算，用前沿模型服务这些流量每年可能花费约 2700 万美元，微调模型则接近 100 万美元，约降低 96%；这属于成本估计。该案例的关键前提是可靠的质量准则、经过验证的评判器，以及能够持续收集和修复生产难例的流程。</p></body></html>

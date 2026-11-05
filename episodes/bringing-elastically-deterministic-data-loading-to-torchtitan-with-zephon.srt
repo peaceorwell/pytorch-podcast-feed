@@ -1,0 +1,679 @@
+1
+00:00:00,000 --> 00:00:05,623
+Ava: Imagine changing the number of GPUs halfway through training and getting a different result.
+Ava：想象一下，训练到一半改了 GPU 数量，结果也跟着变了。
+
+2
+00:00:05,623 --> 00:00:10,190
+If you’re testing a new data mixture, how would you know what helped?
+如果你在测试新的数据配比，怎么知道究竟是什么起了作用？
+
+3
+00:00:10,190 --> 00:00:13,502
+Brian: That’s the problem Zephon tackles in TorchTitan.
+Brian：这正是 TorchTitan 中的 Zephon 要解决的问题。
+
+4
+00:00:13,502 --> 00:00:21,580
+It keeps the global batches the same when a run resumes on a different number of GPUs—graphics processing units.
+训练任务恢复时，即使 GPU（图形处理器）数量变了，它也能保持全局批次不变。
+
+5
+00:00:21,580 --> 00:00:24,983
+Ava: I thought a data loader just handed out samples.
+Ava：我以为数据加载器只是分发样本。
+
+6
+00:00:24,983 --> 00:00:29,586
+Why would the GPU count change which samples the model sees?
+为什么 GPU 数量会影响模型看到哪些样本？
+
+7
+00:00:29,586 --> 00:00:33,554
+Brian: Many loaders divide the stream among the GPUs they have.
+Brian：很多加载器会按现有 GPU 数量分配数据流。
+
+8
+00:00:33,554 --> 00:00:38,302
+Change that count, and you can change the order after a checkpoint.
+数量一变，从检查点恢复后的数据顺序就可能变。
+
+9
+00:00:38,302 --> 00:00:41,912
+The model then trains on a different sequence.
+模型接着训练时，看到的就是另一套序列。
+
+10
+00:00:41,912 --> 00:00:45,790
+Ava: And that makes a data experiment hard to trust.
+Ava：这样一来，数据实验的结果就很难让人信服。
+
+11
+00:00:45,790 --> 00:00:52,269
+Brian: Exactly. Teams often test a new mixture, filter, tokenizer, or packing method.
+Brian：没错。团队经常测试新的数据配比、过滤规则、分词器或打包方法。
+
+12
+00:00:52,269 --> 00:00:58,932
+That’s an ablation experiment: change something, then see whether it helped.
+这就是消融实验：改动一项，再看是否有帮助。
+
+13
+00:00:58,932 --> 00:01:03,290
+Ava: There’s another cost before the experiment even starts, right?
+Ava：实验还没开始，就已经有另一笔成本了，对吧？
+
+14
+00:01:03,290 --> 00:01:03,578
+Brian: Yes.
+Brian：对。
+
+15
+00:01:03,578 --> 00:01:10,048
+Preparing each version can mean processing the whole corpus offline and saving a new copy.
+准备每个版本，可能都要离线处理整个语料库，再保存一份新副本。
+
+16
+00:01:10,048 --> 00:01:13,211
+A typical training run reads that copy once.
+一次典型训练只会读取这份副本一次。
+
+17
+00:01:13,211 --> 00:01:19,240
+Many experiments don’t improve the model, so that work and storage go to waste.
+很多实验并不能改进模型，处理工作和存储空间就白费了。
+
+18
+00:01:19,240 --> 00:01:25,878
+Ava: Agents can launch lots of experiments now. Does that make the data order problem worse?
+Ava：现在智能体能启动大量实验。这会让数据顺序问题更严重吗？
+
+19
+00:01:25,878 --> 00:01:27,790
+Brian: It makes it easier to miss.
+Brian：这会让问题更容易被忽略。
+
+20
+00:01:27,790 --> 00:01:34,447
+An agent might attribute a score change to its data edit when the GPU allocation also changed.
+智能体可能把分数变化归因于数据修改，却没发现 GPU 分配也变了。
+
+21
+00:01:34,447 --> 00:01:37,772
+The article says people can miss that too.
+文章说，人也可能忽略这一点。
+
+22
+00:01:37,772 --> 00:01:40,906
+Ava: So what does Zephon ask me to define?
+Ava：那 Zephon 需要我定义什么？
+
+23
+00:01:40,906 --> 00:01:44,155
+Brian: Three things. Datasets describe the sources.
+Brian：三样东西。Datasets 描述数据来源。
+
+24
+00:01:44,155 --> 00:01:47,773
+A WorkSource plans how they’re mixed and ordered.
+WorkSource 规划数据如何混合、如何排序。
+
+25
+00:01:47,773 --> 00:01:54,768
+Then a Pipeline of operators turns stored samples into the tensors the training loop uses.
+然后，Pipeline 中的算子把存储的样本转换成训练循环使用的张量。
+
+26
+00:01:54,768 --> 00:01:58,766
+Ava: Can you make that concrete without reading me a screen of code?
+Ava：能举个具体例子吗？别给我念一整屏代码。
+
+27
+00:01:58,766 --> 00:02:02,438
+Brian: The article’s example mixes two text datasets.
+Brian：文章里的例子混合了两个文本数据集。
+
+28
+00:02:02,438 --> 00:02:10,582
+The pipeline tokenizes the text, packs it into fixed-length sequences, shuffles it, and makes batches.
+Pipeline 会将文本分词、打包成固定长度的序列、打乱顺序，再组成批次。
+
+29
+00:02:10,582 --> 00:02:14,764
+That processing happens inside the training job.
+这些处理都在训练任务中完成。
+
+30
+00:02:14,764 --> 00:02:20,274
+Ava: So it doesn’t need a saved, preprocessed copy for every experiment.
+Ava：所以不用为每个实验都保存一份预处理后的数据。
+
+31
+00:02:20,274 --> 00:02:24,140
+Brian: Right. It can use CPUs available while the model trains.
+Brian：对。它可以利用模型训练期间可用的 CPU。
+
+32
+00:02:24,140 --> 00:02:31,808
+And because the WorkSource is separate, you can change the mixture without rewriting the processing steps.
+而且 WorkSource 是独立的，修改数据配比不用重写处理步骤。
+
+33
+00:02:31,808 --> 00:02:37,222
+Ava: The example uses equal mixture weights. Equal numbers of documents?
+Ava：例子里两份数据的混合权重相同。是指文档数量相同吗？
+
+34
+00:02:37,222 --> 00:02:40,222
+Brian: Equal proportions of tokens, not samples.
+Brian：是词元占比相同，不是样本数量相同。
+
+35
+00:02:40,222 --> 00:02:46,150
+TokenEstimation checks the token-to-byte ratio in a small sample of each dataset.
+TokenEstimation 会从每个数据集抽取少量样本，估算词元与字节的比例。
+
+36
+00:02:46,150 --> 00:02:52,500
+It uses that estimate to plan the mixture while the stored data is still raw text.
+数据还存储为原始文本时，它就用这个估算值来规划配比。
+
+37
+00:02:52,500 --> 00:02:52,991
+Ava: Got it.
+Ava：明白了。
+
+38
+00:02:52,991 --> 00:02:59,162
+But packing and shuffling on the fly sound tricky if you want to restart elsewhere.
+但如果要换个地方恢复训练，实时打包和打乱顺序听起来很棘手。
+
+39
+00:02:59,162 --> 00:03:03,792
+Brian: They are. Picture a packing bin that’s partly full when you stop.
+Brian：确实。想象一下，停止时有个打包容器只装了一部分。
+
+40
+00:03:03,792 --> 00:03:07,282
+The next output depends on what’s already inside.
+下一个输出取决于里面已经装了什么。
+
+41
+00:03:07,282 --> 00:03:12,760
+You can’t simply look up the next training sequence at an index on disk.
+你没法直接按磁盘上的索引找到下一条训练序列。
+
+42
+00:03:12,760 --> 00:03:15,128
+Ava: That’s the stateful pipeline problem.
+Ava：这就是有状态 Pipeline 的问题。
+
+43
+00:03:15,128 --> 00:03:19,446
+How does Zephon keep parallel workers from changing the order?
+Zephon 怎么防止并行工作进程改变顺序？
+
+44
+00:03:19,446 --> 00:03:22,459
+Brian: It separates decisions from expensive work.
+Brian：它把决策和耗时的处理分开。
+
+45
+00:03:22,459 --> 00:03:30,097
+A single-threaded accumulator sees records in order and decides things like which sequences to pack together.
+单线程累加器按顺序读取记录，决定哪些序列要打包在一起等事项。
+
+46
+00:03:30,097 --> 00:03:34,652
+Stateless functions do the costly processing across workers.
+耗时的处理则由无状态函数在多个工作进程中完成。
+
+47
+00:03:34,652 --> 00:03:38,650
+Ava: Workers can finish in any order, though.
+Ava：但工作进程可能以任意顺序完成任务。
+
+48
+00:03:38,650 --> 00:03:39,318
+Brian: They can.
+Brian：是的。
+
+49
+00:03:39,318 --> 00:03:46,290
+Zephon numbers groups of records before sending them out, then restores their order afterward.
+Zephon 在分发前给各组记录编号，完成后再恢复原有顺序。
+
+50
+00:03:46,290 --> 00:03:49,701
+That makes worker count a performance setting.
+这样，工作进程数量就成了一个性能参数。
+
+51
+00:03:49,701 --> 00:03:53,760
+More tokenization workers won’t change the output.
+增加分词工作进程也不会改变输出。
+
+52
+00:03:53,760 --> 00:03:59,894
+Ava: So far, that handles workers. What handles a different number of GPUs?
+Ava：这解决了工作进程的问题。GPU 数量变了怎么办？
+
+53
+00:03:59,894 --> 00:04:02,649
+Brian: Lanes. They’re fixed logical streams.
+Brian：靠通道。它们是固定的逻辑数据流。
+
+54
+00:04:02,649 --> 00:04:11,188
+Each lane has an ordered sample sequence and its own operator state, including any partly filled packing bins.
+每条通道都有按顺序排列的样本序列和独立的算子状态，包括尚未装满的打包容器。
+
+55
+00:04:11,188 --> 00:04:15,882
+Ava: Like numbered conveyor belts that can be assigned to different stations?
+Ava：就像编号的传送带，可以分配到不同工位？
+
+56
+00:04:15,882 --> 00:04:22,222
+Brian: That’s a useful picture. The lane produces the same records whichever GPU gets it.
+Brian：这个比喻很贴切。无论分配给哪张 GPU，通道产出的记录都一样。
+
+57
+00:04:22,222 --> 00:04:28,330
+When the number of data-parallel ranks changes, Zephon redistributes the lanes.
+数据并行进程数变化时，Zephon 会重新分配通道。
+
+58
+00:04:28,330 --> 00:04:31,232
+The global batches stay the same.
+全局批次保持不变。
+
+59
+00:04:31,232 --> 00:04:40,006
+Ava: Let me check I’ve got it: accumulators keep each lane’s decisions in order, and lanes let the run move across GPU counts.
+Ava：我确认一下：累加器保证每条通道按顺序决策，通道则让训练能在不同 GPU 数量下运行。
+
+60
+00:04:40,006 --> 00:04:45,621
+Brian: Exactly. There’s one planning choice: you pick the lane count up front.
+Brian：没错。有个规划上的选择：通道数要事先定好。
+
+61
+00:04:45,621 --> 00:04:51,348
+It needs to divide evenly across the data-parallel sizes you expect.
+它必须能被预期使用的各个数据并行规模整除。
+
+62
+00:04:51,348 --> 00:04:55,322
+Ava: What happens to those partly filled bins at a checkpoint?
+Ava：保存检查点时，那些没装满的容器怎么办？
+
+63
+00:04:55,322 --> 00:04:59,018
+Saving every bit of pipeline state sounds large.
+保存流水线的所有状态听起来会很占空间。
+
+64
+00:04:59,018 --> 00:05:02,945
+Brian: Zephon doesn’t save the bin contents or shuffle buffers.
+Brian：Zephon 不保存容器内容或打乱顺序用的缓冲区。
+
+65
+00:05:02,945 --> 00:05:07,152
+It periodically sends a flush sentinel through the pipeline.
+它会定期向流水线发送一个清空哨兵标记。
+
+66
+00:05:07,152 --> 00:05:12,832
+Stateful operators emit what they’re holding, then start from a clean slate.
+有状态的算子会输出暂存的数据，然后从空状态重新开始。
+
+67
+00:05:12,832 --> 00:05:15,654
+Ava: And when training resumes?
+Ava：恢复训练时呢？
+
+68
+00:05:15,654 --> 00:05:20,116
+Brian: The checkpoint records which input chunks were still in progress.
+Brian：检查点会记录哪些输入数据块仍在处理中。
+
+69
+00:05:20,116 --> 00:05:28,772
+Zephon replays input from the latest flush to rebuild the state, then discards output the training loop already consumed.
+Zephon 从最近一次清空的位置重放输入，重建状态，再丢弃训练循环已经用过的输出。
+
+70
+00:05:28,772 --> 00:05:32,410
+Ava: So replay buys a smaller checkpoint.
+Ava：所以重放让检查点变小了。
+
+71
+00:05:32,410 --> 00:05:32,674
+Brian: Yes.
+Brian：对。
+
+72
+00:05:32,674 --> 00:05:40,824
+In the article’s experiments, those checkpoints were a few MiB—mebibytes—regardless of how far the run had progressed.
+文章中的实验里，无论训练进行到哪一步，检查点都只有几 MiB，也就是几兆二进制字节。
+
+73
+00:05:40,824 --> 00:05:43,550
+Ava: How does this fit into TorchTitan?
+Ava：这怎么接入 TorchTitan？
+
+74
+00:05:43,550 --> 00:05:51,085
+Brian: The integration replaces TorchTitan’s default data loader with a Zephon Pipeline built from a data recipe.
+Brian：集成方案用按数据配方构建的 Zephon 流水线替换了 TorchTitan 的默认数据加载器。
+
+75
+00:05:51,085 --> 00:05:58,828
+The recipe includes datasets, mixture weights, and settings such as packing, shuffling, and parallelism.
+配方包括数据集、混合权重，以及打包、打乱顺序和并行度等设置。
+
+76
+00:05:58,828 --> 00:06:02,106
+Ava: Does the rest of the training run need to change?
+Ava：训练的其他部分需要改吗？
+
+77
+00:06:02,106 --> 00:06:04,602
+Brian: The article says it stays the same.
+Brian：文章说不用改。
+
+78
+00:06:04,602 --> 00:06:09,310
+Zephon’s state goes into the TorchTitan checkpoint with the model.
+Zephon 的状态会和模型一起存进 TorchTitan 的检查点。
+
+79
+00:06:09,310 --> 00:06:15,152
+That state covers every lane, so the run can resume on a different GPU count.
+状态涵盖每条通道，所以训练可以在不同数量的 GPU 上恢复。
+
+80
+00:06:15,152 --> 00:06:18,838
+Ava: What if I choose a lane count that doesn’t fit the run?
+Ava：如果选的通道数不适合这次训练呢？
+
+81
+00:06:18,838 --> 00:06:25,326
+Brian: The integration checks at launch that lanes divide evenly across data-parallel replicas.
+Brian：集成方案会在启动时检查，通道数能否被数据并行副本数整除。
+
+82
+00:06:25,326 --> 00:06:30,855
+It also checks that each optimizer step’s batch splits evenly across lanes.
+还会检查每次优化器更新的批次能否均分到各通道。
+
+83
+00:06:30,855 --> 00:06:33,564
+A bad configuration fails early.
+配置有误会在启动时立即报错。
+
+84
+00:06:33,564 --> 00:06:40,778
+Ava: Now for evidence. Did they actually resume a training run with different GPU counts?
+Ava：来说说证据。他们真的用不同数量的 GPU 恢复过训练吗？
+
+85
+00:06:40,778 --> 00:06:53,800
+Brian: They trained a one-billion-parameter model in TorchTitan on sixteen GPUs, checkpointed at step one hundred fifty, then resumed on eight, thirty-two, and sixty-four GPUs, alongside the original run.
+Brian：他们在 TorchTitan 上用 16 张 GPU 训练一个 10 亿参数模型，在第 150 步保存检查点，然后分别用 8、32 和 64 张 GPU 恢复训练，并与原训练过程对照。
+
+86
+00:06:53,800 --> 00:06:56,262
+Ava: What did the ordinary loader do?
+Ava：普通数据加载器表现如何？
+
+87
+00:06:56,262 --> 00:07:00,645
+Brian: After the resume, it supplied different sample sequences.
+Brian：恢复后，它提供了不同的样本序列。
+
+88
+00:07:00,645 --> 00:07:04,916
+Each GPU count ended up with a distinct loss curve.
+每种 GPU 数量都得到了不同的损失曲线。
+
+89
+00:07:04,916 --> 00:07:06,538
+Ava: And Zephon?
+Ava：Zephon 呢？
+
+90
+00:07:06,538 --> 00:07:09,913
+Brian: Its loss curves lay on top of each other.
+Brian：它的损失曲线完全重合。
+
+91
+00:07:09,913 --> 00:07:17,076
+The SHA-256 hash—a fingerprint of the data—matched the baseline for every global batch.
+每个全局批次的数据指纹，也就是 SHA-256 哈希值，都与基准训练一致。
+
+92
+00:07:17,076 --> 00:07:21,048
+That checks the batch contents step by step.
+这逐步验证了每个批次的内容。
+
+93
+00:07:21,048 --> 00:07:26,630
+Ava: Matching batches is clear. Did the loader affect evaluation scores too?
+Ava：批次一致很明确。数据加载器也影响评测分数吗？
+
+94
+00:07:26,630 --> 00:07:35,755
+Brian: In another test, they trained the same model from scratch for twenty billion tokens on eight, sixteen, thirty-two, and sixty-four GPUs.
+Brian：在另一项测试中，他们分别用 8、16、32 和 64 张 GPU，从头训练同一个模型，处理了 200 亿个词元。
+
+95
+00:07:35,755 --> 00:07:42,796
+With the standard loader, DCLM Core version one scores varied by up to zero point eight two points.
+使用标准数据加载器时，DCLM Core 第一版的得分最多相差 0.82 分。
+
+96
+00:07:42,796 --> 00:07:46,482
+Ava: What happened on the FineWeb evaluation suite?
+Ava：FineWeb 评测套件呢？
+
+97
+00:07:46,482 --> 00:07:50,162
+Brian: Those scores varied by up to zero point six four points.
+Brian：那里的得分最多相差 0.64 分。
+
+98
+00:07:50,162 --> 00:08:00,368
+The article says these spreads were roughly four times the relevant thresholds used by the DCLM and FineWeb authors to evaluate data curation methods.
+文章说，这些分差约为 DCLM 和 FineWeb 作者评估数据筛选方法时所用相应阈值的四倍。
+
+99
+00:08:00,368 --> 00:08:07,174
+Ava: Wait, so a comparison between data mixtures could pick up the GPU allocation instead?
+Ava：等等，也就是说，比较不同数据混合方案时，GPU 的分配也可能影响结果？
+
+100
+00:08:07,174 --> 00:08:09,594
+Brian: Yes, if the allocations differ.
+Brian：对，如果 GPU 分配不同，就可能这样。
+
+101
+00:08:09,594 --> 00:08:20,796
+With Zephon, the score spreads across GPU counts were zero point zero five on DCLM Core version one and zero point zero one one on FineWeb.
+使用 Zephon 时，不同 GPU 数量下的得分差异，在 DCLM Core v1 上为 0.05，在 FineWeb 上为 0.011。
+
+102
+00:08:20,796 --> 00:08:25,658
+Ava: Does doing all that processing during training slow the GPUs down?
+Ava：训练时做这些数据处理，会拖慢 GPU 吗？
+
+103
+00:08:25,658 --> 00:08:27,822
+Brian: That’s the practical question.
+Brian：这正是实际问题。
+
+104
+00:08:27,822 --> 00:08:32,078
+Zephon lets each operator use its own level of parallelism.
+Zephon 允许每个算子采用不同的并行度。
+
+105
+00:08:32,078 --> 00:08:38,488
+In the example, tokenization gets four workers because it’s the most expensive step.
+在这个例子中，分词最耗资源，所以分配了四个工作线程。
+
+106
+00:08:38,488 --> 00:08:41,502
+Ava: And on a more complex pipeline?
+Ava：更复杂的流水线呢？
+
+107
+00:08:41,502 --> 00:08:51,879
+Brian: On the article’s full vision-language pipeline, which decodes images and then tokenizes, packs, and batches samples, Zephon kept pace with Google Grain.
+Brian：在文章的完整视觉语言流水线中，数据要经过图像解码、分词、打包和分批；Zephon 的速度跟上了 Google Grain。
+
+108
+00:08:51,879 --> 00:08:55,916
+The authors call Grain the fastest loader they tested.
+作者称 Grain 是他们测试过最快的数据加载器。
+
+109
+00:08:55,916 --> 00:09:01,450
+Ava: Does Grain offer the same behavior when a run changes GPU counts?
+Ava：运行时改变 GPU 数量，Grain 也能保持同样的表现吗？
+
+110
+00:09:01,450 --> 00:09:11,455
+Brian: The article says Grain and Mosaic Streaming can preserve global batches across GPU counts when sample order can be worked out ahead of time from an index.
+Brian：文章说，如果能通过索引预先确定样本顺序，Grain 和 Mosaic Streaming 就能在不同 GPU 数量下保持全局批次不变。
+
+111
+00:09:11,455 --> 00:09:14,664
+That condition rules out packing on the fly.
+这个条件排除了实时打包。
+
+112
+00:09:14,664 --> 00:09:18,854
+Ava: And the other loader they mention, Megatron-Energon?
+Ava：他们提到的另一个加载器 Megatron-Energon 呢？
+
+113
+00:09:18,854 --> 00:09:26,589
+Brian: It can reproduce batches with a different number of GPUs if the total number of data loader workers stays the same.
+Brian：只要数据加载工作线程总数不变，它就能在 GPU 数量变化后复现批次。
+
+114
+00:09:26,589 --> 00:09:30,436
+Zephon’s design removes that worker-count condition.
+Zephon 的设计不受工作线程数量这个条件限制。
+
+115
+00:09:30,436 --> 00:09:33,906
+Ava: What should I watch out for when setting up a run?
+Ava：设置训练任务时，我该注意什么？
+
+116
+00:09:33,906 --> 00:09:37,959
+Brian: Choose lanes for the data-parallel sizes you expect.
+Brian：根据预计使用的数据并行规模来选择通道数。
+
+117
+00:09:37,959 --> 00:09:44,896
+The article gives thirty-two lanes as a cap covering eight, sixteen, and thirty-two GPUs.
+文章以 32 个通道为上限，覆盖 8、16 和 32 个 GPU 的情况。
+
+118
+00:09:44,896 --> 00:09:50,312
+Thousands of lanes for a small run can add restore-time overhead.
+小规模任务若设置数千个通道，恢复运行时可能增加开销。
+
+119
+00:09:50,312 --> 00:09:54,982
+Ava: Can I edit the data recipe when I resume on more GPUs?
+Ava：用更多 GPU 恢复训练时，我能修改数据配置吗？
+
+120
+00:09:54,982 --> 00:10:00,975
+Brian: Keep the data, tokenizer, seed, mixture, context length, and global batch size fixed.
+Brian：数据、分词器、随机种子、混合比例、上下文长度和全局批次大小都要保持不变。
+
+121
+00:10:00,975 --> 00:10:05,556
+You can still tune performance settings such as parallelism.
+并行度等性能参数仍可调整。
+
+122
+00:10:05,556 --> 00:10:11,618
+Ava: One last distinction: do identical batches mean identical loss values?
+Ava：最后区分一下：批次相同，损失值也一定相同吗？
+
+123
+00:10:11,618 --> 00:10:13,754
+Brian: No. Zephon guarantees the data.
+Brian：不一定。Zephon 保证的是数据一致。
+
+124
+00:10:13,754 --> 00:10:23,200
+Floating-point reductions can happen in a different order when the GPU count changes, so losses should be very close but may differ.
+GPU 数量变化后，浮点数归约的顺序可能不同，因此损失值应当非常接近，但可能有差异。
+
+125
+00:10:23,200 --> 00:10:25,446
+Ava: What’s next for the project?
+Ava：这个项目接下来有什么计划？
+
+126
+00:10:25,446 --> 00:10:32,110
+Brian: The authors highlight GIL-free Python, meaning Python without the interpreter lock, and dynamic curricula.
+Brian：作者重点提到了无 GIL 的 Python，也就是没有解释器锁的 Python，以及动态课程学习。
+
+127
+00:10:32,110 --> 00:10:44,468
+They report that a thread-based Zephon runner on Python three point fourteen t fetched vision-language samples about three point seven times faster than its process runner on standard Python.
+他们报告称，在 Python 3.14t 上，基于线程的 Zephon 运行器获取视觉语言样本的速度，约为标准 Python 上进程版运行器的 3.7 倍。
+
+128
+00:10:44,468 --> 00:10:49,354
+Ava: And a dynamic curriculum would change the mixture during training?
+Ava：动态课程学习会在训练过程中改变混合比例吗？
+
+129
+00:10:49,354 --> 00:10:50,386
+Brian: That’s the idea.
+Brian：正是这个思路。
+
+130
+00:10:50,386 --> 00:10:57,355
+Because the WorkSource is separate from the processing Pipeline, it could change mixture weights over a run.
+由于 WorkSource 与处理流水线 Pipeline 分离，它可以在运行过程中调整混合权重。
+
+131
+00:10:57,355 --> 00:11:03,576
+They say they’re working on a configurable component that keeps the determinism guarantees.
+他们说，正在开发一个可配置组件，同时保留确定性保证。
+
+132
+00:11:03,576 --> 00:11:06,254
+Ava: Give me the three-point recap.
+Ava：请用三点总结一下。
+
+133
+00:11:06,254 --> 00:11:10,142
+Brian: First, Zephon prepares data inside the training job.
+Brian：第一，Zephon 在训练任务内部准备数据。
+
+134
+00:11:10,142 --> 00:11:17,096
+Second, ordered accumulators, lanes, and replay keep global batches stable across GPU counts.
+第二，有序累加器、通道和重放机制让全局批次在不同 GPU 数量下保持稳定。
+
+135
+00:11:17,096 --> 00:11:26,044
+Third, keep the recipe fixed when resuming, and remember that matching data doesn’t guarantee identical arithmetic.
+第三，恢复训练时保持数据配置不变；数据相同也不保证计算结果完全相同。
+
+136
+00:11:26,044 --> 00:11:30,762
+Ava: That’s a much cleaner way to test the data. Thanks for listening.
+Ava：这样测试数据就清楚多了。感谢收听。

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PyTorch 2.14：编译、分布式与多设备更新</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/pytorch-2-14-release-blog/">原视频 / 原文</a></p><h1>PyTorch 2.14：编译、分布式与多设备更新</h1>
+<p>依据：原文</p>
+<p>来源：https://pytorch.org/blog/pytorch-2-14-release-blog/</p>
+<p>PyTorch 2.14 于 2026 年 9 月 2 日发布，包含自 2.13 以来 487 名贡献者提交的 2995 次代码变更。更新重点是矩阵乘法、分布式训练、动态形状和不同 GPU 平台的支持。</p>
+<h3>性能与矩阵乘法</h3>
+<p>Inductor 的 NVGEMM 后端使用 CuTeDSL 生成 CUTLASS 内核，与 Triton、ATen 候选一起自动调优矩阵乘法。它可融合偏置、逐点运算和归约，并覆盖缩放 GEMM 与 NVFP4 路径。使用时须在 max_autotune 下启用 NVGEMM，并安装 nvidia-cutlass-dsl 4.6.0；NVFP4 路径要求 Blackwell。Inductor 还默认交叠通信与计算，改进小内核合批和编译代码的每次调用开销。</p>
+<h3>分布式训练</h3>
+<p>新版 nccl2 通信后端以预览形式进入 PyTorch，目标是替换现有 NCCL c10d 后端，目前仅支持 eager 执行。进程组现在可在故障后原地重新配置；Gloo 也获得故障恢复支持。单边远程内存窗口允许一个进程直接读写其他进程的内存，Flight Recorder 则扩展到所有后端。可选的 compile-on-one-rank 模式让各进程复用一份编译产物，但要求每个程序只使用一个加速设备。</p>
+<h3>编译与核心接口</h3>
+<p>实验性 @dynamic_spec 可为 torch.compile、torch.export 和 make_fx 共用维度约束；声明的维度不会按追踪时的取值悄悄特化，但依赖形状的分支可能报错，make_fx 目前仅支持 fake 追踪模式。torch.switch 提供多路分支，torch.while_loop 可进入 CUDA Graph，但仍要求固定最大迭代次数和仅由张量携带的循环状态。torch.compile 也开始实验性支持部分复数运算。AOTInductor 新增外部权重共享和可选的异步权重加载接口。</p>
+<h3>Apple Silicon 与实测结果</h3>
+<p>MPS 将更多算子从 MPSGraph 迁移到原生 Metal 内核，并重写归约与内存复制路径。SVD、eigh、QR、Cholesky 等线性代数操作获得原生实现；SVD 和 eigh 的 float64 输入及部分小矩阵仍回退到 CPU。文章报告 Cholesky 约快 1.2 至 2.8 倍。针对 macOS 26.2 及以上系统、特定 fp16 或 bf16 形状的预填充注意力内核，作者基准测试报告其相对旧内核约快 2 至 4 倍；性能收益在 M5 上得到验证，旧款芯片的效果尚未独立验证。</p>
+<h3>平台与兼容性</h3>
+<p>ROCm 7.14 安装包改由 TheRock SDK 构建；RDNA3 上经调优的 FlexAttention 在数百 token 的序列范围内报告约 2 至 8 倍的延迟改善。Intel XPU 增加原生图捕获等能力，Inductor 开始支持 Rubin（sm_107）。Python 3.15 和 3.15t 安装包可从 download.pytorch.org 获取，但该版本下 torch.compile 尚不可用。torchvision 0.29 宣称与后续 torch 版本保持 ABI 兼容；部分新增接口仍标记为不稳定。</p></body></html>

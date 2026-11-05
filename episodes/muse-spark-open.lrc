@@ -1,0 +1,157 @@
+[ti:Muse Spark Open: The Model and the PyTorch Tools Behind It]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: A model with eight hundred and sixteen billion parameters is opening its weights.
+[00:00.00]Ava：一个总参数量达8160亿的模型正在开放权重。
+[00:05.70]Why should a framework engineer care?
+[00:05.70]框架工程师为什么该关注？
+[00:08.65]Brian: Because Meta is releasing Muse Spark Open alongside work on inference kernels and fine-tuning tools.
+[00:08.65]Brian：因为 Meta 发布 Muse Spark Open 的同时，还在研发推理内核和微调工具。
+[00:15.61]This announcement covers more than a download.
+[00:15.61]这次发布不只是提供下载。
+[00:19.16]Ava: Okay, let's start with the download. What exactly is available?
+[00:19.16]Ava：好，那先说下载。具体能下载什么？
+[00:24.64]Brian: The weights are available on Hugging Face under the Muse Model License.
+[00:24.64]Brian：模型权重已在 Hugging Face 上提供，采用 Muse Model License 许可。
+[00:29.79]The article calls Muse Spark Open a coding-optimized, open-weights model.
+[00:29.79]文章称 Muse Spark Open 是一个针对编程优化的开放权重模型。
+[00:35.43]Ava: And the huge parameter count? I also saw a much smaller active count.
+[00:35.43]Ava：那庞大的参数量呢？我还看到一个小得多的激活参数量。
+[00:41.28]Brian: Right.
+[00:41.28]Brian：对。
+[00:41.69]It has eight hundred and sixteen billion parameters in total, with forty-two billion active.
+[00:41.69]它共有8160亿参数，其中420亿处于激活状态。
+[00:47.98]Think of a large library with only some books open on the desk.
+[00:47.98]就像一座大图书馆，桌上只摊开了其中几本书。
+[00:52.64]Ava: That helps. How much material can it keep in view?
+[00:52.64]Ava：明白了。它一次能处理多少内容？
+[00:56.86]Brian: Its context window is one million tokens.
+[00:56.86]Brian：它的上下文窗口是100万个 token。
+[00:59.94]Meta says that's useful for project-scale work, including complex dependencies, legacy code, and many files.
+[00:59.94]Meta 称，这有助于处理项目级任务，包括复杂依赖、遗留代码和大量文件。
+[01:08.42]Ava: So the motivation is working across a real codebase, where a fix may touch several files?
+[01:08.42]Ava：所以它的目标是处理真实代码库中可能涉及多个文件的修改？
+[01:15.25]Brian: Exactly.
+[01:15.25]Brian：没错。
+[01:15.86]The article describes training on multi-file refactors, debugging sessions, and long-running tasks.
+[01:15.86]文章称，训练内容包括多文件重构、调试过程和长时间运行的任务。
+[01:23.49]It also claims stronger first-attempt accuracy and reliable tool calling.
+[01:23.49]文章还称，它首次尝试的准确率更高，工具调用也更可靠。
+[01:29.47]Ava: Can we put a number on that first-attempt claim?
+[01:29.47]Ava：首次尝试准确率的提升有具体数字吗？
+[01:32.84]Brian: No. This article doesn't give a coding benchmark number for it.
+[01:32.84]Brian：没有。这篇文章没有给出相关的编程基准测试数据。
+[01:37.39]We can say what Meta claims, but we can't measure the size of the gain here.
+[01:37.39]我们可以转述 Meta 的说法，但无法据此衡量提升幅度。
+[01:43.22]Ava: Fair. It also calls the model agentic. What does that mean in this case?
+[01:43.22]Ava：有道理。文章还称它具备智能体能力，在这里是什么意思？
+[01:49.74]Brian: It means the model is trained for work that unfolds over many steps: plan, act, observe, then correct its course.
+[01:49.74]Brian：意思是它经过训练，能完成多步骤任务：规划、行动、观察，再调整方向。
+[01:59.45]Ava: Like debugging when the first change fails a test, and you have to inspect what happened?
+[01:59.45]Ava：比如调试时，第一次修改没通过测试，就得查明原因？
+[02:05.37]Brian: That's a useful analogy.
+[02:05.37]Brian：这个类比很贴切。
+[02:07.11]The article says it's trained to browse, coordinate subagents for work that can be divided, and use computers across desktop, mobile, and browser.
+[02:07.11]文章称，它经过训练，能够浏览网页、协调子智能体分工，还能在桌面端、移动端和浏览器中操作计算机。
+[02:18.08]Ava: Does it tell people what it's about to do?
+[02:18.08]Ava：它会先告诉用户自己要做什么吗？
+[02:21.17]Brian: The article says it generates separate commentary to state its intent before acting.
+[02:21.17]Brian：文章称，它会在行动前单独生成说明，表明自己的意图。
+[02:26.90]That's meant to make a long task easier to follow.
+[02:26.90]这样用户更容易跟上长任务的进展。
+[02:30.66]Ava: There's also a multimodal claim. What can it take in?
+[02:30.66]Ava：它还有多模态能力。能接收哪些输入？
+[02:35.43]Brian: The article names image, audio, and text inputs.
+[02:35.43]Brian：文章列出了图像、音频和文本输入。
+[02:39.36]It also describes audio-video perception and document understanding.
+[02:39.36]还提到了音视频感知和文档理解。
+[02:45.28]Ava: So, quick recap: this is a coding-focused model built for long tasks, with a large context window and several input types.
+[02:45.28]Ava：简单总结一下：这是一个面向编程和长任务的模型，拥有大上下文窗口，支持多种输入。
+[02:55.35]Brian: Yes. It shares the same base model as Muse Spark one point three.
+[02:55.35]Brian：对。它与 Muse Spark 1.3 使用相同的基础模型。
+[03:00.07]Meta says this open-weights version received extra safety post-training for standalone use.
+[03:00.07]Meta 称，这个开放权重版本还接受了额外的安全后训练，以便独立使用。
+[03:07.03]Ava: Standalone use meaning someone might run it without system guardrails?
+[03:07.03]Ava：独立使用是指有人可能在没有系统级防护的情况下运行它？
+[03:12.15]Brian: That's the situation the article describes.
+[03:12.15]Brian：文章描述的就是这种情况。
+[03:15.07]It calls the result a strong open-source choice for safety, though it doesn't give a safety score here.
+[03:15.07]文章称它是安全性较强的开源选择，但没有给出安全评分。
+[03:22.39]Ava: Now to the part framework engineers love: why bring Helion into this release?
+[03:22.39]Ava：现在聊框架工程师最关心的部分：为什么这次发布要引入 Helion？
+[03:28.67]Brian: Helion is a PyTorch-native language for writing high-performance kernels across different hardware.
+[03:28.67]Brian：Helion 是一种基于 PyTorch 的语言，用于编写适配不同硬件的高性能内核。
+[03:35.87]Muse Spark Open ships with Helion versions of several operations.
+[03:35.87]Muse Spark Open 随附了若干操作的 Helion 实现。
+[03:40.95]Ava: What's the practical problem those kernels solve?
+[03:40.95]Ava：这些内核解决了什么实际问题？
+[03:44.44]Brian: Different accelerators often call for specialized implementations.
+[03:44.44]Brian：不同加速器通常需要专门的实现。
+[03:48.94]Helion aims to let developers tune kernels for hardware and workload choices without maintaining a separate hand-tuned version for every combination.
+[03:48.94]Helion 希望让开发者针对硬件和工作负载调整内核，无须为每种组合单独维护手工调优的版本。
+[03:59.46]Ava: What choices can users tune for?
+[03:59.46]Ava：用户可以针对哪些因素调优？
+[04:02.47]Brian: The article lists accelerator architectures, quantization formats, tensor shapes, and parallelism strategies.
+[04:02.47]Brian：文章列出了加速器架构、量化格式、张量形状和并行策略。
+[04:10.48]That's a wide range of shapes for one kernel author to think about.
+[04:10.48]一位内核开发者要考虑的组合可真不少。
+[04:15.76]Ava: And the speed results? Give me the careful version.
+[04:15.76]Ava：那速度数据呢？请说得严谨些。
+[04:20.04]Brian: For individual operations on NVIDIA G B three hundred, it reports speedups from one point zero three to three point nine five times over custom kernels in hardware-specific languages.
+[04:20.04]Brian：文章报告称，在 NVIDIA GB300 上运行单项操作时，相比用特定硬件语言编写的定制内核，速度提升了1.03到3.95倍。
+[04:32.10]Ava: Wait, so that's a kernel comparison.
+[04:32.10]Ava：等等，所以这是内核之间的比较。
+[04:34.77]It doesn't mean the whole model runs nearly four times faster?
+[04:34.77]这不意味着整个模型的运行速度提高了近四倍，对吧？
+[04:39.70]Brian: Right.
+[04:39.70]Brian：对。
+[04:40.10]The article says those kernels ported directly to AMD M I three hundred and fifty, with similar performance improvements.
+[04:40.10]文章说，这些内核可直接移植到 AMD MI350，性能提升也相近。
+[04:48.17]Its reported overall end-to-end throughput gain there is three percent.
+[04:48.17]据文章报告，它在该平台上的整体端到端吞吐量提升了 3%。
+[04:53.25]Ava: That's a useful distinction.
+[04:53.25]Ava：这个区别很重要。
+[04:55.24]Small operations can win a lot while the complete serving path gains less.
+[04:55.24]单个小操作可能快很多，但完整的推理服务流程提升较小。
+[05:00.85]Brian: Exactly. The article also introduces Helion megakernels in SGLang.
+[05:00.85]Brian：没错。文章还介绍了 SGLang 中的 Helion 巨型内核。
+[05:06.18]They combine multiple operations in one persistent kernel to improve low-latency inference.
+[05:06.18]它们把多个操作合并到一个常驻内核中，以降低推理延迟。
+[05:13.87]Ava: Persistent sounds like keeping a kitchen station running while several dishes move through it.
+[05:13.87]Ava：常驻内核听起来像让厨房里的一个工位持续运转，接连处理好几道菜。
+[05:19.79]Brian: That's the idea to keep in mind.
+[05:19.79]Brian：可以这么理解。
+[05:21.94]The article says these megakernels can also be autotuned for different shapes and hardware.
+[05:21.94]文章说，这些巨型内核还能针对不同的数据形状和硬件自动调优。
+[05:28.42]Ava: Where can people run the model?
+[05:28.42]Ava：大家可以在哪里运行这个模型？
+[05:30.81]Brian: The article says Muse Spark Open is optimized for the SGLang and vLLM inference engines, with optimization for NVIDIA, AMD, and Intel.
+[05:30.81]Brian：文章说，Muse Spark Open 针对 SGLang 和 vLLM 推理引擎做了优化，也针对 NVIDIA、AMD 和 Intel 硬件做了优化。
+[05:41.60]Ava: And if I want to adapt it to my own workload?
+[05:41.60]Ava：如果我想让它适应自己的工作负载呢？
+[05:45.38]Brian: TorchTitan now includes a model definition for Muse Spark Open.
+[05:45.38]Brian：TorchTitan 现在包含 Muse Spark Open 的模型定义。
+[05:49.87]It's PyTorch's platform for experimenting with and training generative models at scale.
+[05:49.87]它是 PyTorch 用于大规模生成模型实验和训练的平台。
+[05:56.41]Ava: What kind of tuning does TorchTitan support here?
+[05:56.41]Ava：TorchTitan 在这里支持哪些调优方式？
+[05:59.86]Brian: It supports multi-turn supervised fine-tuning and LoRA, short for low-rank adaptation.
+[05:59.86]Brian：它支持多轮监督微调和 LoRA，也就是低秩适配。
+[06:06.49]Its TitanRL component supports reinforcement learning.
+[06:06.49]其中的 TitanRL 组件支持强化学习。
+[06:11.01]Ava: What's still unclear after reading this announcement?
+[06:11.01]Ava：读完这份公告，还有哪些信息不清楚？
+[06:14.72]Brian: We don't get coding benchmark figures or detailed safety results here.
+[06:14.72]Brian：这里没有给出编程基准测试数据，也没有详细的安全性结果。
+[06:19.41]And the stated kernel speedups alone can't tell us end-to-end performance on every setup.
+[06:19.41]而且，单看公布的内核加速数据，也无法判断各种配置下的端到端性能。
+[06:25.72]Ava: Let's close with three points.
+[06:25.72]Ava：最后总结三点。
+[06:28.14]First, the weights are available under the Muse Model License.
+[06:28.14]第一，模型权重按 Muse Model License 提供。
+[06:33.13]Second, Helion supplies portable, tunable kernels.
+[06:33.13]第二，Helion 提供可移植、可调优的内核。
+[06:37.50]Brian: Third, TorchTitan supports further tuning.
+[06:37.50]Brian：第三，TorchTitan 支持进一步微调。
+[06:40.83]That's Muse Spark Open from model to serving to training. Thanks for listening.
+[06:40.83]以上就是 Muse Spark Open 从模型、推理服务到训练的情况。感谢收听。

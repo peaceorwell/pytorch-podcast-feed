@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PyTorch 编译器如何融合 GPU 内核</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/why-is-pytorch-compile-so-fast-kernel-fusion/">原视频 / 原文</a></p><h1>PyTorch 编译器如何融合 GPU 内核</h1>
+<p>依据：原文</p>
+<p>来源：https://pytorch.org/blog/why-is-pytorch-compile-so-fast-kernel-fusion/</p>
+<p>PyTorch 文章解释了 torch.compile 的一项关键优化：Inductor 将多个运算合并为 Triton 内核，减少 GPU 启动内核的开销，以及中间张量在全局内存中的读写。文章用逐元素运算说明机制，并介绍其他融合方式。</p>
+<h3>问题与核心机制</h3>
+<p>未融合时，多个 torch 运算分别启动 GPU 内核。每次启动都有开销，前一步的结果还要写入全局内存，供下一步读取。纵向融合把有依赖关系的运算接在同一个内核中，使中间值留在寄存器里，避免生成和读取临时张量。Inductor 会自动识别并组合适合融合的运算。</p>
+<h3>逐元素运算示例</h3>
+<p>文章以乘法、加法和 sigmoid 为例。未融合时，三个 Triton 内核各自读取输入、计算并写出结果；融合后，一个内核依次完成三步，只写出最终结果。按文章统计的完整张量读写次数，未融合方案读取五个张量、写入三个张量，共八次；融合方案读取三个张量、写入一个张量，共四次。内核启动次数从三次降为一次，乘法和加法产生的两个中间缓冲区也被省去。</p>
+<h3>其他融合方式</h3>
+<p>纵向融合还包括把求和、均值或最大值等归约运算与前后运算组合；在矩阵乘法末尾直接执行偏置相加、ReLU 等操作；以及在矩阵乘法读取输入时完成归一化等预处理。横向融合则把共享输入的独立运算放进同一内核，例如一次读取输入，同时计算 sin 和 cos。</p>
+<h3>结果边界与实践</h3>
+<p>示例中“内存流量减少 50%”指完整张量读写次数从八次降到四次，并非实测运行时间缩短 50%。文章开头提到编译可带来最高 10 倍加速，但没有给出该示例的计时、硬件或版本条件，不能据此推断具体模型的加速幅度。开发者可以启用 torch.compile，并通过 TORCH_LOGS 查看生成的 Triton 内核；示例中的内核名称显示 add、mul 和 sum 被融合，可用于检查自己的代码是否发生了预期的融合。</p></body></html>

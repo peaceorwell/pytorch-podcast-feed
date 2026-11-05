@@ -1,0 +1,159 @@
+[ti:Finding Your Way Into the PyTorch Ecosystem]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: AI, or artificial intelligence, models are moving into everyday infrastructure.
+[00:00.00]Ava：AI，也就是人工智能模型，正逐渐融入日常基础设施。
+[00:06.11]If I know some PyTorch but have gaps, where do I start?
+[00:06.11]如果我懂一些 PyTorch，但还有知识盲区，该从哪里学起？
+[00:10.72]Brian: That's the question behind a new Introduction Track at PyTorch Conference North America and a full-day PyTorch Associate Training session.
+[00:10.72]Brian：这正是 PyTorch 北美大会新设的入门专题和全天 PyTorch Associate 培训要解决的问题。
+[00:19.85]Both focus on practical skills.
+[00:19.85]两者都注重实用技能。
+[00:22.25]Ava: Practical as in building a model, or practical as in debugging one when it's slow?
+[00:22.25]Ava：实用是指构建模型，还是模型运行缓慢时会排查问题？
+[00:28.60]Brian: Both. The article says teams need experience training, optimizing, and deploying models.
+[00:28.60]Brian：两者都是。文章说，团队需要训练、优化和部署模型的经验。
+[00:35.20]The track also welcomes experienced engineers exploring an unfamiliar part of the ecosystem.
+[00:35.20]这个专题也欢迎想探索生态中陌生领域的资深工程师。
+[00:42.44]Ava: Good. An introduction doesn't have to mean I need an introduction to Python.
+[00:42.44]Ava：那就好。入门不代表我还得从 Python 学起。
+[00:47.72]What's the starting point?
+[00:47.72]从哪里开始？
+[00:49.87]Brian: One session begins with tensors, the containers used for model data, and gradients, which guide learning.
+[00:49.87]Brian：有一场课程从张量和梯度讲起。张量用于存放模型数据，梯度则指导学习。
+[00:57.34]It uses visuals and exercises before a neural network and training loop.
+[00:57.34]课程先用图示和练习讲解，再进入神经网络和训练循环。
+[01:02.82]Ava: And dynamic computation graphs?
+[01:02.82]Ava：那动态图呢？
+[01:05.29]I can read that phrase, but I'd like a picture in my head.
+[01:05.29]这个词我看得懂，但想在脑中有个具体画面。
+[01:10.27]Brian: Think of a graph as a map of the operations a model performs.
+[01:10.27]Brian：可以把计算图想成模型所执行操作的路线图。
+[01:14.52]That session aims to build that mental picture before asking people to implement anything.
+[01:14.52]这场课程希望大家先建立这种直观认识，再动手实现。
+[01:21.14]Ava: Right. But I'm a framework engineer. Is there a session where I can look under the hood?
+[01:21.14]Ava：明白。但我是框架工程师，有没有讲底层原理的课程？
+[01:27.49]Brian: Yes.
+[01:27.49]Brian：有。
+[01:27.82]TinyTorch guides developers through rebuilding tensors, autograd, optimizers, and transformers in pure Python.
+[01:27.82]TinyTorch 会带开发者用纯 Python 重新实现张量、自动求导、优化器和 Transformer。
+[01:36.94]Autograd means automatic gradient calculation.
+[01:36.94]自动求导就是自动计算梯度。
+[01:40.76]It's like assembling an engine to understand its parts.
+[01:40.76]这就像亲手组装发动机，借此弄懂各个部件。
+[01:45.67]Ava: That's the part I didn't get. Is TinyTorch presented as a replacement for PyTorch?
+[01:45.67]Ava：这正是我没弄明白的地方。TinyTorch 是作为 PyTorch 的替代品来介绍的吗？
+[01:52.02]Brian: The article calls it a project for learning framework internals.
+[01:52.02]Brian：文章称它是一个学习框架内部机制的项目。
+[01:56.95]The motivation is understanding complex logic, hardware optimization, and backend contributions.
+[01:56.95]目的是理解复杂逻辑、硬件优化，以及如何为后端做贡献。
+[02:04.35]It doesn't claim TinyTorch replaces PyTorch.
+[02:04.35]文章并没说 TinyTorch 能取代 PyTorch。
+[02:08.09]Ava: What about writing code for a graphics processing unit, or GPU?
+[02:08.09]Ava：那为图形处理器，也就是 GPU，编写代码呢？
+[02:12.79]That sounds like a steep jump.
+[02:12.79]感觉跨度很大。
+[02:15.37]Brian: The Triton session is meant to make that jump approachable.
+[02:15.37]Brian：Triton 课程就是为了让这一步更容易上手。
+[02:19.43]Triton is an open-source programming model embedded in Python for writing high-performance GPU code.
+[02:19.43]Triton 是嵌入 Python 的开源编程模型，用于编写高性能 GPU 代码。
+[02:26.64]Ava: Wait, so what do people actually write there?
+[02:26.64]Ava：等等，大家具体会写什么？
+[02:30.11]Brian: Custom GPU kernels, which are small programs run on the GPU.
+[02:30.11]Brian：自定义 GPU 核函数，也就是在 GPU 上运行的小程序。
+[02:34.57]They cover memory movement and parallel work, then write vector addition and matrix multiplication kernels.
+[02:34.57]课程会讲内存数据搬运和并行计算，然后编写向量加法与矩阵乘法的核函数。
+[02:42.87]Ava: And the article mentions torch.compile. Where does that fit?
+[02:42.87]Ava：文章还提到了 torch.compile，它在这里起什么作用？
+[02:48.33]Brian: It's a PyTorch tool developers use to generate GPU kernels.
+[02:48.33]Brian：它是 PyTorch 中用于生成 GPU 核函数的工具。
+[02:52.68]The Triton talk addresses the next question: how do you write a custom kernel yourself?
+[02:52.68]Triton 课程接着回答：如何自己编写自定义核函数？
+[02:59.44]Ava: Say I've written one. How do I tell whether it helps?
+[02:59.44]Ava：假设我已经写好了，怎么判断它有没有用？
+[03:03.67]Brian: There's a talk on reading PyTorch traces.
+[03:03.67]Brian：有一场讲座介绍如何解读 PyTorch 的执行轨迹。
+[03:06.71]A trace is like a receipt for execution: it helps you see where time went before you try to optimize.
+[03:06.71]执行轨迹就像运行记录，能帮你在优化前看清时间花在了哪里。
+[03:14.54]Ava: What should I listen for in that session?
+[03:14.54]Ava：这场讲座该重点听什么？
+[03:17.60]Brian: The path from the central processing unit, or CPU, to the GPU; whether work is limited by computation or overhead; and why kernel timings vary.
+[03:17.60]Brian：从中央处理器（CPU）到 GPU 的执行路径；性能瓶颈在计算还是额外开销；以及核函数耗时为何会波动。
+[03:28.84]Ava: Does it compare tools, or just explain the charts?
+[03:28.84]Ava：会比较工具，还是只讲图表？
+[03:33.11]Brian: It plans workload comparisons using torch.compile, fused Triton kernels, and Liger kernels.
+[03:33.11]Brian：文章计划用 torch.compile、融合的 Triton 内核和 Liger 内核进行工作负载对比。
+[03:39.59]The article gives no winning times, so we'd have to hear the talk for those.
+[03:39.59]文章没有给出哪种更快、快多少，得听讲座才知道。
+[03:45.36]Ava: That's a useful distinction. What about models that handle both images and words?
+[03:45.36]Ava：这个区别很有用。那能同时处理图像和文字的模型呢？
+[03:51.78]Brian: A vision-language models session examines five open-source architectures.
+[03:51.78]Brian：有一场视觉语言模型课程，会分析五种开源架构。
+[03:57.67]It covers turning images into tokens, combining vision and language, multi-GPU fine-tuning, and serving overhead.
+[03:57.67]内容包括将图像转成词元、融合视觉与语言、多 GPU 微调，以及模型服务的额外开销。
+[04:07.13]Ava: Serving overhead sounds broad. Is there a concrete example?
+[04:07.13]Ava：模型服务的额外开销听起来很笼统。有具体例子吗？
+[04:12.02]Brian: Yes: image-token expansion and KV-cache pressure.
+[04:12.02]Brian：有，比如图像词元扩张和 KV 缓存的内存压力。
+[04:15.77]The KV-cache holds key and value data used by attention, and the session treats its memory use as a serving challenge.
+[04:15.77]KV 缓存保存注意力机制所用的键和值；课程会把它的内存占用作为模型服务的一项挑战。
+[04:25.16]Ava: There's also a vLLM session. Is that connected?
+[04:25.16]Ava：还有一场 vLLM 课程。这和前面有关吗？
+[04:29.78]Brian: It focuses on attention patterns for long contexts, including hybrid, sliding-window, sparse, and linear attention.
+[04:29.78]Brian：重点讲解长上下文中的注意力模式，包括混合、滑动窗口、稀疏和线性注意力。
+[04:38.84]It explains how vLLM represents them with backends, connectors, and memory allocators.
+[04:38.84]还会解释 vLLM 如何通过后端、连接器和内存分配器实现这些模式。
+[04:45.97]Ava: Let me put it this way.
+[04:45.97]Ava：我换个说法。
+[04:47.47]The track goes from building blocks to what happens during real execution?
+[04:47.47]这条学习路线是从基础组件讲到实际运行过程吗？
+[04:52.66]Brian: Exactly.
+[04:52.66]Brian：没错。
+[04:53.21]It moves across framework internals, GPU programming, performance traces, and model serving.
+[04:53.21]内容涵盖框架内部机制、GPU 编程、性能分析和模型服务。
+[04:59.53]Those are different entry points, depending on what you want to learn.
+[04:59.53]你可以根据想学的内容，从不同方向入手。
+[05:04.70]Ava: Now the separate Associate Training: what happens during that day?
+[05:04.70]Ava：那单独的 Associate Training，一天里会学什么？
+[05:09.82]Brian: It's an in-person, instructor-led workshop with sequential modules.
+[05:09.82]Brian：这是由讲师现场授课的工作坊，课程按模块依次展开。
+[05:14.92]There are live demos, guided Jupyter Notebook labs, quizzes, reviews, and projects based on production scenarios.
+[05:14.92]有现场演示、指导式 Jupyter Notebook 实验、测验、复盘，以及基于生产场景的项目。
+[05:23.88]Ava: So attendees build and train models, then get feedback while they're working?
+[05:23.88]Ava：也就是说，学员会构建和训练模型，并在操作时获得反馈？
+[05:29.43]Brian: That's the plan. The labs also cover optimization.
+[05:29.43]Brian：对。实验还会涵盖优化。
+[05:32.86]The article says participants can get direct feedback and real-time guidance from instructors while learning alongside peers.
+[05:32.86]文章说，学员可以与同伴一起学习，并获得讲师的直接反馈和实时指导。
+[05:41.76]Ava: What should someone know before arriving?
+[05:41.76]Ava：参加前需要具备哪些基础？
+[05:44.70]Brian: They should be comfortable with Python, know basic machine learning, and be familiar with Jupyter Notebooks and basic Google Colab workflows.
+[05:44.70]Brian：要熟悉 Python，了解机器学习基础，并会使用 Jupyter Notebook 和 Google Colab 的基本功能。
+[05:53.78]They'll need an active Google Account for exercises.
+[05:53.78]练习还需要一个有效的 Google 账号。
+[05:57.48]Ava: And what's the practical outcome? Is there an exam involved?
+[05:57.48]Ava：学完有什么实际收获？需要考试吗？
+[06:02.20]Brian: Anyone who completes the training receives a voucher valued at two hundred fifty dollars for the PyTorch Certified Associate exam, or PTCA.
+[06:02.20]Brian：完成培训的人都能获得一张价值 250 美元的 PyTorch Certified Associate（PTCA）考试代金券。
+[06:12.23]The article doesn't report pass rates.
+[06:12.23]文章没有公布考试通过率。
+[06:15.32]Ava: Before we move on, when and where is the training?
+[06:15.32]Ava：继续之前，培训何时、在哪里举行？
+[06:18.98]Brian: It's on Monday, October nineteenth, twenty twenty-six, from nine in the morning to five in the afternoon in San Jose.
+[06:18.98]Brian：2026 年 10 月 19 日星期一，上午 9 点到下午 5 点，地点在圣何塞。
+[06:28.20]Faradawn Yang, an NVIDIA engineer, is the instructor.
+[06:28.20]讲师是 NVIDIA 工程师 Faradawn Yang。
+[06:32.72]Ava: Is there anything to watch for when signing up?
+[06:32.72]Ava：报名时有什么要注意的？
+[06:36.22]Brian: Pre-registration is required, and space is limited.
+[06:36.22]Brian：需要提前报名，名额有限。
+[06:39.83]The article says attendees can add the training to their conference registration through Tuesday, October thirteenth.
+[06:39.83]文章说，参会者可在 10 月 13 日星期二前，将培训加入自己的大会报名项目。
+[06:48.47]Ava: Let's recap. First, the Introduction Track offers several ways into PyTorch.
+[06:48.47]Ava：总结一下。第一，Introduction Track 提供了多种学习 PyTorch 的入门方式。
+[06:54.40]Second, the training adds guided practice.
+[06:54.40]第二，培训增加了有指导的实践。
+[06:57.68]Third, the article describes planned learning, not measured results.
+[06:57.68]第三，文章介绍的是计划中的学习内容，没有提供效果数据。
+[07:03.34]Brian: That's it. Thanks for listening, and we'll see you next time.
+[07:03.34]Brian：就是这样。感谢收听，下次见。

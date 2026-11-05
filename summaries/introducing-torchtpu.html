@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TorchTPU：PyTorch 的原生 TPU 后端</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/introducing-torchtpu/">原视频 / 原文</a></p><h1>TorchTPU：PyTorch 的原生 TPU 后端</h1>
+<p>依据：原文</p>
+<p>来源：https://pytorch.org/blog/introducing-torchtpu/</p>
+<p>TorchTPU 是 Google 与 Meta 合作开发的开源项目，让 PyTorch 模型以较小改动运行在 Google TPU 上，同时支持即时执行、torch.compile 和分布式训练。项目仍在开发中，文中报告了模型兼容性及部分训练、推理结果。</p>
+<h3>要解决的问题</h3>
+<p>此前的 PyTorch/XLA 依赖 Lazy Tensor，常需修改代码来划定编译区域，编译延迟较高，也缺少原生即时执行支持。TorchTPU 以 PyTorch 后端的方式接入 TPU。简单模型可将设备从 cuda 改为 tpu；分布式示例使用 tpu_dist，文中也给出不显式指定后端的初始化写法。运行分布式程序还需配置 TPU 拓扑。能运行不等于达到最佳性能。</p>
+<h3>执行与编译机制</h3>
+<p>TorchTPU 通过 PyTorch 调度器接收 ATen 算子，将其转换为 StableHLO，再由 XLA 编译、PjRT 执行。StableHLO 不支持共享视图和原位修改，TorchTPU 通过视图分解、视图逆变换及延迟算子保留相应的 PyTorch 语义。默认 Strict 模式逐算子异步提交；DeferAndFuse 延后并融合算子，作者称可比 Strict 快 50% 或更多，并降低峰值 HBM 占用。编译缓存支持进程内、同机跨进程及可选的持久化复用。torch.compile 使用 Dynamo 前端；有界动态形状仍在开发，因此目前会自动设置 dynamic=False。</p>
+<h3>精度与分布式</h3>
+<p>矩阵乘法默认采用 BF16 输入、FP32 累加的 medium 模式；high 和 highest 分别用约 3 倍、6 倍的 MXU 计算量换取更高精度。TorchTPU 在 Process Group 层实现 TPU 集合通信，支持 DTensor 等 PyTorch 用法，并采用每设备一进程。为避免各进程的通信程序不一致，默认将集合操作单独编译；与把通信嵌入较大 StableHLO 模块、使其同计算重叠的方式相比，作者称这在一些场景可能带来约 30% 至 40% 的端到端性能损失。</p>
+<h3>兼容性验证</h3>
+<p>项目测试了 4,917 个 Hugging Face 模型，其中 4,821 个通过无崩溃测试，比例为 98%；657 个架构代表模型中，638 个达到相对 GPU 基线的数值一致性标准，比例为 97%。有界动态形状的数值测试覆盖了上述模型语料中的 839 个因果语言模型，其中 834 个结果正确。这些指标分别衡量运行稳定性和特定阈值下的数值结果，不能等同于所有模型都已达到最佳性能。</p>
+<h3>训练性能</h3>
+<p>在无需模型专用内核的 Muse Glimmer 30B 示例中，单块 TPU v7 使用 FSDP、world size 为 2，序列长度 5,120 时预填充达到约 25.7k token/s、59% MFU；四块 TPU v7 启用激活检查点后，在相同序列长度下训练达到每块约 5.6k token/s、38% MFU。Qwen3 MoE 235B 的 TorchTitan 扩展测试采用每 TensorCore 批量 16、序列长度 4,096；单个 slice 用 FSDP，多个 slice 用 HSDP。从 1,024 扩至 8,192 块 TPU v7 时，每个 TensorCore 的吞吐量由 2,236 降至 2,104 token/s，MFU 由 28.8% 降至 27.1%。作者据此称整体吞吐量近线性增长，呈现弱扩展。该测试还使用 Pallas 内核、混合精度和激活检查点等优化。</p>
+<h3>推理与实际限制</h3>
+<p>文章引用 SemiAnalysis 的 InferenceX 8K/1K 评测，报告 Qwen3.5 推理成本为每百万 token 2.01 美分；Google 提交的 AgentX 四块 TPU v7 测试结果为每百万 token 0.83 美分。这些结果依赖定制 Pallas 内核及运行时调优。自定义内核可通过 Pallas、Tokamax 或实验性的 Helion 接入。TPU 的单进程设备限制、动态形状支持和部分尚未支持的算子，仍会影响现有程序迁移。</p></body></html>

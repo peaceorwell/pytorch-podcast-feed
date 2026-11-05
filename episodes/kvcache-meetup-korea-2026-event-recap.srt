@@ -1,0 +1,299 @@
+1
+00:00:00,000 --> 00:00:06,417
+Ava: KV Cache reuse can cut prefill work, but moving that cache also costs time.
+Ava：复用 KV Cache 能减少预填充计算，但搬运缓存也需要时间。
+
+2
+00:00:06,417 --> 00:00:15,494
+KVCache Meetup Korea 2026 put that trade-off beside GPU bottlenecks, scheduling, and cache management.
+KVCache Meetup Korea 2026 将这一取舍与 GPU 瓶颈、调度和缓存管理放在一起讨论。
+
+3
+00:00:15,494 --> 00:00:26,700
+Brian: PyTorchKR and XCENA co-hosted the event on Sep 30, 2026, with sponsorship from Tensormesh.
+Brian：PyTorchKR 和 XCENA 于 2026 年 9 月 30 日联合举办了这场活动，由 Tensormesh 赞助。
+
+4
+00:00:26,700 --> 00:00:34,396
+Speakers came from XCENA, SK hynix, FuriosaAI, and LMCache.
+演讲者来自 XCENA、SK hynix、FuriosaAI 和 LMCache。
+
+5
+00:00:34,396 --> 00:00:38,734
+Ava: Let's start with CXL. So capacity is only part of it.
+Ava：先说 CXL。容量只是其中一方面。
+
+6
+00:00:38,734 --> 00:00:44,322
+The inference engine still needs to get useful cache to the GPU.
+推理引擎还得把有用的缓存送到 GPU。
+
+7
+00:00:44,322 --> 00:00:52,832
+Brian: Jooho Lee explained that CXL expands the memory space CPUs can access with load and store instructions.
+Brian：Jooho Lee 解释说，CXL 扩展了 CPU 可通过加载和存储指令访问的内存空间。
+
+8
+00:00:52,832 --> 00:00:56,550
+He described a pool shared by multiple hosts.
+他介绍了一个由多台主机共享的内存池。
+
+9
+00:00:56,550 --> 00:01:03,408
+Frequently used cache stays in DRAM, while less frequently used cache goes on SSDs.
+常用缓存留在 DRAM，不常用的则放到 SSD 上。
+
+10
+00:01:03,408 --> 00:01:10,679
+XCENA's open-source storage engine, Maru, connects the inference engine to those layers.
+XCENA 的开源存储引擎 Maru 将推理引擎与这些存储层连接起来。
+
+11
+00:01:10,679 --> 00:01:15,656
+The path and cost of moving cache to the GPU matter too.
+缓存送往 GPU 的路径和搬运成本也很重要。
+
+12
+00:01:15,656 --> 00:01:22,007
+Ava: The talk also covered splitting mixture-of-experts work between a GPU and MX1.
+Ava：演讲还谈到如何让 GPU 和 MX1 分担混合专家模型的工作。
+
+13
+00:01:22,007 --> 00:01:27,462
+Some expert weights sit in memory near MX1 and are processed there.
+部分专家权重存放在 MX1 附近的内存中，并由 MX1 处理。
+
+14
+00:01:27,462 --> 00:01:33,430
+The design transfers activations and results instead of full weights.
+这种设计传输的是激活值和结果，而非完整权重。
+
+15
+00:01:33,430 --> 00:01:38,449
+Brian: Sejin Oh looked at GPU compute and HBM bandwidth.
+Brian：Sejin Oh 考察了 GPU 算力和 HBM 带宽。
+
+16
+00:01:38,449 --> 00:01:44,492
+The experiments used two H100 GPUs, Llama 3.1 8B, and vLLM.
+实验使用了两块 H100 GPU、Llama 3.1 8B 和 vLLM。
+
+17
+00:01:44,492 --> 00:01:52,072
+GPU compute use was high during the main projection operations in prefill.
+预填充阶段的主要投影运算对 GPU 算力的利用率很高。
+
+18
+00:01:52,072 --> 00:01:56,724
+During decode, HBM bandwidth use was high.
+解码阶段的 HBM 带宽利用率很高。
+
+19
+00:01:56,724 --> 00:02:01,920
+Ava: That helps explain why reusing KV Cache can change the bottleneck.
+Ava：这有助于解释为什么复用 KV Cache 会改变瓶颈所在。
+
+20
+00:02:01,920 --> 00:02:08,018
+If prefill needs less computation, memory bandwidth can become the limit.
+如果预填充所需计算减少，内存带宽就可能成为限制。
+
+21
+00:02:08,018 --> 00:02:19,049
+Brian: Whether a service needs more memory capacity or bandwidth depends on input and output lengths, batch size, and other operating conditions.
+Brian：服务更需要内存容量还是带宽，取决于输入和输出长度、批量大小等运行条件。
+
+22
+00:02:19,049 --> 00:02:26,992
+The talk also separated TTFT, time to the first output token, from TPOT, time per output token.
+演讲还区分了 TTFT（首个输出 token 的生成时间）和 TPOT（每个输出 token 的生成时间）。
+
+23
+00:02:26,992 --> 00:02:33,867
+Ava: Donghun Lee's FuriosaAI talk moved from resource limits to request scheduling on RNGD.
+Ava：Donghun Lee 在 FuriosaAI 的演讲中，将话题从资源限制转向了 RNGD 上的请求调度。
+
+24
+00:02:33,867 --> 00:02:37,974
+He followed requests from arrival to execution.
+他梳理了请求从到达到执行的过程。
+
+25
+00:02:37,974 --> 00:02:47,583
+Brian: He covered PagedAttention for KV Cache blocks, Continuous batching for active requests, and Chunked prefill for smaller prompt segments.
+Brian：他介绍了用于 KV Cache 块的 PagedAttention、处理活跃请求的 Continuous batching，以及将提示词拆成小段的 Chunked prefill。
+
+26
+00:02:47,583 --> 00:02:53,444
+He also introduced buckets, which are tensor shapes compiled before execution.
+他还介绍了 bucket，即执行前预先编译的张量形状。
+
+27
+00:02:53,444 --> 00:03:00,544
+Ava: Combining requests can raise throughput, but a larger batch may need a larger bucket and add latency.
+Ava：合并请求能提高吞吐量，但更大的批量可能需要更大的 bucket，从而增加延迟。
+
+28
+00:03:00,544 --> 00:03:03,706
+Padding in a fixed shape has a cost too.
+固定形状下的填充也有开销。
+
+29
+00:03:03,706 --> 00:03:07,660
+Brian: Furiosa-LLM measures execution cost on the actual hardware.
+Brian：Furiosa-LLM 在实际硬件上测量执行成本。
+
+30
+00:03:07,660 --> 00:03:18,600
+It merges two batches when their combined cost is lower than processing them separately, accounting for each request's context length and the cost of padding.
+考虑每个请求的上下文长度和填充成本后，如果合并执行的成本低于分别处理，它就会合并两个批次。
+
+31
+00:03:18,600 --> 00:03:23,146
+Ava: What about the cost of retrieving cache instead of recomputing it?
+Ava：取回缓存与重新计算相比，成本如何？
+
+32
+00:03:23,146 --> 00:03:25,838
+The talk compared those two paths.
+演讲比较了这两种方式。
+
+33
+00:03:25,838 --> 00:03:34,408
+Brian: The slides used a 12,370-token prompt, one request at a time, and three measurements for each condition.
+Brian：幻灯片中的测试使用了 12,370 个 token 的提示词，每次处理一个请求，每种条件测量三次。
+
+34
+00:03:34,408 --> 00:03:49,756
+Retrieving the host cache and generating the first token took about 92 ms. Recomputing the cache took about 900 ms. Under those test conditions, retrieving the host cache was faster.
+取回主机缓存并生成首个 token 约需 92 毫秒；重新计算缓存约需 900 毫秒。在这些测试条件下，取回主机缓存更快。
+
+35
+00:03:49,756 --> 00:03:54,701
+Ava: The benefit depends on how much data moves and the available bandwidth.
+Ava：收益取决于传输的数据量和可用带宽。
+
+36
+00:03:54,701 --> 00:04:00,064
+The talk described overlapping cache transfer with computation at each layer.
+演讲介绍了如何在每一层让缓存传输与计算重叠进行。
+
+37
+00:04:00,064 --> 00:04:07,866
+Experimental features included a network-shared cache and running prefill and decode on separate resources.
+实验性功能包括网络共享缓存，以及让预填充和解码使用不同的资源。
+
+38
+00:04:07,866 --> 00:04:11,276
+Brian: Baoloong Mao's LMCache talk focused on MP Mode.
+Brian：Baoloong Mao 的 LMCache 演讲聚焦 MP Mode。
+
+39
+00:04:11,276 --> 00:04:17,225
+It moves cache management out of the inference engine and into a separate process.
+它将缓存管理从推理引擎移到独立进程。
+
+40
+00:04:17,225 --> 00:04:23,960
+That separates inference computation from cache I/O to reduce competition for resources.
+这样能将推理计算与缓存 I/O 分开，减少资源争用。
+
+41
+00:04:23,960 --> 00:04:27,131
+Ava: The processes still need to coordinate.
+Ava：这些进程仍需相互协调。
+
+42
+00:04:27,131 --> 00:04:35,206
+They exchange control information such as block IDs, while CUDA IPC lets them share GPU memory.
+它们交换块 ID 等控制信息，并通过 CUDA IPC 共享 GPU 内存。
+
+43
+00:04:35,206 --> 00:04:41,191
+Brian: Within a node, they use a shared CPU memory pool to reduce duplicate storage.
+Brian：在同一节点内，它们使用共享 CPU 内存池来减少重复存储。
+
+44
+00:04:41,191 --> 00:04:47,292
+MP Mode also reads and loads data from several storage layers in parallel.
+MP Mode 还能并行读取和加载多个存储层的数据。
+
+45
+00:04:47,292 --> 00:04:49,909
+Ava: The operations side matters as well.
+Ava：运维方面也很重要。
+
+46
+00:04:49,909 --> 00:05:00,074
+The talk covered Kubernetes deployment, cache hit rates, cache lifetimes, and isolating failures between inference and cache processes.
+演讲涉及 Kubernetes 部署、缓存命中率、缓存存活时间，以及推理进程与缓存进程之间的故障隔离。
+
+47
+00:05:00,074 --> 00:05:09,443
+Brian: In the Q&A, attendees asked about separating prefill and decode compared with mixed batching, which processes them together.
+Brian：问答环节中，听众询问了分离预填充与解码，和将两者一起处理的混合批处理有何区别。
+
+48
+00:05:09,443 --> 00:05:18,256
+They also asked about LMCache alongside vLLM's built-in cache features and plans to extend MP Mode across nodes.
+他们还问到 LMCache 如何与 vLLM 内置的缓存功能配合，以及将 MP Mode 扩展到跨节点的计划。
+
+49
+00:05:18,256 --> 00:05:21,158
+Ava: The event included time to connect.
+Ava：活动也安排了交流时间。
+
+50
+00:05:21,158 --> 00:05:30,860
+At registration, attendees could choose up to two interest stickers from Model, Serving, Infra, Hardware, and Memory.
+签到时，参加者可以从 Model、Serving、Infra、Hardware 和 Memory 中选择最多两张兴趣贴纸。
+
+51
+00:05:30,860 --> 00:05:37,926
+They later gathered in small groups and examined XCENA's CXL server at the venue.
+随后，他们分成小组，在现场查看了 XCENA 的 CXL 服务器。
+
+52
+00:05:37,926 --> 00:05:42,953
+Brian: The feedback summary was based on 72 survey responses.
+Brian：反馈总结基于 72 份问卷答复。
+
+53
+00:05:42,953 --> 00:05:53,287
+In a question that allowed multiple selections, 48 respondents chose the program as a positive point, or 66.7%.
+在一道多选题中，48 人将活动议程选为亮点，占 66.7%。
+
+54
+00:05:53,287 --> 00:05:59,036
+The venue and facilities received 30 selections, or 41.7%.
+场地和设施获得 30 票，占 41.7%。
+
+55
+00:05:59,036 --> 00:06:06,386
+Ava: Respondents raised microphone quality and volume, screen visibility from the back rows, and limited space.
+Ava：受访者提到麦克风音质和音量、后排看不清屏幕，以及空间有限等问题。
+
+56
+00:06:06,386 --> 00:06:10,824
+Some wanted interpretation or translation for the English talks.
+一些人希望英语演讲能提供口译或翻译。
+
+57
+00:06:10,824 --> 00:06:16,930
+Others asked for a dedicated session where developers in the same field could talk.
+还有人希望设置专场，让同领域的开发者交流。
+
+58
+00:06:16,930 --> 00:06:28,910
+Brian: For future events, respondents asked for real production examples, vLLM and SGLang internals, NPU compilers, recent inference optimization techniques, and demos.
+Brian：对于今后的活动，受访者希望看到真实的生产案例、vLLM 和 SGLang 的内部机制、NPU 编译器、最新的推理优化技术，以及演示。
+
+59
+00:06:28,910 --> 00:06:38,359
+Across these talks, cache capacity, transfer cost, compute, bandwidth, and scheduling all shaped the discussion of LLM serving.
+这些演讲围绕 LLM 服务展开讨论，缓存容量、传输成本、算力、带宽和调度都是关键因素。
+
+60
+00:06:38,359 --> 00:06:40,272
+Thanks for listening.
+感谢收听。

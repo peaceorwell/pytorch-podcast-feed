@@ -1,0 +1,410 @@
+# How Shopify Built a Continual Learning Loop with PyTorch and vLLM
+
+原文：[How Shopify built a continual learning loop with PyTorch and vLLM](https://pytorch.org/blog/how-shopify-built-a-continual-learning-loop-with-pytorch-and-vllm/)
+
+## 摘要
+
+本期讨论 Shopify 如何把生产环境中的失败对话，持续转化为模型权重更新。流程从定义质量标准、校准评估器开始，再通过自动研究改进提示词和工具编排，最后用监督微调与 GRPO 优化模型参数。Shopify 还用 gist tokens 压缩系统提示词，并通过 vLLM 降低延迟、硬件需求和服务成本。GraphQL agent 的案例显示，服务成本降低百分之九十六，同时质量超过 frontier model。
+
+## 对话
+
+Ava: What if every failed production conversation could teach your model something by the next day? That’s the idea behind Shopify’s continual learning loop.
+
+Ava：如果每一次在生产环境中失败的对话，都能让模型在第二天有所改进，会怎样？这就是 Shopify 持续学习循环的核心想法。
+
+Brian: And it’s practical, not just a research slogan. Shopify says its GraphQL agent now beats the frontier-model baseline, while cutting serving cost by ninety-six percent.
+
+Brian：而且这很实用，不只是一句研究口号。Shopify 表示，其 GraphQL 智能体现在已超过前沿模型基线，同时将服务成本降低了 96%。
+
+Ava: That sounds like a big claim. Let’s start with the problem. Why wasn’t a frontier model enough?
+
+Ava：这听起来是个很大的突破。先从问题说起：为什么前沿模型还不够？
+
+Brian: Frontier models are a fast way to launch. A small team can put a useful product in front of users and learn from real usage. But scale changes the economics. They can be slow and expensive for every request.
+
+Brian：前沿模型能让产品快速上线。一个小团队就能把有用的产品交到用户手里，并从真实使用中学习。但规模扩大后，成本账就变了。每个请求都用前沿模型，可能又慢又贵。
+
+Ava: And they’re general-purpose models, so they don’t really know Shopify’s product.
+
+Ava：而且它们是通用模型，其实并不了解 Shopify 的产品。
+
+Brian: Right. More importantly, they don’t learn from production on their own. A rejected answer or a user correction doesn’t automatically improve the next answer.
+
+Brian：对。更重要的是，它们不会自行从生产环境中学习。一次被否定的回答，或用户的一次纠正，都不会自动让下一次回答变好。
+
+Ava: So the knowledge accumulates around the model—in prompts, retrieval examples, routing rules, and harness code.
+
+Ava：所以知识积累在模型外围，存在于提示词、检索示例、路由规则和 harness 代码里。
+
+Brian: Exactly. The deployed weights stay frozen. Shopify’s flywheel tries to compress that production experience into the continuous space of the model’s weights. PyTorch provides the training foundation.
+
+Brian：没错。已部署模型的权重保持不变。Shopify 的飞轮试图把生产环境中的经验压缩进模型权重的连续空间。PyTorch 提供了训练基础。
+
+Ava: Before training anything, how do they decide what “better” means?
+
+Ava：在训练任何模型之前，他们怎么判断什么叫“更好”？
+
+Brian: They define quality first. It starts as a rubric, which turns product requirements into scored criteria. For the GraphQL agent, the criteria include completeness, execution, response quality, and safety.
+
+Brian：他们先定义质量标准。从一套评分细则入手，把产品要求转化为可评分的标准。对于 GraphQL 智能体，这些标准包括完整性、执行情况、回答质量和安全性。
+
+Ava: So the rubric is basically a quality contract.
+
+Ava：所以这套评分细则基本上就是一份质量约定。
+
+Brian: Yes. It gives every score a concrete meaning. Annotators use it to turn conversations into ground truth. And the samples need to include randomly sampled traffic, not only carefully chosen examples.
+
+Brian：是的。它让每个分数都有具体含义。标注员用它把对话转化为真实标注数据。而且样本需要包含随机抽取的流量，不能只有精心挑选的例子。
+
+Ava: Why does random traffic matter so much?
+
+Ava：为什么随机流量这么重要？
+
+Brian: Golden sets test cases you already know to look for. Random samples show what good and bad actually look like in production. They reveal surprises.
+
+Brian：黄金测试集检验的是你已经知道该关注的情况。随机样本则呈现生产环境中实际的好与坏是什么样，还能揭示意料之外的问题。
+
+Ava: How do they check whether the rubric is clear?
+
+Ava：他们怎么检查评分细则是否清楚？
+
+Brian: They ask their two best annotators or product experts to blindly label twenty-five random samples. Then they measure inter-annotator agreement with Cohen’s kappa, which measures agreement above chance.
+
+Brian：他们请最优秀的两名标注员或产品专家，对随机抽取的 25 个样本进行盲标。然后用 Cohen’s kappa 衡量标注者间的一致性；这个指标衡量的是超出随机巧合的一致程度。
+
+Ava: And if the kappa is low?
+
+Ava：如果 kappa 很低呢？
+
+Brian: If it’s around zero point two, the rubric is ambiguous. The experts meet and iterate. If people who work on the product every day can’t agree, an LLM won’t magically agree either.
+
+Brian：如果数值在 0.2 左右，就说明评分标准有歧义。专家们会碰面讨论并反复修改。如果每天都在做这个产品的人都无法达成一致，LLM 也不会神奇地达成一致。
+
+Ava: There’s also a ceiling here, right? Humans don’t agree perfectly.
+
+Ava：这里也有一个上限，对吧？人类也不会完全一致。
+
+Brian: Right. The judge’s ceiling is human agreement. The goal isn’t a perfect judge. It’s a judge that matches humans about as well as humans match each other.
+
+Brian：对。评判模型的上限是人类之间的一致性。目标不是做出完美的评判模型，而是让它与人类的判断一致到人类彼此判断一致的程度。
+
+Ava: They also want detailed explanations, not just scores.
+
+Ava：他们还希望得到详细解释，而不只是分数。
+
+Brian: Yes. A score and one sentence aren’t enough for calibration. They want the reason behind every score. That reasoning becomes valuable training data.
+
+Brian：没错。只有一个分数和一句话，不足以做校准。他们想知道每个分数背后的理由。这些推理过程会成为有价值的训练数据。
+
+Ava: Then they calibrate the judge. What does that involve?
+
+Ava：接下来他们会校准评判模型。具体要做什么？
+
+Brian: The rubric is only the judge’s first prompt. Calibration turns it into a judge that can run over production data. Shopify uses DSPy and reflection-based optimizers such as GEPA and Agentic Context Engineering.
+
+Brian：评分细则只是评判模型的初始提示词。经过校准，评判模型才能用于生产数据。Shopify 使用 DSPy，以及 GEPA 和 Agentic Context Engineering 这类基于反思的优化器。
+
+Ava: Can you make those sound less mysterious?
+
+Ava：能讲得通俗一点吗？
+
+Brian: GEPA reflects on natural-language failure traces and evolves the prompt. It keeps a Pareto frontier of candidates instead of greedily choosing one winner. ACE, or Agentic Context Engineering, builds a structured playbook through small edits.
+
+Brian：GEPA 会反思用自然语言记录的失败过程，并逐步改进提示词。它会保留候选方案的 Pareto frontier，而不是贪心地只选一个赢家。ACE，也就是 Agentic Context Engineering，则通过一次次小幅修改，建立一套结构化的操作手册。
+
+Ava: But an offline judge is still only a proxy.
+
+Ava：但离线评判模型终究只是一个替代指标。
+
+Brian: Exactly. They backtest it against previous A/B tests. The judge should recover the direction of known wins and losses in engagement, retention, or whatever behavior the product is designed to drive.
+
+Brian：没错。他们会用过去的 A/B 测试来回测它。对于互动、留存或产品旨在推动的其他行为中已知的胜负结果，评判模型应该能判断出正确方向。
+
+Ava: And they run degradation tests too?
+
+Ava：他们也会做退化测试吗？
+
+Brian: Yes. They deliberately make one behavior worse and check whether the matching criterion falls. If the agent stops trying to fulfill the user’s goal, the goal-fulfillment score should drop specifically.
+
+Brian：会。他们故意让某项行为变差，再检查对应标准的分数是否下降。如果智能体不再尝试完成用户的目标，目标达成分数就应该相应下降。
+
+Ava: Why use several small judges instead of one giant judge?
+
+Ava：为什么要用几个小型评判模型，而不是一个巨型评判模型？
+
+Brian: Focused judges are easier to interpret and trust. Cramming every product behavior into one judge makes failures hard to understand.
+
+Brian：专注于单项任务的评判模型更容易理解，也更容易信任。把所有产品行为都塞进一个评判模型，会让失败原因难以弄清。
+
+Ava: Once the judge works, they improve the original frontier-powered application without changing model weights.
+
+Ava：评判模型能正常工作后，他们会在不改变模型权重的情况下，改进最初由前沿模型驱动的应用。
+
+Brian: That’s the baseline stage. They optimize prompts, tool definitions, and the harness. The harness is the whole application logic: dynamically assembled prompts, control loops, and orchestration spread across a codebase.
+
+Brian：这就是建立基线的阶段。他们优化提示词、工具定义和 harness。harness 指的是整个应用逻辑，包括动态组装的提示词、控制循环，以及分布在代码库各处的编排逻辑。
+
+Ava: So ordinary prompt tuning only touches a small part of the system.
+
+Ava：所以常规的提示词调优只触及系统的一小部分。
+
+Brian: Right. They treat it as an autoresearch problem. An agent proposes a change to a prompt, a tool definition, or the harness. It evaluates the change with the judge, keeps it if the score improves, and discards it otherwise.
+
+Brian：对。他们把这看作一个 autoresearch 问题。智能体提出对提示词、工具定义或 harness 的修改，用评判模型评估；分数提高就保留，否则就丢弃。
+
+Ava: Where do they configure that loop?
+
+Ava：他们在哪里配置这个循环？
+
+Brian: In one readable Markdown file: where to get data, which directories the agent may edit, which judge is the metric, which optimizer to use, and the propose-evaluate-keep-or-discard loop.
+
+Brian：都写在一个易读的 Markdown 文件里：从哪里获取数据、智能体可以编辑哪些目录、以哪个评判模型的评分作为指标、使用哪个优化器，以及提出方案、评估、保留或丢弃的循环。
+
+Ava: What happens when those harness improvements plateau?
+
+Ava：当这些 harness 改进进入平台期，会怎样？
+
+Brian: Then they move from discrete artifacts to continuous parameter updates. They mine anonymized production traffic for hard negatives—conversations the judge correctly scores low.
+
+Brian：这时他们会从离散的产物转向连续的参数更新。他们从匿名化的生产流量中挖掘困难负例，也就是评判模型正确给出低分的对话。
+
+Ava: Across millions of merchants, that must create a huge variety of failures.
+
+Ava：面对数百万商家，这一定会产生各种各样的失败案例。
+
+Brian: It does. Partial context, ambiguous requests, business-specific workflows, tool failures, and many ways to express the same intent. Instead of becoming isolated bug reports or Slack threads, the failures enter a self-healing pipeline.
+
+Brian：确实如此。上下文不完整、请求含糊、企业特有的工作流程、工具故障，以及同一种意图的多种表达方式，都会带来失败。这些失败不会变成孤立的 bug 报告或 Slack 讨论串，而是进入一条自我修复的处理流程。
+
+Ava: Walk me through one failure.
+
+Ava：拿一个失败案例，给我讲讲具体过程。
+
+Brian: A panel of frontier reasoning models critiques it. An arbiter merges the critiques into one repair instruction. That instruction is injected before the user’s turn, a technique sometimes called hinting.
+
+Brian：一组前沿推理模型会对它提出批评意见。一个仲裁模型把这些意见合并成一条修复指令。这条指令会被插入到用户发言之前；这种技术有时叫作 hinting。
+
+Ava: Then they replay the conversation?
+
+Ava：然后他们重放这段对话？
+
+Brian: Yes. They replay from that point and ask the judge to score it again. If the repair passes, the replay becomes a reinforcement-learning trajectory, with the judge’s score as the reward.
+
+Brian：对。他们从那个节点开始重放，并让评判模型再次评分。如果修复通过，这次重放就成为一条强化学习轨迹，评判模型的分数则作为奖励。
+
+Ava: And if it still fails?
+
+Ava：如果还是失败呢？
+
+Brian: It goes to human annotation through Toloka. Expert annotators correct the conversation and score it with the same rubric used to calibrate the judge.
+
+Brian：它就会通过 Toloka 进入人工标注流程。专家标注员会修正对话，并用校准评判模型时使用的同一套评分细则打分。
+
+Ava: Training has two stages. First is supervised fine-tuning.
+
+Ava：训练分为两个阶段。第一阶段是监督微调。
+
+Brian: Correct. They distill healed trajectories into a smaller model. They train on complete trajectories, including the reasoning that produced them, not only the final answers. That’s chain-of-thought distillation.
+
+Brian：没错。他们把修复后的轨迹蒸馏到一个更小的模型中。训练使用完整轨迹，包括产生这些轨迹的推理过程，而不只是最终答案。这就是 chain-of-thought distillation，也就是思维链蒸馏。
+
+Ava: So the smaller model can inherit behavior that answers alone wouldn’t teach.
+
+Ava：所以，小模型可以继承单靠答案学不到的行为。
+
+Brian: Exactly. Second, they apply GRPO. For each prompt, the model samples a group of responses, the judges score them, and GRPO reinforces the responses that perform best.
+
+Brian：没错。第二步，他们使用 GRPO。对于每个提示，模型会采样一组回复，评判模型给它们打分，GRPO 则强化表现最好的回复。
+
+Ava: Supervised fine-tuning imitates successful trajectories, while GRPO optimizes directly against the quality definition.
+
+Ava：监督微调模仿成功的执行轨迹，而 GRPO 直接按照质量标准进行优化。
+
+Brian: That’s the distinction. The pipeline runs daily. They add new trajectories, run a full-parameter fine-tune over new and previous data, and then repeat GRPO.
+
+Brian：区别就在这里。这套流程每天运行。他们加入新的轨迹，用新旧数据进行一次全参数微调，然后再次运行 GRPO。
+
+Ava: Why keep old trajectories?
+
+Ava：为什么要保留旧轨迹？
+
+Brian: To limit drift and catastrophic forgetting across cycles. PyTorch distributes the training across GPUs using tensor, context, and data parallelism, which makes full-parameter fine-tuning practical at scale.
+
+Brian：为了限制各轮训练中的偏移和灾难性遗忘。PyTorch 利用张量并行、上下文并行和数据并行，将训练分布到多块 GPU 上，让大规模全参数微调变得可行。
+
+Ava: Now the model is better, but serving it can still be expensive.
+
+Ava：现在模型更好了，但提供服务的成本仍可能很高。
+
+Brian: That’s where gist compression helps. The agent’s system prompt is long and static. Because attention scales with sequence length, every generated token attends over that whole prefix.
+
+Brian：这就是 gist 压缩能派上用场的地方。这个智能体的系统提示词很长，而且内容固定。由于注意力计算会随序列长度增加，每生成一个词元都要关注整个前缀。
+
+Ava: So the prompt is a fixed latency tax on every request.
+
+Ava：所以，这段提示词会给每个请求带来固定的延迟负担。
+
+Brian: Exactly. They run the same model as a teacher with the full prompt and as a student with a short sequence of learned gist tokens. A custom PyTorch trainer learns the gist token embeddings while keeping model weights frozen.
+
+Brian：没错。他们让同一个模型在使用完整提示词时充当教师，在使用一小段可学习的 gist 词元时充当学生。一个定制的 PyTorch 训练器会学习 gist 词元的嵌入，同时冻结模型权重。
+
+Ava: And the student matches the teacher’s output distribution?
+
+Ava：然后让学生的输出分布与教师一致？
+
+Brian: Yes. The result is a handful of tokens that reproduce the prompt’s behavior at a fraction of the length, with no measured quality loss on the judge.
+
+Brian：是的。最终只需少量词元，就能以原提示词一小部分的长度复现其行为，而且评判模型没有测出质量下降。
+
+Ava: Let’s look at the GraphQL agent itself.
+
+Ava：我们来看看 GraphQL 智能体本身。
+
+Brian: It serves up to two thousand requests per minute. A merchant might ask which products are almost out of stock. The agent writes and runs a query against Shopify’s Admin GraphQL API, then turns the result into plain language.
+
+Brian：它每分钟最多处理 2000 个请求。商家可能会问哪些商品快没货了。智能体会编写并运行一个查询，访问 Shopify 的 Admin GraphQL API，然后把结果转成通俗易懂的话。
+
+Ava: What did the whole flywheel change?
+
+Ava：整套飞轮带来了什么变化？
+
+Brian: First, quality. Self-healing turns low-scoring production conversations into successful trajectories. Together, supervised fine-tuning and reinforcement learning let the specialized model surpass frontier-model performance.
+
+Brian：首先是质量。自我修复机制把生产环境中得分低的对话转化为成功的执行轨迹。监督微调与强化学习结合，让这个专用模型的表现超过了前沿模型。
+
+Ava: Second, cost.
+
+Ava：第二是成本。
+
+Brian: Serving the traffic on a frontier model could cost an estimated twenty-seven million dollars per year, based on average token costs. The fine-tuned model could be closer to one million dollars—a ninety-six percent reduction.
+
+Brian：按平均 token 成本估算，用前沿模型处理这些流量每年可能要花 2700 万美元。微调后的模型成本可能接近 100 万美元，降低了 96%。
+
+Ava: That changes whether you can leave the feature on for every merchant.
+
+Ava：这会影响你能否为每个商家持续开放这项功能。
+
+Brian: Exactly. Third, speed. Gisting compressed roughly six thousand prompt tokens to about one thousand five hundred learned gist tokens.
+
+Brian：正是。第三，速度。Gisting 把大约 6000 个提示词 token 压缩成约 1500 个学习得到的 gist token。
+
+Ava: What happened in the load test?
+
+Ava：负载测试的结果如何？
+
+Brian: At three hundred fifty requests per minute, time-to-first-token fell about nineteen percent, and end-to-end latency fell about thirty-eight percent.
+
+Brian：在每分钟 350 个请求的负载下，首个 token 的生成时间缩短了约 19%，端到端延迟降低了约 38%。
+
+Ava: And throughput improved too?
+
+Ava：吞吐量也提高了吗？
+
+Brian: About sixteen percent more requests per second and twelve percent more output tokens per second on identical GPUs. That works out to roughly fourteen percent fewer GPUs for the same traffic.
+
+Brian：在相同的 GPU 上，每秒处理的请求数增加了约 16%，每秒输出的 token 数增加了 12%。换算下来，处理同样的流量所需的 GPU 大约减少了 14%。
+
+Ava: Are there limitations or open questions?
+
+Ava：还有什么局限或待解决的问题吗？
+
+Brian: The article emphasizes that quality depends on the rubric and judge. If those are wrong, the whole loop optimizes the wrong behavior. Human annotation is still needed for failures the critics can’t repair.
+
+Brian：文章强调，质量取决于评分标准和评判模型。如果它们有误，整个循环就会朝错误的行为优化。对于评判模型无法修复的失败案例，仍然需要人工标注。
+
+Ava: And continual learning has to manage drift and forgetting.
+
+Ava：持续学习还得控制模型偏移和遗忘。
+
+Brian: Right. That’s why they train on accumulated data, not only the newest examples. The article also presents this as a production case study, so the exact gains may depend on the workload.
+
+Brian：对。这就是他们用累积的数据训练，而不只用最新样本的原因。文章介绍的也是一个生产环境案例，因此具体的收益可能取决于工作负载。
+
+Ava: Let’s close with the three points I should remember. First?
+
+Ava：最后说说我该记住的三点。第一点是什么？
+
+Brian: Define and calibrate quality before optimizing. The rubric, human agreement, backtesting, and degradation tests make the judge trustworthy.
+
+Brian：优化之前，先定义并校准质量。评分标准、与人工判断的一致性、回测和退化测试，都有助于确保评判模型可信。
+
+Ava: Second?
+
+Ava：第二点呢？
+
+Brian: Improve the frontier baseline in the harness, then turn real failures into trajectories and model-weight updates with supervised fine-tuning and GRPO.
+
+Brian：先在测试框架中改进前沿模型基线，再通过监督微调和 GRPO，把真实的失败案例转化为执行轨迹和模型权重的更新。
+
+Ava: Third?
+
+Ava：第三点呢？
+
+Brian: Compress the prompt for serving. Gist tokens, PyTorch training, and vLLM inference make the specialized model faster, cheaper, and easier to run at scale.
+
+Brian：压缩用于提供服务的提示词。Gist 词元、PyTorch 训练和 vLLM 推理，让这个专用模型更快、更便宜，也更容易大规模运行。
+
+Ava: So the durable advantage isn’t one clever prompt. It’s the loop that keeps turning production experience into better weights.
+
+Ava：所以，持久的优势来自一个不断把生产经验转化为更好权重的循环，而不只是某条巧妙的提示词。
+
+Brian: Exactly. Thanks for listening. We’ll see you next time.
+
+Brian：正是如此。感谢收听。我们下次再见。
+
+## 术语
+
+| Term | 释义 |
+|---|---|
+| continual learning loop | 持续学习循环，把生产经验持续反馈到模型训练中 |
+| frontier model | 前沿模型，能力强但通常通用、昂贵且权重冻结 |
+| rubric | 评分标准，将产品要求转化为可评分的质量指标 |
+| Cohen’s kappa | 衡量标注者之间超出随机水平的一致性的指标 |
+| ground truth | 真实标签或基准答案，用于训练和评估 |
+| GEPA | 基于反思的提示词进化优化器 |
+| Agentic Context Engineering | 通过渐进式编辑构建结构化上下文手册的方法 |
+| autoresearch | 由智能体提出、评估并保留或丢弃改动的自动研究循环 |
+| hard negative | 评估器正确判为低分、能暴露模型弱点的困难样本 |
+| hinting | 在用户输入前注入修复指令并重放对话的技术 |
+| supervised fine-tuning | 使用标注轨迹进行监督式微调 |
+| GRPO | 对一组采样回答评分并强化高分回答的强化学习方法 |
+| gist token | 用于压缩长系统提示词的一小组学习型 token |
+| vLLM | 基于 PyTorch 的推理引擎，支持连续批处理 |
+| catastrophic forgetting | 模型学习新数据时遗忘旧能力的现象 |
+
+## 口语表达
+
+| Phrase | 释义 |
+|---|---|
+| What if every failed production conversation could teach your model something? | 如果每次生产失败对话都能教会模型一些东西呢？ |
+| Let’s start with the problem. | 我们先从问题开始。 |
+| Walk me through one failure. | 带我走一遍一个失败案例。 |
+| That’s the distinction. | 区别就在这里。 |
+| What happens when those improvements plateau? | 这些改进达到瓶颈后会怎样？ |
+| It works out to roughly | 最终大约相当于 |
+| Let’s close with the three points I should remember. | 最后总结我应该记住的三点。 |
+| The durable advantage isn’t one clever prompt. | 真正持久的优势不是某个巧妙提示词。 |
+
+## 中文内容总结
+
+Shopify 以服务商家的 GraphQL 智能体为例，介绍如何把生产环境中的失败对话转成训练数据，持续更新专用模型，并用 PyTorch 训练、vLLM 推理。文章称，该模型的任务表现超过其前沿模型基线，服务成本也明显下降。
+
+### 问题与质量标准
+
+前沿模型能帮助产品快速上线，但部署后的权重不会从用户纠正、拒绝的回答或重复故障中自行学习。Shopify 先用完整性、执行情况、回答质量和安全性等准则定义质量，并纳入随机抽取的真实流量。两名专家对 25 个随机样本盲评，用 Cohen’s kappa 检查一致性；若结果约为 0.2，就修改含糊的准则。标注还需记录评分理由，供后续校准使用。
+
+### 校准评判器与改进基线
+
+Shopify 用 DSPy、GEPA 和 ACE 根据人工标注校准评判器，再用既往 A/B 测试核对其评分方向，并通过定向降低某项行为的测试，检查对应指标是否响应。评判器是上线前的代理指标，不能直接等同于真实业务效果。在改动模型权重前，自动研究流程会尝试修改提示词、工具定义和编排代码，按评判器得分决定保留或撤销改动。
+
+### 从失败对话到模型权重
+
+当上述改进趋于停滞，系统从匿名生产流量中找出低分难例。多个前沿推理模型分析失败，仲裁模型合并修复指令并在用户消息前注入提示，随后重放对话。修复成功的轨迹进入训练集；仍失败的交给 Toloka 专家按同一准则标注。Shopify 先用包含推理过程的完整轨迹监督微调小模型，再以校准后的评判器为奖励信号运行 GRPO。该流程每天新增轨迹，并对累积数据做全参数微调和 GRPO；同时保留旧轨迹以限制遗忘。PyTorch 通过张量、上下文和数据并行支持训练。
+
+### 提示压缩与部署结果
+
+Shopify 固定模型权重，让使用约 1500 个可学习 gist token 的学生版本匹配读取约 6000 token 完整系统提示的教师版本。文章称评判器未测出质量损失。GraphQL 智能体通过 Shopify Admin GraphQL API 查询商店数据，生产流量最高达每分钟 2000 次请求，并由 vLLM 服务。在每分钟 350 次请求的负载测试中，压缩使首 token 时间下降约 19%，端到端延迟下降约 38%；相同 GPU 上每秒请求数增加约 16%，输出 token 数增加约 12%，据此估算同等流量所需 GPU 减少约 14%。
+
+### 结果的适用范围
+
+文章称，持续训练后的专用模型表现超过前沿模型基线，但没有给出具体质量分数。按平均 token 成本估算，用前沿模型服务这些流量每年可能花费约 2700 万美元，微调模型则接近 100 万美元，约降低 96%；这属于成本估计。该案例的关键前提是可靠的质量准则、经过验证的评判器，以及能够持续收集和修复生产难例的流程。

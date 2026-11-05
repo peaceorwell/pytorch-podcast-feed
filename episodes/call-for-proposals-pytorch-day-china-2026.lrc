@@ -1,0 +1,35 @@
+[ti:PyTorch Day China 2026: Proposal Deadline and Topics]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: PyTorch Day China 2026 has a proposal deadline coming up: November 10 at 23:59 China Standard Time.
+[00:00.00]Ava：PyTorch Day China 2026 的提案截止时间快到了：11月10日中国标准时间23:59。
+[00:08.60]If you work on training, inference, or hardware, the call may fit.
+[00:08.60]如果你从事训练、推理或硬件相关工作，可以考虑投稿。
+[00:14.68]Brian: The event is in Beijing on December 12.
+[00:14.68]Brian：活动将于12月12日在北京举行。
+[00:17.84]It brings together PyTorch developers, machine learning engineers, AI researchers, and open source AI leaders from China and beyond.
+[00:17.84]届时，中国及其他地区的 PyTorch 开发者、机器学习工程师、AI 研究人员和开源 AI 领袖将齐聚一堂。
+[00:28.90]Ava: What formats and topics does it cover?
+[00:28.90]Ava：接受哪些演讲形式？涵盖哪些主题？
+[00:32.20]Brian: It welcomes session presentations and lightning talks.
+[00:32.20]Brian：接受专题演讲和闪电演讲。
+[00:36.22]Model Training & Post-Training covers distributed training, SFT, reinforcement learning, and preference optimization.
+[00:36.22]“模型训练与后训练”涵盖分布式训练、SFT、强化学习和偏好优化。
+[00:44.92]Efficient Inference & Deployment covers LLM inference, quantization, optimization, and deployment strategies.
+[00:44.92]“高效推理与部署”涵盖大语言模型推理、量化、优化和部署策略。
+[00:53.38]Ava: Compiler work seems to have a place in PyTorch Core & Hardware Acceleration.
+[00:53.38]Ava：编译器方面的工作似乎适合“PyTorch 核心与硬件加速”主题。
+[00:59.83]Brian: That area includes compilation, kernel optimization, performance profiling, and GPU and AI accelerator technologies.
+[00:59.83]Brian：这一主题涵盖编译、算子优化、性能分析，以及 GPU 和 AI 加速器技术。
+[01:09.25]Physical AI includes robotics, VLA models, perception and control, and simulation-based training.
+[01:09.25]“物理 AI”涵盖机器人、VLA 模型、感知与控制，以及基于仿真的训练。
+[01:17.48]Ava: And PyTorch Ecosystem & Applications covers tools and applications that expand the ecosystem.
+[01:17.48]Ava：“PyTorch 生态与应用”则涵盖扩展生态的工具和应用。
+[01:24.56]When will speakers hear back?
+[01:24.56]演讲者什么时候能收到通知？
+[01:27.12]Brian: Notifications are scheduled for November 17, and the schedule announcement follows on November 18.
+[01:27.12]Brian：通知计划于11月17日发出，日程安排将于11月18日公布。
+[01:34.93]If you're proposing a talk, November 10 at 23:59 China Standard Time is the cutoff.
+[01:34.93]如果你打算提交演讲提案，截止时间是11月10日中国标准时间23:59。
+[01:41.55]Thanks for listening.
+[01:41.55]感谢收听。
