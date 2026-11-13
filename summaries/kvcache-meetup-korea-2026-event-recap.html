@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>韩国 KVCache 交流会：大模型推理中的缓存存储与调度</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/kvcache-meetup-korea-2026-event-recap/">原视频 / 原文</a></p><h1>韩国 KVCache 交流会：大模型推理中的缓存存储与调度</h1>
+<p>依据：原文</p>
+<p>来源：https://pytorch.org/blog/kvcache-meetup-korea-2026-event-recap/</p>
+<p>2026 年 9 月 30 日，PyTorchKR 与 XCENA 在韩国合办 KVCache Meetup，Tensormesh 提供赞助。XCENA、SK hynix、FuriosaAI 和 LMCache 的讲者讨论了大语言模型推理中的 KV Cache 容量、数据传输、GPU 资源利用和请求调度。活动还安排了问答、硬件展示及交流。</p>
+<h3>缓存容量与数据移动</h3>
+<p>XCENA 介绍了利用 CXL 扩展 CPU 可访问内存、让多台主机共享内存池的方案。其开源存储引擎 Maru 连接推理引擎与由 DRAM 和 SSD 组成的缓存层，将常用数据留在 DRAM。讲者强调，缓存能存多少只是问题之一，将数据送回 GPU 的路径和代价也影响推理效率。针对混合专家模型，报告还介绍了让 MX1 就近处理部分专家权重、只传输激活值和计算结果的设计。</p>
+<h3>GPU 计算与 HBM 带宽</h3>
+<p>SK hynix 结合 Roofline 分析和运行测量，比较了预填充与解码阶段的资源使用。实验采用两块 H100 GPU、Llama 3.1 8B 和 vLLM：预填充的主要投影运算具有较高 GPU 计算利用率，解码则大量使用 HBM 带宽。复用 KV Cache 可减少预填充计算，但之后内存带宽可能成为瓶颈。容量和带宽孰更紧张，取决于输入、输出长度及批大小等运行条件。</p>
+<h3>RNGD 上的请求调度</h3>
+<p>FuriosaAI 介绍了面向 RNGD 的 Furiosa-LLM 推理引擎，包括 PagedAttention、连续批处理、分块预填充和预编译张量形状。合并请求可提高吞吐量，却可能因更大的张量形状和填充增加延迟；引擎依据实际硬件执行成本，判断合并是否比单独处理划算。一次使用 12,370 token 提示词、每次处理一个请求且每种条件测量三次的测试中，从主机取回缓存并生成首 token 约需 92 毫秒，重新计算约需 900 毫秒。这个结果受传输量和可用带宽约束。</p>
+<h3>独立缓存管理进程</h3>
+<p>LMCache 介绍了将缓存管理移出推理引擎的 MP Mode。它通过 CUDA IPC 共享 GPU 内存，进程间交换块 ID 等控制信息，并使用节点内共享 CPU 内存池减少重复存储；多个存储层可并行读取和加载。报告还涉及 Kubernetes 部署、缓存命中率与生命周期监控、进程间故障隔离及外部存储插件。跨节点扩展 MP Mode 仍是讨论中的计划。</p>
+<h3>活动反馈</h3>
+<p>会后问答涉及预填充与解码分离、混合批处理，以及 LMCache 与 vLLM 内置缓存功能的分工。72 份问卷中，48 人选择活动内容为优点，占 66.7%；30 人选择场地与设施，占 41.7%，该题允许多选。反馈也提到话筒音量、后排屏幕可见度、空间和英文报告的翻译需求，并希望未来增加真实生产案例、推理框架内部机制与演示。</p></body></html>

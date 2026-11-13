@@ -1,0 +1,23 @@
+# PyTorch 2.13：性能、分布式训练与平台支持更新
+
+依据：原文
+
+来源：https://pytorch.org/blog/pytorch-2-13-release-blog/
+
+PyTorch 2.13 于 2026 年 7 月发布，汇集自 2.12 以来 526 名贡献者的 3,328 次提交。更新覆盖注意力计算、大词表训练、编译、集群通信和设备支持，并将 ExecuTorch 纳入 PyTorch Core。
+
+### 注意力计算与显存
+
+FlexAttention 现可在 Apple Silicon 的 MPS 上运行，支持稀疏预填充和解码。官方测试中，序列长度 32768、滑动窗口 256 的稀疏场景耗时约 35 毫秒，SDPA 约 431 毫秒，提速约 12.3 倍；密集注意力仍更适合 SDPA。CUDA 的确定性反向路径用预先计算的写入顺序替代原子操作，可通过 torch.use_deterministic_algorithms(True) 启用；在针对 create_block_mask 的端到端测量中，S=32768 时开销约增加 0.2%。nn.LinearCrossEntropyLoss 分块融合最终线性投影与交叉熵计算，避免生成完整 logits 矩阵。官方称，在大词表任务中峰值显存最多降低约 4 倍，并保持与未融合计算的数值等价。
+
+### 编译、加载与分布式训练
+
+Inductor 增加 CuTeDSL 代码生成路径，用于 GEMM 和 RMSNorm；内核编译改用子进程池以提高并行度。torch.compiler.set_default_backend 可设置进程级默认编译后端，torch.load 可直接识别 safetensors 文件。分布式方面，新后端 torchcomms 改进超时处理、部分进程组恢复和集合通信追踪。FSDP2 可选择为 reduce-scatter 使用独立 NCCL 通信器，使其与 all-gather 并行执行；吞吐量收益取决于具体负载。
+
+### 设备与开发工具
+
+MPS 将复制、随机数、归约和排序等多类操作迁移到原生 Metal 内核，以减少 MPSGraph 的逐操作编译开销。ROCm 引入 AOTriton 0.12b、分析式 GEMM 配置选择和原生 HIP CMake；Armv9-A 获得 torch.compile 目标支持，Intel XPU 增加内存、利用率、功耗等设备状态查询。实验性 CUPTI monitor 异步收集 GPU 指标，CUDAGraph.get_graph_data() 可读取图节点和依赖关系；稳定 C++ ABI 也开始支持获取随机数生成器。
+
+### 适用范围与兼容性
+
+在 PyTorch 2.13 发布时，Python 3.15 仍处于 beta 预发布阶段，稳定版当时计划于 2026 年 10 月发布。Python 3.15 和实验性的 3.15t 仅提供 Linux x86_64、aarch64 的 torch wheel，需从 PyTorch 下载索引安装；此版本尚无对应 torchvision、torch.compile 支持或 Windows、macOS wheel。命名张量和 Bazel 构建已移除，部分分布式集合通信函数改名，旧名称暂以弃用包装保留。CUDA 13.0 仍是默认构建，CUDA 12.8、12.9 构建及 Linux 的 CPython 3.13t 二进制包已移除。文中多项新 API 标为不稳定，升级时需检查相关调用。

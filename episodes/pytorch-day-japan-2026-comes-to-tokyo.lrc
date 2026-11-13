@@ -1,0 +1,95 @@
+[ti:PyTorch Day Japan 2026: What Framework Engineers Should Know]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: A full day in Tokyo about PyTorch?
+[00:00.00]Ava：在东京办一整天的PyTorch活动？
+[00:02.51]For framework engineers, that could be worth a calendar reminder.
+[00:02.51]对框架工程师来说，值得记到日历里。
+[00:07.67]Brian: PyTorch Day Japan twenty twenty-six is on December tenth.
+[00:07.67]Brian：2026年PyTorch Day Japan将于12月10日举行。
+[00:12.13]Expect technical talks and discussions across the open source AI community.
+[00:12.13]届时会有面向开源AI社区的技术演讲和讨论。
+[00:18.34]Ava: Who's hosting, and who'll be there?
+[00:18.34]Ava：谁主办？哪些人会来？
+[00:21.23]Brian: The PyTorch Foundation, Hugging Face, IBM, and Mitsubishi Electric host it.
+[00:21.23]Brian：主办方是PyTorch基金会、Hugging Face、IBM和三菱电机。
+[00:26.96]The audience includes engineers, researchers, industry professionals, and PyTorch enthusiasts.
+[00:26.96]参与者包括工程师、研究人员、行业人士和PyTorch爱好者。
+[00:34.50]Ava: Okay, what's the technical pull?
+[00:34.50]Ava：技术上有什么看点？
+[00:37.73]Brian: The program includes PyTorch and PyTorch Foundation hosted projects: vLLM, DeepSpeed, Ray, Helion, and Safetensors.
+[00:37.73]Brian：议程涵盖PyTorch及PyTorch基金会托管的项目：vLLM、DeepSpeed、Ray、Helion和Safetensors。
+[00:48.14]It also explores training and inference.
+[00:48.14]还会探讨模型训练和推理。
+[00:52.12]Ava: Wait, that's broad. Do we know what those projects will show?
+[00:52.12]Ava：范围挺广。知道这些项目具体会展示什么吗？
+[00:56.81]Brian: The post doesn't say.
+[00:56.81]Brian：文章没说。
+[00:58.48]Think of training as preparing a model, then inference as using it.
+[00:58.48]简单说，训练是让模型做好准备，推理是使用模型。
+[01:03.79]It also names responsible AI and open model development.
+[01:03.79]文章还提到负责任的AI和开放模型开发。
+[01:08.58]Ava: What's the call for talks focused on?
+[01:08.58]Ava：演讲征集重点关注什么？
+[01:11.45]Brian: One suggested area is sovereign AI and local open models.
+[01:11.45]Brian：建议主题之一是主权AI和本地开放模型。
+[01:15.73]That includes open-weights AI, meaning models with available weights, on local infrastructure.
+[01:15.73]包括在本地基础设施上运行开放权重AI，也就是权重可获取的模型。
+[01:22.77]It also includes post-training and privacy-first deployments.
+[01:22.77]还包括后训练和隐私优先的部署。
+[01:27.69]Ava: So the model can stay close to the systems using it?
+[01:27.69]Ava：也就是说，模型可以部署在使用它的系统附近？
+[01:31.57]Brian: That's the idea behind the local infrastructure topic.
+[01:31.57]Brian：本地基础设施这个主题就是这个意思。
+[01:35.50]Another area is physical AI and edge AI, including robotics and real-time on-device inference: running a model on the device as events happen.
+[01:35.50]另一个主题是物理AI和边缘AI，包括机器人技术和设备端实时推理：事件发生时，模型就在设备上运行。
+[01:46.20]Ava: Should I expect a robot on stage?
+[01:46.20]Ava：现场会有机器人上台吗？
+[01:49.41]Brian: The post doesn't promise one.
+[01:49.41]Brian：文章没有承诺。
+[01:51.55]It suggests hardware acceleration and vision-language-action models, which connect visual input, language, and actions.
+[01:51.55]它建议关注硬件加速，以及将视觉输入、语言和动作关联起来的视觉-语言-动作模型。
+[02:00.37]It also mentions tight hardware limits.
+[02:00.37]还提到了严格的硬件资源限制。
+[02:03.60]Ava: And the developer tooling?
+[02:03.60]Ava：开发者工具方面呢？
+[02:06.19]Brian: The PyTorch ecosystem area includes TorchVision, TorchAudio, TorchRL, and PyTorch Distributed.
+[02:06.19]Brian：PyTorch生态主题包括TorchVision、TorchAudio、TorchRL和PyTorch Distributed。
+[02:14.20]It also mentions PyTorch two point x, production pipelines, and community projects.
+[02:14.20]还提到了PyTorch 2.x、生产流水线和社区项目。
+[02:21.63]Ava: Can speakers still send proposals?
+[02:21.63]Ava：讲者还能投稿吗？
+[02:24.67]Brian: The article says the call for proposals, or CFP, was open for presentations and lightning talks.
+[02:24.67]Brian：文章说，演讲提案征集（CFP）曾面向正式演讲和闪电演讲开放。
+[02:32.04]Its listed deadline was Sunday, September twenty-seventh, at eleven fifty-nine p.m. Japan time.
+[02:32.04]公布的截止时间是9月27日星期日日本时间晚上11点59分。
+[02:39.68]Ava: So check the dates, not just the headline.
+[02:39.68]Ava：所以别只看标题，还得核对日期。
+[02:43.25]Brian: Right.
+[02:43.25]Brian：没错。
+[02:43.69]Notifications are listed for October thirteenth, the schedule for October fourteenth, and presentation slides for December ninth.
+[02:43.69]通知日期列为10月13日，议程公布日期为10月14日，演示文稿提交日期为12月9日。
+[02:53.49]Ava: What about tickets?
+[02:53.49]Ava：门票呢？
+[02:55.40]Brian: Registration is listed at five thousand yen through November eleventh, at eleven fifty-nine p.m. Japan time.
+[02:55.40]Brian：报名费为5000日元，截止时间是11月11日日本时间晚上11点59分。
+[03:03.32]That's three thousand yen in savings.
+[03:03.32]这样能省3000日元。
+[03:06.04]Academic pricing is discounted too, though no amount is given.
+[03:06.04]学术票也有折扣，但没写具体金额。
+[03:10.94]Ava: And no results or benchmarks yet?
+[03:10.94]Ava：还没有成果或基准测试数据？
+[03:14.05]Brian: None in this post.
+[03:14.05]Brian：这篇文章里没有。
+[03:15.36]It's an event announcement, and the article doesn't say what each project will present.
+[03:15.36]这是活动公告，文章没说各项目具体会展示什么。
+[03:22.03]Ava: Give me the three point recap.
+[03:22.03]Ava：用三点总结一下。
+[03:24.81]Brian: First, Tokyo on December tenth.
+[03:24.81]Brian：第一，12月10日在东京举行。
+[03:27.36]Second, topics span PyTorch tooling, local models, and edge hardware.
+[03:27.36]第二，主题涵盖PyTorch工具、本地模型和边缘硬件。
+[03:33.05]Third, check the listed dates for the schedule and registration.
+[03:33.05]第三，留意列出的议程和报名日期。
+[03:38.67]Ava: That's PyTorch Day Japan. See you next time.
+[03:38.67]Ava：以上就是PyTorch Day Japan。下次见。

@@ -1,0 +1,117 @@
+[ti:Integrating SGLang into Spyre in Under a Week with AI]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: What if adding a new accelerator to a serving framework took less than a week?
+[00:00.00]Ava：如果给服务框架添加一种新加速器，耗时不到一周，会怎样？
+[00:05.75]That’s what happened when a two-person team brought SGLang to IBM Spyre with AI coding agents, using a plugin of roughly 1,500 lines.
+[00:05.75]当一个两人团队借助 AI 编程代理，使用一个约 1,500 行的插件将 SGLang 接入 IBM Spyre 时，事情就这样发生了。
+[00:15.90]Brian: And the result was measurable: on Spyre, SGLang reached approximately 3.6× the throughput of the reference PyTorch inference implementation using torch-spyre.
+[00:15.90]Brian：结果是可量化的：在 Spyre 上，SGLang 的吞吐量约为使用 torch-spyre 的参考 PyTorch 推理实现的 3.6×。
+[00:28.95]On the measured workloads for Granite 3.3 8B and Gemma 4 26B A4B, SGLang was on par with vLLM.
+[00:28.95]在针对 Granite 3.3 8B 和 Gemma 4 26B A4B 测得的工作负载上，SGLang 与 vLLM 持平。
+[00:37.06]Ava: Let’s unpack why that moved so quickly.
+[00:37.06]Ava：我们来拆解一下它为何推进得这么快。
+[00:40.11]Spyre is IBM’s accelerator for enterprise AI inference, and torch-spyre registers it as a PyTorch device.
+[00:40.11]Spyre 是 IBM 面向企业 AI 推理的加速器，torch-spyre 会将它注册为 PyTorch 设备。
+[00:48.34]It also connects Spyre to torch.compile, so the hardware appears through standard PyTorch APIs.
+[00:48.34]它还把 Spyre 接入 torch.compile，让硬件能够通过标准 PyTorch API 使用。
+[00:56.13]Brian: That shared layer was the starting point.
+[00:56.13]Brian：这层共享能力就是起点。
+[00:58.93]The team could use existing PyTorch implementations of Spyre operations as reference code, then adapt the integration code to SGLang’s backend interfaces.
+[00:58.93]团队可以把 Spyre 操作的现有 PyTorch 实现作为参考代码，再将集成代码适配到 SGLang 的后端接口。
+[01:09.46]The AI agents mainly connected hardware support that already existed to a new serving framework.
+[01:09.46]AI 代理主要是把已有的硬件支持接入新的服务框架。
+[01:16.38]Ava: What actually changed in SGLang?
+[01:16.38]Ava：SGLang 实际改了什么？
+[01:19.70]Brian: Four small patches extended backend support.
+[01:19.70]Brian：四个小补丁扩展了后端支持。
+[01:22.83]Two made existing execution paths available without CUDA-specific dependencies.
+[01:22.83]其中两个让现有执行路径无需 CUDA 专属依赖即可使用。
+[01:28.45]The other two registered Spyre as a supported device and as an attention backend that does not use Triton.
+[01:28.45]另外两个将 Spyre 注册为受支持的设备，以及不使用 Triton 的注意力后端。
+[01:36.00]The compatibility changes can also help other accelerators, while the registration changes are specific to Spyre.
+[01:36.00]兼容性改动也能帮助其他加速器，而注册改动则仅针对 Spyre。
+[01:44.39]Ava: So the plugin stayed small because SGLang already separated the integration points?
+[01:44.39]Ava：所以，SGLang 已经把集成点分开，插件才能保持小巧？
+[01:50.19]Brian: Exactly.
+[01:50.19]Brian：没错。
+[01:50.83]Platform registration, the attention backend, the KV pool, and operator dispatch created bounded tasks.
+[01:50.83]平台注册、注意力后端、KV 池和算子分发都形成了边界明确的任务。
+[01:59.13]The existing scheduler, request handling, and serving loop stayed in place.
+[01:59.13]现有的调度器、请求处理和服务循环保持不变。
+[02:05.18]The initial plugin was roughly 1,500 lines, compared with about 3,500 lines for the existing vLLM Spyre backend.
+[02:05.18]最初的插件约 1,500 行，而现有的 vLLM Spyre 后端约 3,500 行。
+[02:14.56]Ava: That’s a large difference. Was it mostly less hardware code?
+[02:14.56]Ava：差距很大。主要是少写了硬件代码吗？
+[02:19.40]Brian: A major part came from reuse.
+[02:19.40]Brian：很大一部分来自复用。
+[02:21.26]SGLang’s attention base class supplied the surrounding logic, so the Spyre backend only had to override the inner scaled dot-product attention operation.
+[02:21.26]SGLang 的注意力基类提供了周边逻辑，因此 Spyre 后端只需重写内部的缩放点积注意力操作。
+[02:31.11]Reusing that base class accounted for roughly two-thirds of the line-count difference between the two plugins.
+[02:31.11]对这个基类的复用，约占两个插件行数差异的三分之二。
+[02:38.54]Ava: What else came from the vLLM implementation?
+[02:38.54]Ava：还有哪些部分来自 vLLM 实现？
+[02:43.26]Brian: The team reused how the vLLM Spyre integration grouped inputs into buckets and handled tensor shapes.
+[02:43.26]Brian：团队复用了 vLLM Spyre 集成中对输入分桶和处理张量形状的方式。
+[02:50.09]It also reused the PyTorch-based approach to allocating the KV cache.
+[02:50.09]他们还复用了基于 PyTorch 分配 KV 缓存的方法。
+[02:54.76]SGLang’s device-agnostic KV pool needed only a single method override for buffer creation, although allocation still needed PyTorch-based handling where the existing path relied on Triton.
+[02:54.76]SGLang 的设备无关 KV 池只需重写一个创建缓冲区的方法，不过在现有路径依赖 Triton 的地方，分配仍需采用基于 PyTorch 的处理。
+[03:07.82]Ava: And the ordinary model operators?
+[03:07.82]Ava：那常规模型算子呢？
+[03:10.77]Brian: For RMSNorm, SiLU, GeLU, rotary embeddings, and linear layers, the integration connected existing Spyre implementations to SGLang’s operator dispatch.
+[03:10.77]Brian：对于 RMSNorm、SiLU、GeLU、旋转嵌入和线性层，这个集成把现有的 Spyre 实现接入了 SGLang 的算子分发。
+[03:22.10]That’s another example of wiring together implementations instead of rewriting them.
+[03:22.10]这又是一个把实现连接起来而非重写的例子。
+[03:28.80]Ava: Did every serving feature need a Spyre-specific adaptation?
+[03:28.80]Ava：每项服务功能都需要针对 Spyre 做适配吗？
+[03:33.74]Brian: No. RadixCache is the clearest example.
+[03:33.74]Brian：不需要。RadixCache 就是最清楚的例子。
+[03:36.71]Prefix sharing is resolved entirely within SGLang’s scheduler before execution reaches the accelerator, so the existing scheduling logic worked unchanged.
+[03:36.71]前缀共享完全由 SGLang 的调度器在执行抵达加速器前完成处理，因此现有调度逻辑无需改动。
+[03:48.46]The plugin is available as open source alongside upstream SGLang.
+[03:48.46]该插件已作为开源项目与上游 SGLang 一同提供。
+[03:53.77]Ava: For someone trying it, what does the setup look like?
+[03:53.77]Ava：如果有人想尝试，配置流程是什么样？
+[03:57.62]Brian: The example assumes the Spyre runtime, torch-spyre, the SGLang plugin, and its compatibility patches are installed and configured.
+[03:57.62]Brian：示例假设已安装并配置好 Spyre 运行时、torch-spyre、SGLang 插件及其兼容性补丁。
+[04:07.87]An engine is created with device set to spyre, the spyre_paged attention backend, float16 dtype, page size 64, max running requests set to 1, and CUDA graphs disabled.
+[04:07.87]创建引擎时，将 device 设为 spyre、注意力后端设为 spyre_paged、数据类型设为 float16、页大小设为 64、最大运行请求数设为 1，并禁用 CUDA graphs。
+[04:21.03]It then generates up to 64 new tokens for a prompt and shuts the engine down.
+[04:21.03]然后针对提示词最多生成 64 个新 token，并关闭引擎。
+[04:27.44]Ava: Let’s be precise about the performance claims.
+[04:27.44]Ava：我们来准确说明这些性能结论。
+[04:30.67]The 3.6× figure compares throughput with the reference PyTorch inference implementation using torch-spyre, right?
+[04:30.67]这个 3.6× 的数字，是将吞吐量与使用 torch-spyre 的参考 PyTorch 推理实现比较得出的，对吗？
+[04:38.93]Brian: Right. And the vLLM comparison is separate.
+[04:38.93]Brian：对。vLLM 的比较是另一项。
+[04:42.85]Across the workloads measured for Granite 3.3 8B and Gemma 4 26B A4B, SGLang’s performance on Spyre was on par with vLLM.
+[04:42.85]在 Granite 3.3 8B 和 Gemma 4 26B A4B 的测得工作负载中，SGLang 在 Spyre 上的性能与 vLLM 持平。
+[04:53.86]The relative-performance figure is normalized to vLLM equal to 1.0, with lower values better.
+[04:53.86]相对性能数值以 vLLM = 1.0 为基准归一化，数值越低越好。
+[05:02.68]Ava: What’s next for the integration?
+[05:02.68]Ava：接下来会如何推进这项集成？
+[05:05.33]Brian: The Spyre software stack is still evolving.
+[05:05.33]Brian：Spyre 软件栈仍在不断演进。
+[05:08.18]Over the coming months, the team expects dynamic-shape support, which should reduce much of today’s shape management.
+[05:08.18]未来几个月，团队预计会支持动态形状，这应能减少当前大量的形状管理工作。
+[05:15.92]Later this year, they also expect Triton support for Spyre and RadixAttention on top of it, opening the door to additional kernel optimizations.
+[05:15.92]今年晚些时候，他们还预计为 Spyre 提供 Triton 支持，并在其上实现 RadixAttention，从而为更多内核优化创造条件。
+[05:25.80]Ava: So the reusable foundation matters beyond this one plugin.
+[05:25.80]Ava：所以，这套可复用的基础不只服务于这一个插件。
+[05:30.47]Brian: Yes.
+[05:30.47]Brian：是的。
+[05:30.72]Keeping hardware support in PyTorch and integration code at SGLang’s extension points gives future compiler and runtime improvements a path into the serving stack.
+[05:30.72]将 PyTorch 中的硬件支持和 SGLang 扩展点中的集成代码保留下来，可为未来的编译器和运行时改进进入服务栈铺路。
+[05:41.25]The next integration can start from concrete implementations and interfaces that both developers and AI coding tools can work with.
+[05:41.25]下一次集成可以从具体实现和接口入手，让开发者和 AI 编程工具都能据此开展工作。
+[05:50.06]Ava: Here’s the recap: a two-person team integrated SGLang with Spyre in less than a week using a plugin of roughly 1,500 lines.
+[05:50.06]Ava：总结一下：一个两人团队在不到一周内，借助约 1,500 行的插件，将 SGLang 与 Spyre 集成起来。
+[06:00.12]Reuse of PyTorch hardware support, the vLLM Spyre code, and SGLang’s extension points kept the work focused.
+[06:00.12]复用 PyTorch 的硬件支持、vLLM 的 Spyre 代码以及 SGLang 的扩展点，让工作保持聚焦。
+[06:08.95]SGLang reached approximately 3.6× the throughput of the reference PyTorch inference implementation using torch-spyre, was on par with vLLM on the measured Granite 3.3 8B and Gemma 4 26B A4B workloads, and used RadixCache without Spyre-specific changes.
+[06:08.95]SGLang 使用 torch-spyre 时，吞吐量约为参考 PyTorch 推理实现的 3.6×；在实测的 Granite 3.3 8B 和 Gemma 4 26B A4B 工作负载上与 vLLM 持平，并且无需针对 Spyre 做专门修改即可使用 RadixCache。
+[06:29.89]Brian: That’s the useful pattern: keep accelerator behavior in shared PyTorch code, and make the serving integration satisfy clear framework interfaces.
+[06:29.89]Brian：这就是有用的模式：将加速器行为保留在共享的 PyTorch 代码中，并让服务集成满足清晰的框架接口。
+[06:40.35]Thanks for listening.
+[06:40.35]感谢收听。

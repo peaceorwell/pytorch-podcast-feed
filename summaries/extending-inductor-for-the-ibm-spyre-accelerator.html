@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IBM Spyre 如何扩展 PyTorch Inductor</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/extending-inductor-for-the-ibm-spyre-accelerator/">原视频 / 原文</a></p><h1>IBM Spyre 如何扩展 PyTorch Inductor</h1>
+<p>依据：原文</p>
+<p>来源：https://pytorch.org/blog/extending-inductor-for-the-ibm-spyre-accelerator/</p>
+<p>IBM 将 Spyre 加速器的 torch.compile 后端从独立编译器 sendnn 迁至基于 PyTorch Inductor 的 backend=inductor。Inductor 的大部分流程可以沿用，扩展工作集中在数据布局、片上存储和核心分工。文章讨论的是 torch-spyre 的编译器实现及已测得的局部效果，并未给出完整模型的性能评估。</p>
+<h3>硬件带来的编译问题</h3>
+<p>Spyre 面向企业推理，功耗为 75 W，通过 PCIe 连接，由 32 个核心组成。每个核心有独立的 2 MB 暂存区，核心之间通过环形网络连接。它以 128 字节的 stick 为数据移动和计算单位，相当于 64 个 fp16 值，不能像 GPU 那样单独搬运一个元素。数据进出暂存区也必须由编译器显式安排，核心任务则在编译时确定。</p>
+<h3>后端如何接入 Inductor</h3>
+<p>Dynamo 和 AOTAutograd 处理模型后，Inductor 将 FX 图降至 LoopLevelIR。torch-spyre 在此加入设备专用的算子分解与 lowering，并在调度前决定布局、分块、核心分工和暂存区分配，生成 SuperDSC；专有编译器 DeepTools 再将其转换为 Spyre 指令。关键的调度前处理目前通过修改 GraphLowering.codegen() 接入，因为现有钩子运行得太晚，无法大规模改写图。</p>
+<h3>布局与核心分工</h3>
+<p>算子对 stick 的组织方式有约束。例如逐元素算子的输入和输出须共享最内层 stick 维度；布局冲突时，编译器需插入重新组织数据的 restickify。选择布局因此涉及整个计算图的数据移动成本。核心分工规划先满足单核可寻址内存上限，再用成本模型估计矩阵乘法的候选切分，其余算子另行处理；这些估计用于选方案，不是实测运行时间。</p>
+<h3>暂存区与协同优化</h3>
+<p>torch-spyre 用基于 torch.scan 的 for_each_tile 表达分块循环，再决定哪些数据留在各核心的暂存区。若相邻算子的核心切分不一致，共享数据原本需要写回设备内存再读入。新方案同时考虑分工和暂存区放置，可选择一致但局部较慢的切分，或用 lx_relayout 在核心暂存区之间重排数据。后者仍消耗时间和空间。实现提供快速的贪心路径及有时间上限的 OR-Tools CP-SAT 搜索路径。</p>
+<h3>测量结果与适用范围</h3>
+<p>在设备内存已有全部张量的批量矩阵乘法测试中，调整输入和输出的分块布局使内核时间下降 29% 至 69%。单核 fp16 softmax 示例通过改进暂存区调度，将中位内核时间从 32.51 微秒降至 23.67 微秒，下降 27%。一个融合 MLP 类内核采用相邻矩阵乘法的切分后，核心利用率从约三分之二升至约 80%，内核时间下降约 17%，相对 sendnn 编译的对应内核快约 2 倍。专门构造的图中，片上重排耗时 1.1 微秒，替代了 80 微秒的设备内存往返。这些是特定内核或图的结果。</p>
+<h3>工程影响与后续工作</h3>
+<p>按不含测试和注释的代码行统计，sendnn 约有 27.3 万行，torch-spyre 的 Inductor 扩展约有 3.86 万行，约缩小 7 倍；比较成立的前提是新版复用了 Inductor。设备专用分解支持已进入 PyTorch 2.12，团队仍在推动将调度前处理从当前的修改接入方式变成正式扩展接口。协同优化的搜索空间随内核规模增长，完整性能评估也仍在进行。</p></body></html>

@@ -1,0 +1,214 @@
+1
+00:00:00,000 --> 00:00:07,712
+Ava: A PyTorch model can now run on the GPU inside a browser tab, while prompts and outputs stay on the device.
+Ava：PyTorch 模型现在可以在浏览器标签页内的 GPU 上运行，提示词和输出都留在设备上。
+
+2
+00:00:07,712 --> 00:00:11,990
+That's a useful path for private or offline inference.
+这为私密或离线推理提供了一条实用路径。
+
+3
+00:00:11,990 --> 00:00:21,261
+Brian: ExecuTorch's new WebGPU backend makes that possible without converting the model to another framework's format.
+Brian：ExecuTorch 新增的 WebGPU 后端让这成为可能，无需把模型转换成其他框架的格式。
+
+4
+00:00:21,261 --> 00:00:29,044
+You export it with torch.export to one .pte file, then run that file in a WebGPU browser.
+用 torch.export 导出一个 .pte 文件，再在支持 WebGPU 的浏览器中运行。
+
+5
+00:00:29,044 --> 00:00:34,938
+Ava: The export path sounds simple. Where does the GPU work actually happen?
+Ava：导出流程听起来很简单。GPU 计算具体在哪里进行？
+
+6
+00:00:34,938 --> 00:00:38,141
+Brian: The export uses WebGPUPartitioner.
+Brian：导出时会使用 WebGPUPartitioner。
+
+7
+00:00:38,141 --> 00:00:49,040
+At runtime, ExecuTorch allocates GPU buffers and dispatches WGSL compute shaders through WebGPU command buffers.
+运行时，ExecuTorch 分配 GPU 缓冲区，并通过 WebGPU 命令缓冲区调度 WGSL 计算着色器。
+
+8
+00:00:49,040 --> 00:00:53,938
+Ava: The same .pte file is meant to run across browsers and devices.
+Ava：同一个 .pte 文件可以在不同浏览器和设备上运行。
+
+9
+00:00:53,938 --> 00:00:56,542
+What handles the differences?
+平台差异由谁处理？
+
+10
+00:00:56,542 --> 00:01:05,139
+Brian: WGSL is translated to Metal Shading Language, SPIR-V, or HLSL, depending on the platform.
+Brian：WGSL 会根据平台转换为 Metal Shading Language、SPIR-V 或 HLSL。
+
+11
+00:01:05,139 --> 00:01:20,172
+For the browser, the C++ runtime is compiled to WebAssembly with Emscripten, and emdawnwebgpu connects its WebGPU calls to the browser's JavaScript API.
+在浏览器中，C++ 运行时通过 Emscripten 编译成 WebAssembly，再由 emdawnwebgpu 将其 WebGPU 调用接入浏览器的 JavaScript API。
+
+12
+00:01:20,172 --> 00:01:24,296
+Ava: A browser workload can change shape as a prompt grows.
+Ava：提示词变长时，浏览器中的计算形状也会变化。
+
+13
+00:01:24,296 --> 00:01:28,922
+Does the backend reallocate GPU memory for every length?
+后端会为每种长度重新分配 GPU 内存吗？
+
+14
+00:01:28,922 --> 00:01:40,652
+Brian: For dynamic shapes, it allocates buffers at the maximum size, recalculates workgroups for each dispatch, and routes shapes to specialized WGSL kernels.
+Brian：对于动态形状，它按最大尺寸分配缓冲区，每次调度时重新计算工作组，并根据形状选用专门的 WGSL 内核。
+
+15
+00:01:40,652 --> 00:01:44,032
+That's how it supports batched prefill.
+这样就能支持批量预填充。
+
+16
+00:01:44,032 --> 00:01:48,894
+Ava: That connects to the speed claim. What exactly was compared?
+Ava：这就说到速度提升了。具体比较了什么？
+
+17
+00:01:48,894 --> 00:01:57,682
+Brian: The authors tested quantized Llama 3.2 1B and Qwen3-0.6B in Google Chrome on an Apple M1 Pro.
+Brian：作者在搭载 Apple M1 Pro 的设备上，用 Google Chrome 测试了量化版 Llama 3.2 1B 和 Qwen3-0.6B。
+
+18
+00:01:57,682 --> 00:02:08,900
+They compared WebGPU with ExecuTorch's own multithreaded WebAssembly CPU backend using XNNPACK on the same machine.
+他们在同一台设备上，将 WebGPU 与 ExecuTorch 自带的、使用 XNNPACK 的多线程 WebAssembly CPU 后端作比较。
+
+19
+00:02:08,900 --> 00:02:16,114
+Ava: And the reported gain is for prefill and decode, not one combined inference number, right?
+Ava：报告中的提速分别针对预填充和解码，不是合并后的单个推理指标，对吗？
+
+20
+00:02:16,114 --> 00:02:23,539
+Brian: Right. WebGPU was 4–7× faster on prefill and 2–10× faster on decode in that setup.
+Brian：对。在这套测试环境下，WebGPU 的预填充速度快 4–7 倍，解码速度快 2–10 倍。
+
+21
+00:02:23,539 --> 00:02:34,392
+Each point is the median of 5 runs after 3 warmups, across contexts from 128 to 8K tokens, with identical token IDs.
+上下文长度从 128 到 8K 个 token，使用相同的 token ID；每组数据先预热 3 次，再取 5 次运行的中位数。
+
+22
+00:02:34,392 --> 00:02:40,893
+Ava: I'm looking at the precision settings before treating that as a pure GPU-versus-CPU result.
+Ava：在把它看作单纯的 GPU 与 CPU 对比前，我想先看看精度设置。
+
+23
+00:02:40,893 --> 00:02:43,886
+Were the activation formats the same?
+激活值的格式一样吗？
+
+24
+00:02:43,886 --> 00:02:45,032
+Brian: They weren't.
+Brian：不一样。
+
+25
+00:02:45,032 --> 00:02:51,729
+WebGPU used 4-bit groupwise weights with group size 64 and fp32 activations.
+WebGPU 使用分组量化的 4 位权重，组大小为 64，激活值为 fp32。
+
+26
+00:02:51,729 --> 00:02:58,074
+The CPU path used XNNPACK's 4-bit weights and 8-bit dynamic activations.
+CPU 路径使用 XNNPACK 的 4 位权重和 8 位动态量化激活值。
+
+27
+00:02:58,074 --> 00:03:07,324
+Both paths were timed with wall-clock time because GPU timestamps aren't available for CPU execution.
+两条路径都用实际经过时间计时，因为 CPU 执行无法使用 GPU 时间戳。
+
+28
+00:03:07,324 --> 00:03:11,994
+Ava: What does the model coverage look like beyond text generation?
+Ava：除了文本生成，还支持哪些模型？
+
+29
+00:03:11,994 --> 00:03:15,512
+Brian: SmolVLM handles image questions and captions.
+Brian：SmolVLM 可处理图像问答和生成图片说明。
+
+30
+00:03:15,512 --> 00:03:25,520
+The listed vision models cover depth estimation, image segmentation, object detection, super-resolution, and background removal.
+列出的视觉模型涵盖深度估计、图像分割、目标检测、超分辨率和背景移除。
+
+31
+00:03:25,520 --> 00:03:32,360
+Whisper base covers speech-to-text, and another listed model covers text-to-speech.
+Whisper base 用于语音转文字，另一个列出的模型用于文字转语音。
+
+32
+00:03:32,360 --> 00:03:37,798
+Ava: And the article includes on-device fine-tuning, not just inference.
+Ava：文章还介绍了设备端微调，不只是推理。
+
+33
+00:03:37,798 --> 00:03:38,197
+Brian: Yes.
+Brian：是的。
+
+34
+00:03:38,197 --> 00:03:52,524
+It lists LoRA and DiReFT fine-tuning for Llama 3.2 1B, Qwen2.5-0.5B, and Qwen3-0.6B, aimed at personalized assistants and domain adaptation.
+文中列出了 Llama 3.2 1B、Qwen2.5-0.5B 和 Qwen3-0.6B 的 LoRA 与 DiReFT 微调，用于个性化助手和领域适配。
+
+35
+00:03:52,524 --> 00:03:56,282
+Ava: If I want to try it, what would I actually ship?
+Ava：如果我想试用，实际需要部署什么？
+
+36
+00:03:56,282 --> 00:04:02,262
+Brian: The article describes serving a .pte file over a CDN on a web page.
+Brian：文章介绍了在网页上通过 CDN 提供 .pte 文件的方式。
+
+37
+00:04:02,262 --> 00:04:11,188
+The ExecuTorch WebGPU Playground runs many of these models on the same WebAssembly + WebGPU runtime.
+ExecuTorch WebGPU Playground 使用同一套 WebAssembly + WebGPU 运行时运行其中许多模型。
+
+38
+00:04:11,188 --> 00:04:20,464
+Each model's Hugging Face repository includes .pte files, a model card, and the exact export recipe.
+每个模型的 Hugging Face 仓库都包含 .pte 文件、模型卡片和完整的导出步骤。
+
+39
+00:04:20,464 --> 00:04:33,102
+Ava: So the useful takeaway is one PyTorch export for local browser GPU inference, with a measured speedup over ExecuTorch's CPU path under the stated test conditions.
+Ava：所以关键是，一次 PyTorch 导出就能在浏览器里进行本地 GPU 推理；在所述测试条件下，相比 ExecuTorch 的 CPU 路径也有实测提速。
+
+40
+00:04:33,102 --> 00:04:39,120
+Brian: And there's a broad set of validated models, plus on-device fine-tuning examples.
+Brian：此外，还有一批经过验证的模型，以及设备端微调示例。
+
+41
+00:04:39,120 --> 00:04:42,167
+The backend's still in early development.
+这个后端仍处于早期开发阶段。
+
+42
+00:04:42,167 --> 00:04:49,374
+The team plans to improve speed and stability and expand operator, data type, and model coverage.
+团队计划提升速度和稳定性，并扩大对算子、数据类型和模型的支持。
+
+43
+00:04:49,374 --> 00:04:51,284
+Thanks for listening.
+感谢收听。

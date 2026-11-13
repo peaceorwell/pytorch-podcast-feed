@@ -1,0 +1,239 @@
+1
+00:00:00,000 --> 00:00:07,737
+Ava: In large-scale reinforcement learning, large model weight tensors move from training workers to inference workers.
+Ava：在大规模强化学习中，大型模型的权重张量需要从训练工作进程传到推理工作进程。
+
+2
+00:00:07,737 --> 00:00:14,534
+If that transfer goes through host memory, accelerator speed alone won't remove the bottleneck.
+如果传输经过主机内存，光靠加速器提速也无法消除瓶颈。
+
+3
+00:00:14,534 --> 00:00:21,715
+Brian: That's one reason Ray has announced a Special Interest Group, or SIG, for accelerators.
+Brian：这也是 Ray 宣布成立加速器特别兴趣小组（SIG）的原因之一。
+
+4
+00:00:21,715 --> 00:00:30,217
+Ray already supports more than a dozen kinds, including NVIDIA and AMD GPUs, TPUs, Trainium, and Gaudi.
+Ray 已支持十多种加速器，包括 NVIDIA 和 AMD GPU、TPU、Trainium 和 Gaudi。
+
+5
+00:00:30,217 --> 00:00:39,316
+The group wants to make accelerator support easier to use, efficient at scale, and reliable in production.
+小组希望让加速器支持更易用、在大规模运行时更高效，并在生产环境中更可靠。
+
+6
+00:00:39,316 --> 00:00:43,256
+Ava: So what's involved beyond adding another device type?
+Ava：除了新增一种设备类型，还要做什么？
+
+7
+00:00:43,256 --> 00:00:52,602
+A GPU count tells me little about which devices are connected, or where they sit relative to CPUs and network interfaces.
+仅凭 GPU 数量，我看不出设备之间如何连接，也不知道它们与 CPU、网络接口的相对位置。
+
+8
+00:00:52,602 --> 00:01:02,559
+Brian: The initial roadmap has three parts: development and testing infrastructure, hardware-aware scheduling, and networking and I/O transport.
+Brian：初步路线图分为三部分：开发与测试基础设施、硬件感知调度，以及网络与 I/O 传输。
+
+9
+00:01:02,559 --> 00:01:10,904
+It brings hardware vendors, Ray contributors, and application developers around a shared, vendor-neutral plan.
+它让硬件厂商、Ray 贡献者和应用开发者围绕一份不偏向任何厂商的共同计划协作。
+
+10
+00:01:10,904 --> 00:01:12,501
+Ava: Let's start with testing.
+Ava：先说测试。
+
+11
+00:01:12,501 --> 00:01:19,366
+If someone adds support for an accelerator, how would a maintainer reproduce a failure on that device?
+如果有人新增一种加速器的支持，维护者该如何在该设备上复现故障？
+
+12
+00:01:19,366 --> 00:01:24,317
+Brian: The group proposes shared access to cloud or vendor-hosted hardware.
+Brian：小组提议共享云端或厂商托管的硬件资源。
+
+13
+00:01:24,317 --> 00:01:31,088
+It also wants maintained environments with explicit driver, runtime, and dependency versions.
+还希望维护统一的环境，明确驱动、运行时和依赖项的版本。
+
+14
+00:01:31,088 --> 00:01:37,044
+Contributors could then reproduce CI results and debug on a consistent setup.
+这样，贡献者就能在一致的环境中复现 CI 结果并调试。
+
+15
+00:01:37,044 --> 00:01:41,410
+Ava: And a basic device check wouldn't be enough for a distributed job.
+Ava：对分布式作业来说，基本的设备检查还不够。
+
+16
+00:01:41,410 --> 00:01:53,402
+The proposed CI coverage includes targeted pull request checks, plus broader nightly and release tests for distributed workloads, failure recovery, and performance regressions.
+拟议的 CI 测试包括针对拉取请求的定向检查，以及范围更广的夜间和发布测试，覆盖分布式工作负载、故障恢复和性能回退。
+
+17
+00:01:53,402 --> 00:01:55,548
+Brian: There's an ownership piece too.
+Brian：还需要明确责任归属。
+
+18
+00:01:55,548 --> 00:02:02,402
+The roadmap calls for clear responsibility for maintaining environments and investigating failures.
+路线图要求明确由谁维护环境、调查故障。
+
+19
+00:02:02,402 --> 00:02:11,128
+It also calls for visible test results and infrastructure health, with capacity and costs managed as participation grows.
+还要公开测试结果和基础设施运行状况，并随着参与者增加管理容量和成本。
+
+20
+00:02:11,128 --> 00:02:15,906
+Ava: Now take placement. Suppose two tasks need to exchange tensors.
+Ava：再来看任务放置。假设两个任务需要交换张量。
+
+21
+00:02:15,906 --> 00:02:20,958
+Does Ray need more than the accelerator type and device count?
+Ray 是否需要知道加速器类型和设备数量以外的信息？
+
+22
+00:02:20,958 --> 00:02:26,192
+Brian: Yes. The goal is for discovery to capture topology and architecture.
+Brian：需要。目标是让硬件发现机制获取拓扑和架构信息。
+
+23
+00:02:26,192 --> 00:02:36,277
+That includes device interconnects, relationships to CPUs and network interfaces, and larger groupings such as racks or TPU slices.
+这些信息包括设备互连、设备与 CPU 和网络接口的关系，以及机架或 TPU 切片等更大的分组。
+
+24
+00:02:36,277 --> 00:02:42,092
+Some grouping information comes from the platform, not the node itself.
+有些分组信息来自平台，而非节点本身。
+
+25
+00:02:42,092 --> 00:02:47,887
+Ava: With that picture, the scheduler could place tasks and actors on suitable hardware.
+Ava：有了这些信息，调度器就能把任务和 Actor 放到合适的硬件上。
+
+26
+00:02:47,887 --> 00:02:51,658
+What would application developers be able to see?
+应用开发者能看到哪些信息？
+
+27
+00:02:51,658 --> 00:03:00,680
+Brian: The group wants common, vendor-neutral interfaces for hardware labels, architecture, specifications, and accelerator SKUs.
+Brian：小组希望为硬件标签、架构、规格和加速器 SKU 提供通用、厂商中立的接口。
+
+28
+00:03:00,680 --> 00:03:07,483
+It also proposes views of cluster connectivity and accelerator metrics on the Ray dashboard.
+还提议在 Ray 仪表板上展示集群连接情况和加速器指标。
+
+29
+00:03:07,483 --> 00:03:12,936
+Users could check what Ray discovered and where it placed their work.
+用户可以查看 Ray 发现了什么硬件，以及将工作放在了哪里。
+
+30
+00:03:12,936 --> 00:03:19,625
+Ava: The roadmap also calls for an extension point and checklist when vendors add an accelerator.
+Ava：路线图还要求为厂商新增加速器提供扩展接口和检查清单。
+
+31
+00:03:19,625 --> 00:03:25,646
+Now, about moving tensors: why can the object-store route become a bottleneck?
+说到张量传输，为什么经由对象存储的路径会成为瓶颈？
+
+32
+00:03:25,646 --> 00:03:28,767
+Brian: Ray's object store was built for CPU data.
+Brian：Ray 的对象存储原本是为 CPU 数据设计的。
+
+33
+00:03:28,767 --> 00:03:38,797
+Accelerator tensors had to be copied to host memory, serialized, and sent over standard host networking before reaching another device.
+加速器上的张量必须先复制到主机内存、序列化，再通过普通主机网络发送，才能到达另一台设备。
+
+34
+00:03:38,797 --> 00:03:43,828
+That adds a costly detour to workloads that move large tensors.
+对于需要传输大型张量的工作负载，这条绕路代价很高。
+
+35
+00:03:43,828 --> 00:03:55,375
+Ava: Ray Direct Transport, or RDT, gives actors a different path: they pass tensor references through Ray while the data transfers directly between devices.
+Ava：Ray Direct Transport（RDT）为 Actor 提供另一条路径：它们通过 Ray 传递张量引用，数据则直接在设备之间传输。
+
+36
+00:03:55,375 --> 00:03:59,778
+Is the roadmap about expanding the paths RDT can use?
+路线图是要扩展 RDT 可用的传输路径吗？
+
+37
+00:03:59,778 --> 00:04:01,320
+Brian: That's one part.
+Brian：这是其中一部分。
+
+38
+00:04:01,320 --> 00:04:09,220
+The aim is broader RDT support across accelerators, frameworks, and interconnects.
+目标是让 RDT 支持更多加速器、框架和互连方式。
+
+39
+00:04:09,220 --> 00:04:20,168
+The roadmap names intra-slice TPU ICI, scale-up NVIDIA NVLink, and scale-out GPUDirect RDMA as paths to cover.
+路线图列出的传输路径包括 TPU 切片内的 ICI、用于纵向扩展的 NVIDIA NVLink，以及用于横向扩展的 GPUDirect RDMA。
+
+40
+00:04:20,168 --> 00:04:26,694
+Ava: And when actors scale or restart, the transport has to handle its own lifecycle.
+Ava：Actor 扩容或重启时，传输机制也得处理好自身的生命周期。
+
+41
+00:04:26,694 --> 00:04:37,078
+The plan includes initialization, teardown, error recovery, validated deployment configurations, and transport diagnostics.
+计划涵盖初始化、清理、错误恢复、经过验证的部署配置和传输诊断。
+
+42
+00:04:37,078 --> 00:04:42,438
+Brian: The boundary is clear: core scheduling and placement stay in Ray Core.
+Brian：职责划分很明确：核心调度和任务放置仍由 Ray Core 负责。
+
+43
+00:04:42,438 --> 00:04:47,492
+The SIG defines plugin interfaces, CI testing, and maturity tiers.
+SIG 负责定义插件接口、CI 测试和成熟度分级。
+
+44
+00:04:47,492 --> 00:04:58,716
+Vendors and cloud providers maintain their device plugins and transports, while framework authors and practitioners bring real workload needs.
+厂商和云服务商维护各自的设备插件与传输实现，框架作者和实际使用者则提出真实工作负载的需求。
+
+45
+00:04:58,716 --> 00:05:06,142
+Ava: The takeaway is a roadmap for shared hardware testing, richer discovery, and more reliable direct transport.
+Ava：总的来说，这是一份关于共享硬件测试、更丰富的硬件发现能力，以及更可靠的直接传输的路线图。
+
+46
+00:05:06,142 --> 00:05:14,330
+Those pieces matter together when workloads place workers across accelerators and move model weights between them.
+当工作负载需要跨加速器放置工作进程，并在它们之间传输模型权重时，这些环节缺一不可。
+
+47
+00:05:14,330 --> 00:05:25,537
+Brian: The group is public and invites people building integrations, running large-scale training or inference on Ray, or providing cloud and CI infrastructure to get involved.
+Brian：小组向公众开放，欢迎开发集成方案、在 Ray 上运行大规模训练或推理，或提供云和 CI 基础设施的人参与。
+
+48
+00:05:25,537 --> 00:05:27,280
+Thanks for listening.
+感谢收听。

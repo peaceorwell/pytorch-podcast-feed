@@ -1,0 +1,659 @@
+1
+00:00:00,000 --> 00:00:06,038
+Ava: If a training job has to move to another chip, how much of the software stack has to move with it?
+Ava：如果训练任务要迁移到另一种芯片，软件栈需要跟着迁移多少？
+
+2
+00:00:06,038 --> 00:00:11,549
+Brian: That's the practical question behind PyTorch Conference China twenty twenty-six.
+Brian：这正是 PyTorch Conference China 2026 背后的实际问题。
+
+3
+00:00:11,549 --> 00:00:16,996
+The conference looked at how an open AI stack can span different hardware.
+大会探讨了开放的 AI 技术栈如何支持不同硬件。
+
+4
+00:00:16,996 --> 00:00:21,690
+Ava: So this wasn't just a conference about new PyTorch features?
+Ava：所以，这不只是一场介绍 PyTorch 新功能的大会？
+
+5
+00:00:21,690 --> 00:00:22,103
+Brian: Right.
+Brian：对。
+
+6
+00:00:22,103 --> 00:00:30,920
+It brought the community together in Shanghai on September eighth and ninth, after two related events on September seventh.
+两场相关活动于9月7日举行后，社区又于9月8日至9日在上海相聚。
+
+7
+00:00:30,920 --> 00:00:36,550
+Ava: And the theme was Open Source for the AI Era. What does that mean in practice?
+Ava：主题是“Open Source for the AI Era”，也就是“AI 时代的开源”。具体是什么意思？
+
+8
+00:00:36,550 --> 00:00:39,824
+Brian: It means looking beyond the framework alone.
+Brian：就是不能只看框架本身。
+
+9
+00:00:39,824 --> 00:00:47,316
+The discussions covered models, training, inference, hardware, cloud infrastructure, and agents.
+讨论涵盖模型、训练、推理、硬件、云基础设施和智能体。
+
+10
+00:00:47,316 --> 00:00:52,130
+Ava: That's a lot of ground. Is there one idea that connects it?
+Ava：范围真广。有什么共同的主线吗？
+
+11
+00:00:52,130 --> 00:01:00,352
+Brian: The article calls it one open source AI stack: software and hardware layers that different communities build together.
+Brian：文章称之为一个开源 AI 技术栈：由不同社区共同构建的软件和硬件层。
+
+12
+00:01:00,352 --> 00:01:05,406
+Ava: Let's slow down. When you say stack, what sits on top of what?
+Ava：先说清楚，技术栈里各层是怎么排列的？
+
+13
+00:01:05,406 --> 00:01:08,126
+Brian: At the top are applications and agents.
+Brian：最上层是应用和智能体。
+
+14
+00:01:08,126 --> 00:01:16,148
+Beneath them are tools for building and delivering intelligence, then tools for running and scaling workloads.
+下面是构建和交付智能能力的工具，再下面是运行和扩展工作负载的工具。
+
+15
+00:01:16,148 --> 00:01:18,058
+Ava: And below those?
+Ava：再往下呢？
+
+16
+00:01:18,058 --> 00:01:22,829
+Brian: Infrastructure and isolation, then heterogeneous compute.
+Brian：是基础设施与隔离层，然后是异构计算。
+
+17
+00:01:22,829 --> 00:01:32,136
+Heterogeneous just means different kinds of processors, including CPUs, GPUs, NPUs, and other accelerators.
+异构就是指不同类型的处理器，包括 CPU、GPU、NPU 和其他加速器。
+
+18
+00:01:32,136 --> 00:01:38,366
+Ava: So a developer working on an agent still depends on choices several layers below it.
+Ava：所以开发智能体的人，也会受到下面好几层技术选择的影响。
+
+19
+00:01:38,366 --> 00:01:42,381
+Brian: Exactly. Imagine changing the engine in a vehicle.
+Brian：没错。想象一下给车换发动机。
+
+20
+00:01:42,381 --> 00:01:47,068
+You'd want the controls above it to keep making sense.
+你会希望上面的操控方式仍然好用。
+
+21
+00:01:47,068 --> 00:01:53,922
+Ava: That's the appeal. Does the article say every model already runs on every chip?
+Ava：这就是吸引人的地方。文章说所有模型现在都能在所有芯片上运行吗？
+
+22
+00:01:53,922 --> 00:02:00,151
+Brian: No. Any Model, Any Chip, Any Cloud, Any Agent is the Foundation's framing.
+Brian：没有。“Any Model, Any Chip, Any Cloud, Any Agent”是基金会提出的愿景。
+
+23
+00:02:00,151 --> 00:02:05,552
+The article also describes the adaptation work still needed.
+文章也谈到了仍需完成的适配工作。
+
+24
+00:02:05,552 --> 00:02:09,790
+Ava: What projects did the Foundation put in those middle layers?
+Ava：基金会把哪些项目放在中间几层？
+
+25
+00:02:09,790 --> 00:02:15,188
+Brian: It placed PyTorch, vLLM, and Ray in the building and delivering layer.
+Brian：构建和交付层包括 PyTorch、vLLM 和 Ray。
+
+26
+00:02:15,188 --> 00:02:20,628
+vLLM comes up elsewhere in the program in connection with serving.
+议程其他部分也提到了 vLLM，涉及模型服务。
+
+27
+00:02:20,628 --> 00:02:23,258
+Ava: And running workloads at scale?
+Ava：那大规模运行工作负载这一层呢？
+
+28
+00:02:23,258 --> 00:02:29,951
+Brian: That layer included Kubernetes, KServe, Kueue, OpenTelemetry, and llm-d.
+Brian：这一层包括 Kubernetes、KServe、Kueue、OpenTelemetry 和 llm-d。
+
+29
+00:02:29,951 --> 00:02:36,064
+The article presents them as examples within the larger stack.
+文章把它们作为整个技术栈中的例子。
+
+30
+00:02:36,064 --> 00:02:40,014
+Ava: Then OpenStack and Kata Containers are below that?
+Ava：再往下就是 OpenStack 和 Kata Containers？
+
+31
+00:02:40,014 --> 00:02:42,788
+Brian: Yes, in infrastructure and isolation.
+Brian：对，它们属于基础设施与隔离层。
+
+32
+00:02:42,788 --> 00:02:48,236
+The key point is that these layers meet at real workload boundaries.
+关键是，这些层会在实际工作负载的边界上相接。
+
+33
+00:02:48,236 --> 00:02:52,666
+Ava: So who takes responsibility when a boundary doesn't work?
+Ava：如果边界衔接出了问题，谁来负责？
+
+34
+00:02:52,666 --> 00:02:55,107
+Brian: That's where collaboration matters.
+Brian：这正是协作重要的地方。
+
+35
+00:02:55,107 --> 00:03:03,408
+The Foundation says no single organization builds the whole system; its members work across different parts of it.
+基金会表示，没有哪家机构能独自构建整个系统；成员们分别在不同环节开展工作。
+
+36
+00:03:03,408 --> 00:03:07,982
+Ava: The article also announces new members. Who joined?
+Ava：文章还宣布了新成员。谁加入了？
+
+37
+00:03:07,982 --> 00:03:12,077
+Brian: Alibaba Cloud and Cambricon joined as Platinum Members.
+Brian：阿里云和寒武纪成为白金会员。
+
+38
+00:03:12,077 --> 00:03:14,608
+Ant Group joined as a Gold Member.
+蚂蚁集团成为金牌会员。
+
+39
+00:03:14,608 --> 00:03:19,276
+The announcement happened in Shanghai on September eighth.
+这一消息于9月8日在上海宣布。
+
+40
+00:03:19,276 --> 00:03:24,474
+Ava: Do their backgrounds show why the Foundation talks about a whole stack?
+Ava：他们各自的背景能说明基金会为什么强调完整技术栈吗？
+
+41
+00:03:24,474 --> 00:03:30,684
+Brian: They do. Alibaba Cloud's work spans cloud infrastructure and the Qwen model family.
+Brian：能。阿里云的业务涵盖云基础设施和 Qwen 模型系列。
+
+42
+00:03:30,684 --> 00:03:36,272
+Ant Group brings production AI experience at financial-services scale.
+蚂蚁集团带来了金融服务规模的 AI 生产实践经验。
+
+43
+00:03:36,272 --> 00:03:39,526
+Ava: And Cambricon is the hardware side?
+Ava：寒武纪代表硬件这一端？
+
+44
+00:03:39,526 --> 00:03:42,371
+Brian: Yes. It develops MLU accelerators.
+Brian：对，它开发 MLU 加速器。
+
+45
+00:03:42,371 --> 00:03:49,164
+The article says its PyTorch contributions follow an Upstream First approach.
+文章说，它对 PyTorch 的贡献遵循 Upstream First（上游优先）原则。
+
+46
+00:03:49,164 --> 00:03:53,426
+Ava: Upstream First sounds important, but what did it contribute?
+Ava：上游优先听起来很重要，它具体贡献了什么？
+
+47
+00:03:53,426 --> 00:04:03,832
+Brian: The article lists work across torch.compile, Eager Operators, Device Runtime, Distributed Computing, AMP, Dataloader, and Profiler.
+Brian：文章列出了 torch.compile、Eager Operators、Device Runtime、Distributed Computing、AMP、Dataloader 和 Profiler 等方面的工作。
+
+48
+00:04:03,832 --> 00:04:06,918
+Ava: That's more than a single device hook.
+Ava：这远不止接入一个设备那么简单。
+
+49
+00:04:06,918 --> 00:04:11,213
+Brian: Right. It touches several places a workload passes through.
+Brian：对，工作负载经过的多个环节都涉及了。
+
+50
+00:04:11,213 --> 00:04:16,004
+The article doesn't spell out the individual changes, though.
+不过，文章没有逐一说明具体改动。
+
+51
+00:04:16,004 --> 00:04:22,834
+Ava: Before we get to hardware integration, how large is the China-based contributor community?
+Ava：先不谈硬件集成，中国的贡献者社区有多大？
+
+52
+00:04:22,834 --> 00:04:31,896
+Brian: The article reports more than one hundred China-based developers contributing to PyTorch across more than forty affiliated organizations.
+Brian：文章称，来自中国 40 多家相关机构的 100 多名开发者参与了 PyTorch 贡献。
+
+53
+00:04:31,896 --> 00:04:38,246
+Ava: I also saw a figure above two hundred and fifty. Is that the same count?
+Ava：我还看到一个超过 250 的数字，统计的是同一批人吗？
+
+54
+00:04:38,246 --> 00:04:51,028
+Brian: No. That figure covers organizations across China contributing to PyTorch Foundation projects, including PyTorch, Ray, DeepSpeed, Safetensors, and vLLM.
+Brian：不是。这张图展示了中国各地为 PyTorch 基金会项目作出贡献的组织，涉及 PyTorch、Ray、DeepSpeed、Safetensors 和 vLLM。
+
+55
+00:04:51,028 --> 00:04:53,238
+Ava: That's a useful distinction.
+Ava：这个区别很重要。
+
+56
+00:04:53,238 --> 00:04:59,034
+One count is PyTorch developers; the other spans Foundation projects.
+一个统计的是 PyTorch 开发者，另一个涵盖基金会的多个项目。
+
+57
+00:04:59,034 --> 00:05:05,840
+Brian: Exactly. Put them together carelessly, and you'd give listeners the wrong picture.
+Brian：没错。把两个数字混为一谈，会让听众产生误解。
+
+58
+00:05:05,840 --> 00:05:11,614
+Ava: Now, back to chips. What's making hardware support so difficult?
+Ava：回到芯片。硬件支持为什么这么难？
+
+59
+00:05:11,614 --> 00:05:19,412
+Brian: The article points to hardware heterogeneity, high adaptation costs, and a lack of unified standards.
+Brian：文章指出，原因包括硬件种类繁多、适配成本高，以及缺乏统一标准。
+
+60
+00:05:19,412 --> 00:05:23,700
+Each new chip can create repeated integration work.
+每增加一种芯片，都可能要重复做一遍集成工作。
+
+61
+00:05:23,700 --> 00:05:27,002
+Ava: Repeated where? Just in operators?
+Ava：哪些地方要重复？只有算子吗？
+
+62
+00:05:27,002 --> 00:05:28,654
+Brian: Operators are one part.
+Brian：算子只是其中一部分。
+
+63
+00:05:28,654 --> 00:05:36,904
+The September seventh discussions also named compilers, training and inference frameworks, and communications.
+9 月 7 日的讨论还提到了编译器、训练和推理框架，以及通信。
+
+64
+00:05:36,904 --> 00:05:43,206
+Ava: So it's like adding a machine to a lab and discovering every tool needs a new connector.
+Ava：就像实验室添了一台机器，却发现每件工具都得换个接口。
+
+65
+00:05:43,206 --> 00:05:45,347
+Brian: Yes. That's a helpful picture.
+Brian：对，这个比喻很贴切。
+
+66
+00:05:45,347 --> 00:05:54,260
+The FlagOS-hosted event discussed open system software for diverse hardware and collaboration across chip architectures.
+由 FlagOS 主办的活动讨论了适配多种硬件的开放系统软件，以及跨芯片架构协作。
+
+67
+00:05:54,260 --> 00:05:57,802
+Ava: There was a Huawei-hosted event too, wasn't there?
+Ava：华为也主办了一场活动，对吧？
+
+68
+00:05:57,802 --> 00:05:58,665
+Brian: There was.
+Brian：对。
+
+69
+00:05:58,665 --> 00:06:10,320
+It focused on PyTorch workloads across GPUs, NPUs, and XPUs, including migration, operators, compiler work, and performance tuning.
+活动聚焦 PyTorch 工作负载如何在 GPU、NPU 和 XPU 上运行，包括迁移、算子、编译器开发和性能调优。
+
+70
+00:06:10,320 --> 00:06:14,054
+Ava: Can you make the Foundation's response more concrete?
+Ava：能具体说说基金会是怎么应对的吗？
+
+71
+00:06:14,054 --> 00:06:22,708
+Brian: The PyTorch Technical Advisory Council has an Accelerator Integration Working Group, co-chaired by Huawei and Intel.
+Brian：PyTorch 技术咨询委员会设有加速器集成工作组，由华为和英特尔共同牵头。
+
+72
+00:06:22,708 --> 00:06:25,506
+Ava: What does that group actually deliver?
+Ava：这个工作组具体提供什么？
+
+73
+00:06:25,506 --> 00:06:37,088
+Brian: It provides standardized hardware onboarding guidelines, cross-repo CI testing, generalized device-aware test suites, and platform incubation workflows.
+Brian：它提供标准化的硬件接入指南、跨仓库 CI 测试、通用的设备感知测试套件，以及平台孵化流程。
+
+74
+00:06:37,088 --> 00:06:41,964
+Ava: Cross-repo CI means integration testing across repositories, right?
+Ava：跨仓库 CI，就是跨代码仓库做集成测试，对吧？
+
+75
+00:06:41,964 --> 00:06:44,206
+Why does that matter here?
+这在这里为什么重要？
+
+76
+00:06:44,206 --> 00:06:45,330
+Brian: That's the idea.
+Brian：就是这个意思。
+
+77
+00:06:45,330 --> 00:06:53,196
+Hardware support crosses project boundaries, so a test in just one repository may miss a problem elsewhere.
+硬件支持涉及多个项目，只测一个仓库可能漏掉其他地方的问题。
+
+78
+00:06:53,196 --> 00:06:57,698
+Ava: And device-aware tests check behavior with the device in mind?
+Ava：设备感知测试，就是结合设备特性来检查运行行为？
+
+79
+00:06:57,698 --> 00:06:58,007
+Brian: Yes.
+Brian：是的。
+
+80
+00:06:58,007 --> 00:07:06,784
+The group also described refined device-agnostic APIs and a broader multi-backend test matrix in its roadmap.
+工作组的路线图还提到了完善设备无关 API，以及扩大多后端测试矩阵。
+
+81
+00:07:06,784 --> 00:07:13,901
+Ava: Device-agnostic APIs: interfaces intended to work without being tied to one device.
+Ava：设备无关 API，就是不绑定某一种设备的接口。
+
+82
+00:07:13,901 --> 00:07:15,366
+Is that fair?
+这样理解对吗？
+
+83
+00:07:15,366 --> 00:07:21,772
+Brian: That's fair. Multi-backend means testing across different hardware implementations.
+Brian：对。多后端是指在不同硬件实现上测试。
+
+84
+00:07:21,772 --> 00:07:25,364
+The article presents this as ongoing work.
+文章说这些工作仍在推进。
+
+85
+00:07:25,364 --> 00:07:27,278
+Ava: Let me check the main point.
+Ava：我确认一下重点。
+
+86
+00:07:27,278 --> 00:07:32,482
+The goal is to make adding hardware less repetitive and easier to test.
+目标是减少新增硬件时的重复工作，让测试更容易。
+
+87
+00:07:32,482 --> 00:07:32,775
+Brian: Yes.
+Brian：是的。
+
+88
+00:07:32,775 --> 00:07:39,360
+And hardware vendors and developers are invited to participate in that working group.
+也欢迎硬件厂商和开发者加入这个工作组。
+
+89
+00:07:39,360 --> 00:07:45,206
+Ava: What did the conference say about models and serving? We haven't spent much time there.
+Ava：大会对模型和推理服务说了什么？这部分我们还没怎么聊。
+
+90
+00:07:45,206 --> 00:07:55,492
+Brian: The keynotes ranged from open-weight models to vLLM deployment, distributed acceleration, cloud infrastructure for Qwen, and agent runtimes.
+Brian：主题演讲涵盖开放权重模型、vLLM 部署、分布式加速、支持 Qwen 的云基础设施，以及智能体运行时。
+
+91
+00:07:55,492 --> 00:07:58,859
+Ava: Open-weight means the model weights are available.
+Ava：开放权重是指模型权重可供获取。
+
+92
+00:07:58,859 --> 00:08:02,778
+Did the article give a concrete optimization example?
+文章有具体的优化案例吗？
+
+93
+00:08:02,778 --> 00:08:03,274
+Brian: It did.
+Brian：有。
+
+94
+00:08:03,274 --> 00:08:13,184
+One DeepSeek-R1 case study discussed kernels, routing, parallelism, and serving on the same GB three hundred hardware six months later.
+一个 DeepSeek-R1 案例研究讨论了内核、路由、并行和推理服务的优化，以及六个月后在同一款 GB300 硬件上的运行情况。
+
+95
+00:08:13,184 --> 00:08:16,678
+Ava: Wait, so what changed in the result?
+Ava：等等，最终结果有了什么变化？
+
+96
+00:08:16,678 --> 00:08:26,268
+Brian: In the configuration presented, the optimized system delivered two point seven seven times the throughput and sixty percent lower token cost.
+Brian：在演示的配置下，优化后系统的吞吐量达到原来的 2.77 倍，单个 token 的成本降低了 60%。
+
+97
+00:08:26,268 --> 00:08:29,775
+Ava: Throughput means the amount of work served over time.
+Ava：吞吐量就是单位时间内处理的工作量。
+
+98
+00:08:29,775 --> 00:08:33,434
+Did they separate the effect of each optimization?
+他们分别测算了每项优化的效果吗？
+
+99
+00:08:33,434 --> 00:08:36,185
+Brian: The article doesn't give that breakdown.
+Brian：文章没有给出这项细分数据。
+
+100
+00:08:36,185 --> 00:08:44,032
+It reports the combined result for the presented configuration and cites NVIDIA's twenty twenty-six material.
+它报告了所展示配置的综合结果，并引用了 NVIDIA 2026 年的资料。
+
+101
+00:08:44,032 --> 00:08:49,350
+Ava: So I shouldn't treat those numbers as a promise for my own serving setup.
+Ava：所以我不能把这些数字当成自己部署模型服务时的保证。
+
+102
+00:08:49,350 --> 00:08:52,618
+Brian: Right. They show what that case study achieved.
+Brian：对。它们反映的是那个案例取得的结果。
+
+103
+00:08:52,618 --> 00:08:58,460
+The article doesn't claim every workload or accelerator will see the same gain.
+文章没有说所有工作负载或加速器都能获得同样的提升。
+
+104
+00:08:58,460 --> 00:09:01,066
+Ava: Was there another number that stood out?
+Ava：还有什么数字值得注意吗？
+
+105
+00:09:01,066 --> 00:09:01,344
+Brian: Yes.
+Brian：是的。
+
+106
+00:09:01,344 --> 00:09:09,696
+The article cites Mozilla for a change in OpenRouter token traffic served by open-weight models developed in China.
+文章引用 Mozilla 的数据，说明中国开发的开放权重模型在 OpenRouter 处理的 token 流量中占比发生了变化。
+
+107
+00:09:09,696 --> 00:09:11,798
+Ava: How big a change?
+Ava：变化有多大？
+
+108
+00:09:11,798 --> 00:09:19,276
+Brian: Their share rose from two percent in late twenty twenty-four to forty-five percent in April twenty twenty-six.
+Brian：占比从 2024 年底的 2% 升至 2026 年 4 月的 45%。
+
+109
+00:09:19,276 --> 00:09:24,978
+Ava: That's a large shift. But it's specifically OpenRouter traffic, correct?
+Ava：变化很大。但这只针对 OpenRouter 的流量，对吗？
+
+110
+00:09:24,978 --> 00:09:28,397
+Brian: Correct. It isn't a measure of all AI usage.
+Brian：对。这不能代表所有 AI 使用情况。
+
+111
+00:09:28,397 --> 00:09:35,120
+It's one traffic measure that helps explain the conference's focus on open models.
+这项流量指标有助于解释大会为何关注开放模型。
+
+112
+00:09:35,120 --> 00:09:40,390
+Ava: What about the keynote from Mark Collier? How does it fit with these examples?
+Ava：Mark Collier 的主题演讲呢？它和这些例子有什么关系？
+
+113
+00:09:40,390 --> 00:09:51,612
+Brian: He focused on an open ecosystem where researchers, developers, model builders, and hardware companies can work together from experimentation to production.
+Brian：他强调开放生态，让研究人员、开发者、模型构建者和硬件公司从实验到生产都能协作。
+
+114
+00:09:51,612 --> 00:09:57,194
+Ava: That sounds broad. Did the conference connect those people in person too?
+Ava：范围挺广。大会也让这些人在线下交流了吗？
+
+115
+00:09:57,194 --> 00:09:57,474
+Brian: Yes.
+Brian：是的。
+
+116
+00:09:57,474 --> 00:10:06,712
+There were technical demonstrations, community meetings, a Foundation press conference, and conversations at the PyTorch booth.
+现场有技术演示、社区会议、基金会新闻发布会，以及 PyTorch 展台上的交流。
+
+117
+00:10:06,712 --> 00:10:12,366
+Ava: And Technical Advisory Council members met in Shanghai on day one.
+Ava：技术顾问委员会成员还在大会第一天于上海会面。
+
+118
+00:10:12,366 --> 00:10:13,018
+Brian: They did.
+Brian：没错。
+
+119
+00:10:13,018 --> 00:10:20,324
+Those meetings fit the same theme: people working on different layers need places to coordinate.
+这些会议也呼应了同一主题：负责不同技术层面的人需要有地方协调工作。
+
+120
+00:10:20,324 --> 00:10:21,567
+Ava: Here's the catch.
+Ava：不过，有个问题。
+
+121
+00:10:21,567 --> 00:10:28,570
+A conference article can show direction, but it can't answer every implementation question.
+会议报道能展示方向，却无法回答所有实施问题。
+
+122
+00:10:28,570 --> 00:10:29,229
+Brian: Exactly.
+Brian：正是如此。
+
+123
+00:10:29,229 --> 00:10:39,792
+It names projects and work areas, but gives limited detail on individual integrations, test outcomes, and benchmark methods.
+文章提到了项目和工作方向，但对具体集成、测试结果和基准测试方法介绍有限。
+
+124
+00:10:39,792 --> 00:10:42,542
+Ava: What should an engineer watch next?
+Ava：工程师接下来该关注什么？
+
+125
+00:10:42,542 --> 00:10:51,388
+Brian: The Accelerator Integration Working Group's device-agnostic APIs and expanded multi-backend testing are concrete areas to follow.
+Brian：可以关注加速器集成工作组的设备无关 API，以及扩展中的多后端测试。
+
+126
+00:10:51,388 --> 00:10:54,906
+Ava: And the article points to another conference?
+Ava：文章还提到了另一场大会？
+
+127
+00:10:54,906 --> 00:11:06,416
+Brian: PyTorch Conference North America is scheduled for San Jose on October twentieth and twenty-first, with maintainers from PyTorch, vLLM, DeepSpeed, and Ray.
+Brian：PyTorch 北美大会定于 10 月 20 日至 21 日在圣何塞举行，PyTorch、vLLM、DeepSpeed 和 Ray 的维护者将出席。
+
+128
+00:11:06,416 --> 00:11:10,630
+Ava: Let's finish with three things to remember. First?
+Ava：最后总结三点。第一点？
+
+129
+00:11:10,630 --> 00:11:16,836
+Brian: First, the open AI stack connects applications all the way down to diverse hardware.
+Brian：第一，开放式 AI 技术栈从应用一直延伸到多种硬件。
+
+130
+00:11:16,836 --> 00:11:21,959
+Ava: Second, hardware integration needs shared guidelines and tests.
+Ava：第二，硬件集成需要共同的准则和测试。
+
+131
+00:11:21,959 --> 00:11:26,618
+Third, promising numbers need their original context.
+第三，看待亮眼数据要结合原始背景。
+
+132
+00:11:26,618 --> 00:11:31,000
+Brian: That's it. Thanks for listening, and we'll see you next time.
+Brian：就是这样。感谢收听，我们下次见。

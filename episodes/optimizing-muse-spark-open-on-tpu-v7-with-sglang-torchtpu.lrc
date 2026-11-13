@@ -1,0 +1,191 @@
+[ti:Keeping Muse Spark Open Moving on TPU v7]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: Serving Muse Spark Open on four TPU v7 chips sounds like a memory challenge.
+[00:00.00]Ava：在四颗 TPU v7 芯片上运行 Muse Spark Open，听起来是个内存难题。
+[00:05.80]But this article shows that pauses in the weight stream can also slow down each decode step.
+[00:05.80]但这篇文章指出，权重传输中的停顿也会拖慢每一步解码。
+[00:13.17]Brian: Their main fix is a megakernel.
+[00:13.17]Brian：他们的主要改进是巨型内核。
+[00:15.49]One Pallas program runs all 62 layers of a decode or verify step, while it overlaps weight loads, KV reads and transfers between devices with compute.
+[00:15.49]一个 Pallas 程序执行一次解码或验证的全部 62 层，同时让权重加载、KV 读取和跨设备传输与计算重叠。
+[00:27.10]Ava: The model makes that a serious scheduling job.
+[00:27.10]Ava：这个模型让调度变得很复杂。
+[00:31.39]Muse Spark Open has 816B parameters, about 42B active per token, and every layer routes each token to 8 of 256 experts.
+[00:31.39]Muse Spark Open 有 816B 个参数，每个 token 约激活 42B 个；每层都将每个 token 路由到 256 个专家中的 8 个。
+[00:42.83]Brian: One TPU v7 host has four chips, exposed as eight devices.
+[00:42.83]Brian：一台 TPU v7 主机有四颗芯片，对外呈现为八个设备。
+[00:47.42]The model is split eight ways with tensor parallelism.
+[00:47.42]模型通过张量并行拆分到八个设备上。
+[00:51.77]Each device runs one program at a time, so overlapping transfers with compute inside that program matters.
+[00:51.77]每个设备一次只运行一个程序，因此在程序内部让传输与计算重叠很重要。
+[01:00.66]Ava: And SGLang-TorchTPU uses speculative decoding.
+[01:00.66]Ava：SGLang-TorchTPU 还使用推测解码。
+[01:04.56]How does that change the work done by the full model?
+[01:04.56]这会怎样改变完整模型的工作量？
+[01:09.41]Brian: The smaller DFlash2 model proposes a block of tokens at once.
+[01:09.41]Brian：较小的 DFlash2 模型会一次提出一组候选 token。
+[01:14.15]The full model checks the block in one verify step.
+[01:14.15]完整模型在一个验证步骤中检查整组候选。
+[01:18.11]It keeps the longest matching prefix of draft tokens, plus one token of its own.
+[01:18.11]它保留匹配的最长草稿 token 前缀，再加上自己生成的一个 token。
+[01:24.68]Ava: So the full model still has to move its weights.
+[01:24.68]Ava：所以完整模型仍要搬运权重。
+[01:27.89]The older native path ran each layer through several kernels and collectives, with a boundary between them.
+[01:27.89]旧的原生路径用多个内核和集合通信执行每一层，其间都有执行边界。
+[01:35.40]Brian: Right. Its verify step took 2.9 times the time needed just to stream the weights.
+[01:35.40]Brian：对。它的验证步骤耗时是单纯传输权重所需时间的 2.9 倍。
+[01:41.55]In the first megakernel prototype, profiling at batch 1 found about 45 microseconds of collective cost per layer.
+[01:41.55]首版巨型内核的性能分析显示，批量为 1 时，每层的集合通信开销约为 45 微秒。
+[01:50.12]Those interruptions were expensive.
+[01:50.12]这些中断代价很高。
+[01:53.13]Ava: The single program lets them plan further ahead.
+[01:53.13]Ava：单个程序让他们能更早安排后续操作。
+[01:56.43]Dense weights move through a ring of tiles across layer boundaries.
+[01:56.43]密集权重以分块环的方式跨层流转。
+[02:01.05]Once routing picks an expert, its weights can start loading.
+[02:01.05]路由选定专家后，就能开始加载该专家的权重。
+[02:05.53]Brian: It also sends partial results directly to other devices with remote DMA, instead of launching a separate collective after each matmul.
+[02:05.53]Brian：它还通过远程 DMA 直接把部分结果发往其他设备，无须在每次矩阵乘法后单独启动集合通信。
+[02:14.56]An o-proj tile can leave as soon as it's computed, while the next tile is still being multiplied.
+[02:14.56]一个 o-proj 分块算完就能发送，此时下一个分块仍在做矩阵乘法。
+[02:21.45]Ava: There's a separate KV-write kernel after the megakernel.
+[02:21.45]Ava：巨型内核之后还有一个单独的 KV 写入内核。
+[02:26.55]It now overlaps page reads and writes across layers.
+[02:26.55]它现在让跨层的页读取与写入重叠执行。
+[02:31.28]At 16 rows, its cost fell from 810 to 155 microseconds per step, with bit-identical results.
+[02:31.28]处理 16 行时，每步耗时从 810 微秒降至 155 微秒，结果逐位一致。
+[02:39.99]Brian: The overall megakernel result is measured per output token.
+[02:39.99]Brian：巨型内核的整体效果按每个输出 token 的耗时衡量。
+[02:44.97]With DFlash2 on GSM8K, using an earlier Muse Spark checkpoint, one request went from 3.78 milliseconds on the native path to 1.95 milliseconds.
+[02:44.97]在 GSM8K 上，使用 DFlash2 和较早的 Muse Spark 检查点时，单请求耗时从原生路径的 3.78 毫秒降至 1.95 毫秒。
+[02:57.02]That's 1.94 times faster.
+[02:57.02]速度提升了 1.94 倍。
+[02:59.47]Ava: DFlash2 has its own contribution too.
+[02:59.47]Ava：DFlash2 本身也有贡献。
+[03:02.99]On GSM8K with real draft acceptance, it reduced the megakernel's time per output token for one request from 3.93 to 1.95 milliseconds.
+[03:02.99]在 GSM8K 上按实际草稿接受率测试时，它把巨型内核处理单请求的每个输出 token 耗时从 3.93 毫秒降至 1.95 毫秒。
+[03:16.09]Brian: Yes.
+[03:16.09]Brian：没错。
+[03:16.38]A few verification rows fit in the same row tile as one token, so checking a block costs little more than checking one token on this TPU path.
+[03:16.38]几个验证行能和一个 token 放进同一个行分块，所以在这条 TPU 路径上，验证一组 token 只比验证一个 token 多花一点时间。
+[03:26.76]Ava: Another delay is waiting for an all-gather before the next projection.
+[03:26.76]Ava：另一个延迟来自等待全收集完成，才能开始下一次投影。
+[03:31.67]Collective folding starts that projection as each slice arrives.
+[03:31.67]集合通信折叠让投影随着各切片到达就开始计算。
+[03:36.15]Why can they move the normalization?
+[03:36.15]为什么能移动归一化操作？
+[03:39.02]Brian: The relevant RMS norm factors are scalars per row.
+[03:39.02]Brian：相关的 RMS 归一化因子是每行一个标量。
+[03:42.74]The projection can accumulate contributions from arriving slices, then apply those factors at the end.
+[03:42.74]投影可以逐步累加到达切片的贡献，最后再应用这些因子。
+[03:50.32]They fold two all-gathers per layer this way.
+[03:50.32]他们用这种方式折叠了每层的两次全收集。
+[03:53.67]Some rounding moves, so the results aren't bit-identical.
+[03:53.67]部分舍入发生的位置变了，因此结果并非逐位一致。
+[03:58.26]Ava: Long-context attention has a different serial chain.
+[03:58.26]Ava：长上下文注意力有另一条串行依赖链。
+[04:02.07]Online softmax normally carries a running maximum from one KV chunk to the next.
+[04:02.07]在线 softmax 通常要把当前最大值从一个 KV 块传到下一个。
+[04:07.93]That prevents the next chunk's exponentials from starting independently.
+[04:07.93]这使下一个块的指数计算无法独立启动。
+[04:13.56]Brian: For this model, QK-norm and a fixed query gain bound every attention score's magnitude at 43.8.
+[04:13.56]Brian：对这个模型，QK 归一化和固定查询增益使每个注意力分数的绝对值不超过 43.8。
+[04:20.76]That's below the overflow point for f32 exponentials.
+[04:20.76]这低于 f32 指数计算的溢出阈值。
+[04:24.77]The kernel checks the bound when it's built, then drops the running maximum and its rescaling.
+[04:24.77]内核构建时会检查这个上界，随后去掉持续更新的最大值及相应的重新缩放。
+[04:32.24]Ava: Now independent chunks can overlap their stages.
+[04:32.24]Ava：这样，各个独立块的不同阶段就能重叠执行。
+[04:35.77]The kernel scores later chunks while earlier chunks multiply probabilities by values.
+[04:35.77]内核计算后续块的分数时，前面的块同时用概率乘以值。
+[04:42.01]Global layers also use longer chunks than sliding-window layers.
+[04:42.01]全局层使用的块也比滑动窗口层更长。
+[04:47.07]Brian: In a microbenchmark, longer chunks with independent streams cut attention time 2.4 times.
+[04:47.07]Brian：微基准测试中，更长的分块配合独立数据流，使注意力计算时间缩短了 2.4 倍。
+[04:53.98]Removing the running maximum brought the total reduction to 3.9 times.
+[04:53.98]去掉运行最大值计算后，总体缩短至原来的 1/3.9。
+[04:59.42]In the server, the pipelined loop raised per-request decode speed by 18% for two requests at 500K context.
+[04:59.42]在服务器上，流水线循环让 50 万 token 上下文、两个请求时的单请求解码速度提高了 18%。
+[05:08.01]Ava: The expert loop had a less obvious problem.
+[05:08.01]Ava：专家循环还有个不太明显的问题。
+[05:11.14]A heavy eight-row branch made the compiler spill registers even when the common one- or two-row path ran.
+[05:11.14]较重的八行分支会让编译器将寄存器内容溢出到内存，即使运行的是常见的一两行路径。
+[05:19.13]Brian: They split experts into two loops: at most four rows, and more than four.
+[05:19.13]Brian：他们把专家计算拆成两个循环：最多四行，以及超过四行。
+[05:24.91]The light loop carries 61 to 64% fewer spill instructions.
+[05:24.91]轻量循环的寄存器溢出指令减少了 61% 至 64%。
+[05:29.51]Outputs stay bit-identical, and kernel tests with random routing found decode steps with many requests 13 to 19% faster.
+[05:29.51]输出仍逐位一致；随机路由的内核测试发现，多请求时的解码步骤快了 13% 至 19%。
+[05:39.36]Ava: Now for cache capacity.
+[05:39.36]Ava：接下来谈缓存容量。
+[05:41.27]Simply changing the token-major KV cache from BF16 to FP8 didn't save space, because the layout padded the packed values.
+[05:41.27]仅把以 token 为主序的 KV 缓存从 BF16 改为 FP8 并没有省空间，因为布局会对打包后的值进行填充。
+[05:51.71]Brian: The sequence-on-lane layout removes that padding.
+[05:51.71]Brian：序列沿 lane 排布的布局消除了这种填充。
+[05:56.15]Per token, per layer, per device, KV storage falls from 512 bytes to 256 bytes with FP8.
+[05:56.15]使用 FP8 后，每个设备、每层、每个 token 的 KV 存储量从 512 字节降至 256 字节。
+[06:04.14]It also halves the KV bytes read by each step.
+[06:04.14]每一步读取的 KV 字节数也减半了。
+[06:08.66]Ava: The draft model only attends to the last 2,048 tokens.
+[06:08.66]Ava：草稿模型只关注最近的 2,048 个 token。
+[06:12.89]Its KV had been allocated for the full context, so moving it into the sliding-window pool seems like a direct capacity win.
+[06:12.89]此前它的 KV 按完整上下文分配；移入滑动窗口池后，就能直接节省容量。
+[06:22.86]Brian: It lets the same HBM hold 38% more tokens.
+[06:22.86]Brian：这样，同样大小的 HBM 可容纳的 token 增加了 38%。
+[06:26.38]They also enabled L2 HiCache on TPU, using host memory behind the HBM pools.
+[06:26.38]他们还在 TPU 上启用了 L2 HiCache，以主机内存作为 HBM 池的后备。
+[06:32.73]An evicted prefix can come back from host memory on the next turn instead of being recomputed.
+[06:32.73]被驱逐的前缀在下一轮可以从主机内存取回，无须重新计算。
+[06:40.95]Ava: On agent traffic, that L2 cache raised throughput by up to 77%.
+[06:40.95]Ava：在智能体流量中，这层 L2 缓存使吞吐量最高提升了 77%。
+[06:46.00]But a long pause while subagents work can still make an active conversation look cold to ordinary LRU eviction.
+[06:46.00]但子智能体工作期间若停顿很久，普通的 LRU 淘汰策略仍可能把活跃会话当成冷数据。
+[06:55.24]Brian: Session-aware eviction protects KV that a live conversation will reuse in host memory.
+[06:55.24]Brian：感知会话的淘汰策略会在主机内存中保留活跃会话将再次使用的 KV。
+[07:01.96]HBM keeps ordinary LRU for running requests.
+[07:01.96]HBM 对运行中的请求仍采用普通 LRU 策略。
+[07:05.40]On this trace, prefill had computed about 1.2 times the tokens required by the best possible cache.
+[07:05.40]在这段请求轨迹中，预填充计算的 token 数约为理论最优缓存所需的 1.2 倍。
+[07:13.13]In the highest-throughput run, it now computes within 1 to 5% of that amount.
+[07:13.13]在吞吐量最高的运行中，如今只比该数量多 1% 至 5%。
+[07:19.50]Ava: Prefill has its own bottleneck.
+[07:19.50]Ava：预填充也有自己的瓶颈。
+[07:22.04]With a 4,096-token chunk, the matrix units have plenty of rows, but the MoE layer still has to move partial results between devices.
+[07:22.04]4,096 个 token 的分块为矩阵计算单元提供了足够多的行，但 MoE 层仍需在设备间传送部分结果。
+[07:33.24]Brian: Their fused MoE kernel uses a pair exchange between the two devices on each chip, reducing cross-chip traffic.
+[07:33.24]Brian：他们的融合 MoE 内核让每颗芯片上的两个设备成对交换数据，减少了跨芯片流量。
+[07:44.48]The MoE kernel went from 3,247 to 2,368 microseconds per layer.
+[07:44.48]MoE 内核每层耗时从 3,247 微秒降至 2,368 微秒。
+[07:50.92]With other changes, a 4,096-token prefill chunk on a cold 100K-token prompt fell from 440 to 384 milliseconds.
+[07:50.92]加上其他改动，面对未缓存的 10 万 token 提示词，预填充一个 4,096 个 token 的分块从 440 毫秒降至 384 毫秒。
+[08:02.51]Ava: Sequence parallelism tackles repeated work between matmuls.
+[08:02.51]Ava：序列并行减少了矩阵乘法之间的重复计算。
+[08:06.90]Each device keeps only its own tokens between layers, so norms and residual updates no longer run over the whole chunk on every device.
+[08:06.90]每层之间，每个设备只保留自己的 token，因此归一化和残差更新不再由每个设备对整个分块重复执行。
+[08:17.31]Brian: At 131K context, it cut a 4,096-token forward by 51 milliseconds, about 11%.
+[08:17.31]Brian：在 13.1 万 token 上下文下，4,096 个 token 的前向计算缩短了 51 毫秒，约 11%。
+[08:24.79]It changes some reduction orders, so those results aren't bit-identical.
+[08:24.79]它改变了部分归约顺序，因此结果无法逐位一致。
+[08:32.22]Ava: A long cold prompt can also occupy many prefill chunks in a row.
+[08:32.22]Ava：未缓存的长提示词也可能连续占用多个预填充分块。
+[08:37.07]The scheduler now gives it at least 1,024 tokens of each batch and lets waiting turns use the rest.
+[08:37.07]调度器现在保证它在每个批次中至少获得 1,024 个 token 的配额，其余留给等待中的轮次。
+[08:44.91]Brian: In an AgentX test, that cut median end-to-end latency by 58% and p90 latency by 33%, with throughput within 5%.
+[08:44.91]Brian：在 AgentX 测试中，端到端延迟中位数降低了 58%，p90 延迟降低了 33%，吞吐量变化不到 5%。
+[08:55.56]Ava: AgentX matters here because it replays request lengths, shared prefixes and tool pauses from 393 opt-in coding sessions, using synthetic tokens.
+[08:55.56]Ava：AgentX 之所以重要，是因为它用合成 token 重放了 393 个自愿参与的编程会话中的请求长度、共享前缀和工具调用间歇。
+[09:07.34]The reported run uses its 1M-context trace set.
+[09:07.34]报告中的运行使用了其 100 万 token 上下文轨迹集。
+[09:11.53]Brian: Across that run's reported curve, the endpoints are 433 output tokens per second per request at 6,101 total tokens per second per chip, and 95 output tokens per second per request at 25,906 total tokens per second per chip.
+[09:11.53]Brian：在该次运行报告的曲线上，两个端点分别为：单请求每秒输出 433 个 token、每芯片总吞吐量每秒 6,101 个 token；以及单请求每秒输出 95 个 token、每芯片总吞吐量每秒 25,906 个 token。
+[09:30.64]Total throughput counts input and output tokens.
+[09:30.64]总吞吐量包含输入和输出 token。
+[09:34.75]Every TPU point finishes requests within 47 seconds at p90.
+[09:34.75]所有 TPU 测试点的请求完成时间，p90 均不超过 47 秒。
+[09:40.15]Ava: So the useful pattern is clear: keep decode transfers moving, make long-context KV cheaper to hold and read, and share prefill batches so short turns can proceed.
+[09:40.15]Ava：可借鉴的做法很清楚：持续推进解码数据传输，降低长上下文 KV 的存储和读取成本，并共享预填充批次，让较短的轮次得以继续处理。
+[09:52.77]Brian: And check each result against its workload and measured unit.
+[09:52.77]Brian：还要结合对应的工作负载和测量单位核对每项结果。
+[09:57.74]That's our tour of Muse Spark Open on TPU v7. Thanks for listening.
+[09:57.74]Muse Spark Open 在 TPU v7 上的技术巡览就到这里。感谢收听。

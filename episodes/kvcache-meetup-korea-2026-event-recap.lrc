@@ -1,0 +1,123 @@
+[ti:KVCache Meetup Korea 2026: Where Cache Reuse Meets Data Movement]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: KV Cache reuse can cut prefill work, but moving that cache also costs time.
+[00:00.00]Ava：复用 KV Cache 能减少预填充计算，但搬运缓存也需要时间。
+[00:06.42]KVCache Meetup Korea 2026 put that trade-off beside GPU bottlenecks, scheduling, and cache management.
+[00:06.42]KVCache Meetup Korea 2026 将这一取舍与 GPU 瓶颈、调度和缓存管理放在一起讨论。
+[00:15.49]Brian: PyTorchKR and XCENA co-hosted the event on Sep 30, 2026, with sponsorship from Tensormesh.
+[00:15.49]Brian：PyTorchKR 和 XCENA 于 2026 年 9 月 30 日联合举办了这场活动，由 Tensormesh 赞助。
+[00:26.70]Speakers came from XCENA, SK hynix, FuriosaAI, and LMCache.
+[00:26.70]演讲者来自 XCENA、SK hynix、FuriosaAI 和 LMCache。
+[00:34.40]Ava: Let's start with CXL. So capacity is only part of it.
+[00:34.40]Ava：先说 CXL。容量只是其中一方面。
+[00:38.73]The inference engine still needs to get useful cache to the GPU.
+[00:38.73]推理引擎还得把有用的缓存送到 GPU。
+[00:44.32]Brian: Jooho Lee explained that CXL expands the memory space CPUs can access with load and store instructions.
+[00:44.32]Brian：Jooho Lee 解释说，CXL 扩展了 CPU 可通过加载和存储指令访问的内存空间。
+[00:52.83]He described a pool shared by multiple hosts.
+[00:52.83]他介绍了一个由多台主机共享的内存池。
+[00:56.55]Frequently used cache stays in DRAM, while less frequently used cache goes on SSDs.
+[00:56.55]常用缓存留在 DRAM，不常用的则放到 SSD 上。
+[01:03.41]XCENA's open-source storage engine, Maru, connects the inference engine to those layers.
+[01:03.41]XCENA 的开源存储引擎 Maru 将推理引擎与这些存储层连接起来。
+[01:10.68]The path and cost of moving cache to the GPU matter too.
+[01:10.68]缓存送往 GPU 的路径和搬运成本也很重要。
+[01:15.66]Ava: The talk also covered splitting mixture-of-experts work between a GPU and MX1.
+[01:15.66]Ava：演讲还谈到如何让 GPU 和 MX1 分担混合专家模型的工作。
+[01:22.01]Some expert weights sit in memory near MX1 and are processed there.
+[01:22.01]部分专家权重存放在 MX1 附近的内存中，并由 MX1 处理。
+[01:27.46]The design transfers activations and results instead of full weights.
+[01:27.46]这种设计传输的是激活值和结果，而非完整权重。
+[01:33.43]Brian: Sejin Oh looked at GPU compute and HBM bandwidth.
+[01:33.43]Brian：Sejin Oh 考察了 GPU 算力和 HBM 带宽。
+[01:38.45]The experiments used two H100 GPUs, Llama 3.1 8B, and vLLM.
+[01:38.45]实验使用了两块 H100 GPU、Llama 3.1 8B 和 vLLM。
+[01:44.49]GPU compute use was high during the main projection operations in prefill.
+[01:44.49]预填充阶段的主要投影运算对 GPU 算力的利用率很高。
+[01:52.07]During decode, HBM bandwidth use was high.
+[01:52.07]解码阶段的 HBM 带宽利用率很高。
+[01:56.72]Ava: That helps explain why reusing KV Cache can change the bottleneck.
+[01:56.72]Ava：这有助于解释为什么复用 KV Cache 会改变瓶颈所在。
+[02:01.92]If prefill needs less computation, memory bandwidth can become the limit.
+[02:01.92]如果预填充所需计算减少，内存带宽就可能成为限制。
+[02:08.02]Brian: Whether a service needs more memory capacity or bandwidth depends on input and output lengths, batch size, and other operating conditions.
+[02:08.02]Brian：服务更需要内存容量还是带宽，取决于输入和输出长度、批量大小等运行条件。
+[02:19.05]The talk also separated TTFT, time to the first output token, from TPOT, time per output token.
+[02:19.05]演讲还区分了 TTFT（首个输出 token 的生成时间）和 TPOT（每个输出 token 的生成时间）。
+[02:26.99]Ava: Donghun Lee's FuriosaAI talk moved from resource limits to request scheduling on RNGD.
+[02:26.99]Ava：Donghun Lee 在 FuriosaAI 的演讲中，将话题从资源限制转向了 RNGD 上的请求调度。
+[02:33.87]He followed requests from arrival to execution.
+[02:33.87]他梳理了请求从到达到执行的过程。
+[02:37.97]Brian: He covered PagedAttention for KV Cache blocks, Continuous batching for active requests, and Chunked prefill for smaller prompt segments.
+[02:37.97]Brian：他介绍了用于 KV Cache 块的 PagedAttention、处理活跃请求的 Continuous batching，以及将提示词拆成小段的 Chunked prefill。
+[02:47.58]He also introduced buckets, which are tensor shapes compiled before execution.
+[02:47.58]他还介绍了 bucket，即执行前预先编译的张量形状。
+[02:53.44]Ava: Combining requests can raise throughput, but a larger batch may need a larger bucket and add latency.
+[02:53.44]Ava：合并请求能提高吞吐量，但更大的批量可能需要更大的 bucket，从而增加延迟。
+[03:00.54]Padding in a fixed shape has a cost too.
+[03:00.54]固定形状下的填充也有开销。
+[03:03.71]Brian: Furiosa-LLM measures execution cost on the actual hardware.
+[03:03.71]Brian：Furiosa-LLM 在实际硬件上测量执行成本。
+[03:07.66]It merges two batches when their combined cost is lower than processing them separately, accounting for each request's context length and the cost of padding.
+[03:07.66]考虑每个请求的上下文长度和填充成本后，如果合并执行的成本低于分别处理，它就会合并两个批次。
+[03:18.60]Ava: What about the cost of retrieving cache instead of recomputing it?
+[03:18.60]Ava：取回缓存与重新计算相比，成本如何？
+[03:23.15]The talk compared those two paths.
+[03:23.15]演讲比较了这两种方式。
+[03:25.84]Brian: The slides used a 12,370-token prompt, one request at a time, and three measurements for each condition.
+[03:25.84]Brian：幻灯片中的测试使用了 12,370 个 token 的提示词，每次处理一个请求，每种条件测量三次。
+[03:34.41]Retrieving the host cache and generating the first token took about 92 ms. Recomputing the cache took about 900 ms. Under those test conditions, retrieving the host cache was faster.
+[03:34.41]取回主机缓存并生成首个 token 约需 92 毫秒；重新计算缓存约需 900 毫秒。在这些测试条件下，取回主机缓存更快。
+[03:49.76]Ava: The benefit depends on how much data moves and the available bandwidth.
+[03:49.76]Ava：收益取决于传输的数据量和可用带宽。
+[03:54.70]The talk described overlapping cache transfer with computation at each layer.
+[03:54.70]演讲介绍了如何在每一层让缓存传输与计算重叠进行。
+[04:00.06]Experimental features included a network-shared cache and running prefill and decode on separate resources.
+[04:00.06]实验性功能包括网络共享缓存，以及让预填充和解码使用不同的资源。
+[04:07.87]Brian: Baoloong Mao's LMCache talk focused on MP Mode.
+[04:07.87]Brian：Baoloong Mao 的 LMCache 演讲聚焦 MP Mode。
+[04:11.28]It moves cache management out of the inference engine and into a separate process.
+[04:11.28]它将缓存管理从推理引擎移到独立进程。
+[04:17.23]That separates inference computation from cache I/O to reduce competition for resources.
+[04:17.23]这样能将推理计算与缓存 I/O 分开，减少资源争用。
+[04:23.96]Ava: The processes still need to coordinate.
+[04:23.96]Ava：这些进程仍需相互协调。
+[04:27.13]They exchange control information such as block IDs, while CUDA IPC lets them share GPU memory.
+[04:27.13]它们交换块 ID 等控制信息，并通过 CUDA IPC 共享 GPU 内存。
+[04:35.21]Brian: Within a node, they use a shared CPU memory pool to reduce duplicate storage.
+[04:35.21]Brian：在同一节点内，它们使用共享 CPU 内存池来减少重复存储。
+[04:41.19]MP Mode also reads and loads data from several storage layers in parallel.
+[04:41.19]MP Mode 还能并行读取和加载多个存储层的数据。
+[04:47.29]Ava: The operations side matters as well.
+[04:47.29]Ava：运维方面也很重要。
+[04:49.91]The talk covered Kubernetes deployment, cache hit rates, cache lifetimes, and isolating failures between inference and cache processes.
+[04:49.91]演讲涉及 Kubernetes 部署、缓存命中率、缓存存活时间，以及推理进程与缓存进程之间的故障隔离。
+[05:00.07]Brian: In the Q&A, attendees asked about separating prefill and decode compared with mixed batching, which processes them together.
+[05:00.07]Brian：问答环节中，听众询问了分离预填充与解码，和将两者一起处理的混合批处理有何区别。
+[05:09.44]They also asked about LMCache alongside vLLM's built-in cache features and plans to extend MP Mode across nodes.
+[05:09.44]他们还问到 LMCache 如何与 vLLM 内置的缓存功能配合，以及将 MP Mode 扩展到跨节点的计划。
+[05:18.26]Ava: The event included time to connect.
+[05:18.26]Ava：活动也安排了交流时间。
+[05:21.16]At registration, attendees could choose up to two interest stickers from Model, Serving, Infra, Hardware, and Memory.
+[05:21.16]签到时，参加者可以从 Model、Serving、Infra、Hardware 和 Memory 中选择最多两张兴趣贴纸。
+[05:30.86]They later gathered in small groups and examined XCENA's CXL server at the venue.
+[05:30.86]随后，他们分成小组，在现场查看了 XCENA 的 CXL 服务器。
+[05:37.93]Brian: The feedback summary was based on 72 survey responses.
+[05:37.93]Brian：反馈总结基于 72 份问卷答复。
+[05:42.95]In a question that allowed multiple selections, 48 respondents chose the program as a positive point, or 66.7%.
+[05:42.95]在一道多选题中，48 人将活动议程选为亮点，占 66.7%。
+[05:53.29]The venue and facilities received 30 selections, or 41.7%.
+[05:53.29]场地和设施获得 30 票，占 41.7%。
+[05:59.04]Ava: Respondents raised microphone quality and volume, screen visibility from the back rows, and limited space.
+[05:59.04]Ava：受访者提到麦克风音质和音量、后排看不清屏幕，以及空间有限等问题。
+[06:06.39]Some wanted interpretation or translation for the English talks.
+[06:06.39]一些人希望英语演讲能提供口译或翻译。
+[06:10.82]Others asked for a dedicated session where developers in the same field could talk.
+[06:10.82]还有人希望设置专场，让同领域的开发者交流。
+[06:16.93]Brian: For future events, respondents asked for real production examples, vLLM and SGLang internals, NPU compilers, recent inference optimization techniques, and demos.
+[06:16.93]Brian：对于今后的活动，受访者希望看到真实的生产案例、vLLM 和 SGLang 的内部机制、NPU 编译器、最新的推理优化技术，以及演示。
+[06:28.91]Across these talks, cache capacity, transfer cost, compute, bandwidth, and scheduling all shaped the discussion of LLM serving.
+[06:28.91]这些演讲围绕 LLM 服务展开讨论，缓存容量、传输成本、算力、带宽和调度都是关键因素。
+[06:38.36]Thanks for listening.
+[06:38.36]感谢收听。
