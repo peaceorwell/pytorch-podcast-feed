@@ -1,0 +1,19 @@
+# Nscale 成为 PyTorch 基金会白金会员
+
+依据：原文
+
+来源：https://pytorch.org/blog/nscale-joins-the-pytorch-foundation-as-a-platinum-member/
+
+PyTorch 基金会于 2026 年 10 月 20 日宣布，AI 云平台 Nscale 加入基金会，成为白金会员。Nscale 将软件、算力、数据中心和电力整合在同一平台，提供 AI 训练与推理服务。
+
+### 与 Ray 的关系
+
+Nscale 最初通过分布式计算框架 Ray 进入基金会的项目生态。Nscale 计划收购 Ray 背后的公司 Anyscale，并承诺继续投入 Ray 的开发和贡献者社区。Ray 自 2025 年 10 月加入 PyTorch 基金会后，由基金会治理。收购在公告发布时仍处于计划阶段。
+
+### 参与基金会治理
+
+白金会员资格使 Nscale 获得基金会治理委员会的一个席位，由其云原生平台工程副总裁 Nick Jones 担任。该委员会负责制定基金会政策并确定整体方向。Nscale 的 AI 服务副总裁 Eyal Lantzman 也将加入基金会技术咨询委员会。
+
+### 合作方向与实际意义
+
+Nscale 表示，希望将 PyTorch、Ray 与底层 GPU 集群基础设施衔接起来，支持跨大量 GPU 运行 AI 工作负载。基金会认为这种整合有助于减少开发者使用分布式基础设施时的障碍，并改善多节点运行表现。这些是双方提出的合作方向；公告没有提供性能测试结果或量化成效。

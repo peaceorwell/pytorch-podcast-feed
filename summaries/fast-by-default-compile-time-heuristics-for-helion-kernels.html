@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Helion 通过编译期启发式改善默认性能</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/fast-by-default-compile-time-heuristics-for-helion-kernels/">原视频 / 原文</a></p><h1>Helion 通过编译期启发式改善默认性能</h1>
+<p>依据：原文</p>
+<p>来源：https://pytorch.org/blog/fast-by-default-compile-time-heuristics-for-helion-kernels/</p>
+<p>PyTorch 的 Helion 过去主要依赖自动调优选择 Triton 内核配置，调优需要按内核和形状反复编译、测速。新方案在编译期分析内核 IR 与数据流，把内核归为矩阵乘、归约或逐元素三类，直接生成配置，以较少等待时间取得接近调优后的性能。</p>
+<h3>问题与目标</h3>
+<p>一个 Helion 定义可能对应数千种 Triton 内核，配置涉及分块大小、循环顺序、索引方式和流水线策略。此前一个分页注意力内核覆盖 72 个形状，在快速模式下调优耗时 10 小时，完整调优耗时 25 小时。新启发式旨在性能与等待时间之间提供另一种选择。</p>
+<h3>编译期机制</h3>
+<p>编译器扫描设备 IR：含矩阵乘的内核使用矩阵乘启发式；没有矩阵乘但含归约的内核使用归约启发式；其余使用逐元素启发式。分析会估算候选分块大小下每个 CTA 的寄存器、共享内存，以及在 Blackwell 上的张量内存占用，再调整 block size、num_warps、num_stages 等配置，兼顾驻留数量、寄存器溢出和访存效率。多个矩阵乘对同一配置项提出不同要求时，带循环累加器的操作优先，其后比较动态计算量和输出面积。若编译期无法确定所有轴的范围，Helion 会回退到原有默认配置。</p>
+<h3>实测性能</h3>
+<p>在 H100 上，九种线性注意力变体、超过 96 个内核与形状组合的测试中，启发式配置的前向性能为 Flash Linear Attention 手写 Triton 内核的 1.18 倍；计入反向后为 1.12 倍，相对 Helion 旧的无调优默认配置为 2.13 倍。六个 vLLM 生产归约内核、超过 153 个组合的测试中，启发式配置为其手写 CUDA/C++ 算子的 1.27 倍，完整调优为 1.31 倍。以强制使用 Triton 后端的 torch.compile(mode="max-autotune-no-cudagraphs") 为基线，十种通用归约内核的 80 个组合达到 1.09 倍，十三类矩阵乘内核的 70 个形状达到 1.88 倍；这两组没有完整调优配置对照。部分矩阵乘比较存在融合程度差异，jagged HSTU attention 的表现也低于旧默认配置。启用分析带来的编译时间差异仅为几十毫秒。</p>
+<h3>作为自动调优种子</h3>
+<p>除默认配置外，启发式还生成约 5 到 20 个候选配置作为自动调优的种子。在 38 个矩阵乘及多矩阵乘内核、每个内核取一个形状的测试中，达到距已找到最佳性能 50% 以内所需尝试的配置数中位数从 35.5 降至 1，达到 25% 以内从 103.5 降至 2.5，达到 5% 以内从 255.5 降至 175。完成搜索的中位数从 521.5 降至 420.5。两组最终配置在同一 GPU 上复测，性能差距不到 1%；这次测试观察到的收益主要集中在搜索早期。</p>
+<h3>限制与实际意义</h3>
+<p>资源估算必须预测 Triton 会把值放入寄存器、共享内存还是张量内存，因此可能出现偏差。作者提出的后续方向包括读取汇编器报告来校正估算、覆盖运行时才知道范围的内核、设置更多配置项，以及为特定内核家族制定规则。文中测试均在 NVIDIA GPU 上进行；启发式目前在 Triton 后端的 H100 和 B200 上默认启用，参数也针对这两款芯片调校。对于固定形状且能承担一次调优成本的发布场景，完整自动调优仍有价值。</p></body></html>

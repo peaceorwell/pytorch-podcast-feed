@@ -1,0 +1,49 @@
+[ti:PyTorch Day Japan 2026 Agenda Highlights]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: PyTorch Day Japan 2026 spans training performance, robot action guidance, and community contribution.
+[00:00.00]Ava：2026 年日本 PyTorch Day 涵盖训练性能、机器人动作引导和社区贡献。
+[00:07.90]For a framework engineer, that's a useful mix for one day.
+[00:07.90]对框架工程师来说，一天能接触这些主题很有价值。
+[00:12.78]Brian: It's a full day in Tokyo on December 10, centered on the open source AI ecosystem.
+[00:12.78]Brian：活动将于 12 月 10 日在东京举行，为期一天，聚焦开源人工智能生态。
+[00:19.27]The PyTorch Foundation, Hugging Face, IBM, and Mitsubishi Electric are hosting it.
+[00:19.27]主办方是 PyTorch Foundation、Hugging Face、IBM 和三菱电机。
+[00:25.75]The event brings together machine learning engineers, AI researchers, developers, and industry leaders.
+[00:25.75]活动汇聚机器学习工程师、人工智能研究人员、开发者和行业领袖。
+[00:34.25]Ava: Let's start with training. Which highlight covers optimization?
+[00:34.25]Ava：先聊训练。哪场演讲谈优化？
+[00:39.11]Brian: The session is DeepSpeed at the Frontier: Community-Driven Optimizations for State-of-the-Art Training Performance.
+[00:39.11]Brian：是《前沿 DeepSpeed：以社区驱动的优化提升先进模型的训练性能》。
+[00:47.30]Masahiro Tanaka from DeepSpeed is listed as the speaker.
+[00:47.30]演讲嘉宾是来自 DeepSpeed 的 Masahiro Tanaka。
+[00:51.29]The title doesn't identify a particular workload or report a measurement.
+[00:51.29]标题没有指出具体工作负载，也没有给出测试数据。
+[00:56.84]Ava: The next highlight moves from performance to people.
+[00:56.84]Ava：下一个亮点从性能转向人。
+[01:00.65]Brian: It's called From Learners to Contributors: Growing the PyTorch Ecosystem through PyTorchKR.
+[01:00.65]Brian：演讲名为《从学习者到贡献者：通过 PyTorchKR 壮大 PyTorch 生态》。
+[01:07.59]The listed speakers are Junghwan Park of PyTorchKR and Jiho Kim, a PyTorch Foundation Ambassador.
+[01:07.59]演讲嘉宾是 PyTorchKR 的 Junghwan Park 和 PyTorch Foundation 大使 Jiho Kim。
+[01:14.99]The title gives us a clear theme: people moving from learning toward contribution, with PyTorchKR named in that story.
+[01:14.99]标题点明了主题：人们如何从学习走向贡献，而 PyTorchKR 是其中的一环。
+[01:24.35]Ava: The robot highlight puts backpropagation and inference time together.
+[01:24.35]Ava：机器人主题的演讲把反向传播和推理时计算放在了一起。
+[01:28.83]That pairing catches my eye because it links a training calculation with robot action guidance.
+[01:28.83]这个组合很吸引我，因为它把训练中的计算与机器人动作引导联系起来。
+[01:35.35]Brian: The session is Backpropagation at Inference Time: Compiling Robot Action Guidance with ExecuTorch.
+[01:35.35]Brian：演讲名为《推理时反向传播：使用 ExecuTorch 编译机器人动作引导》。
+[01:42.87]Usamah Zaheer from Arm is listed as the speaker.
+[01:42.87]演讲嘉宾是来自 Arm 的 Usamah Zaheer。
+[01:46.55]The day also includes technical talks, lightning talks, and community-driven conversations.
+[01:46.55]当天还有技术演讲、闪电演讲和社区交流。
+[01:53.87]Ava: What about registration?
+[01:53.87]Ava：报名呢？
+[01:56.09]Brian: Register by November 11 at 11:59 PM JST to get a discounted PyTorch Day Japan pass.
+[01:56.09]Brian：在日本标准时间 11 月 11 日 23:59 前报名，可享日本 PyTorch Day 门票优惠。
+[02:03.78]Discounted student and faculty pricing is available too.
+[02:03.78]学生和教职员工也可享优惠价。
+[02:09.31]Ava: So the day connects training, contribution, and robot action guidance.
+[02:09.31]Ava：所以这一天串起了训练、社区贡献和机器人动作引导。
+[02:14.31]Thanks for listening.
+[02:14.31]感谢收听。

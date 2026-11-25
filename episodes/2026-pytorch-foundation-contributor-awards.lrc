@@ -1,0 +1,67 @@
+[ti:Celebrating the 2026 PyTorch Foundation Contributor Awards]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: The PyTorch Foundation is celebrating the people whose work advances open source projects and strengthens the communities around them.
+[00:00.00]Ava：PyTorch Foundation 正在表彰那些推动开源项目发展、壮大周边社区的人们。
+[00:09.19]The recognition took place on the keynote stage at PyTorch Conference 2026 in San Jose, California.
+[00:09.19]该表彰活动在加利福尼亚州圣何塞举行，地点是 PyTorch Conference 2026 的主题演讲舞台。
+[00:16.33]Brian: It's the fourth annual PyTorch Foundation Contributor Awards.
+[00:16.33]Brian：这是第四届 PyTorch Foundation Contributor Awards（贡献者奖）。
+[00:21.70]At a glance, 2026 has 15 award winners, 11 nominees, 9 award categories, and 3 new categories.
+[00:21.70]概览：2026 年共有 15 位获奖者、11 位提名者、9 个奖项类别和 3 个新增类别。
+[00:29.97]The winner count is up from 11 in 2025, and the recognition spans PyTorch Foundation-hosted projects including PyTorch, vLLM, Ray, and DeepSpeed.
+[00:29.97]获奖者人数从 2025 年的 11 人增加到今年的 15 人，表彰范围涵盖 PyTorch Foundation 主办的项目，包括 PyTorch、vLLM、Ray 和 DeepSpeed。
+[00:43.08]Ava: Those new categories make the program's scope clearer.
+[00:43.08]Ava：这些新增类别让项目的覆盖范围更加清晰。
+[00:46.99]Contribution isn't limited to technical innovation.
+[00:46.99]贡献并不局限于技术创新。
+[00:50.69]What does each category recognize, and how does it extend the older categories?
+[00:50.69]每个类别表彰什么，又如何扩展了原有类别？
+[00:56.75]Brian: Knowledge Enhancer celebrates contributors who make knowledge more accessible through documentation, tutorials, and educational resources.
+[00:56.75]Brian：“Knowledge Enhancer（知识增进奖）”表彰通过文档、教程和教育资源让知识更易获取的贡献者。
+[01:06.92]Bug Buster recognizes people who identify, report, and resolve bugs that improve project quality and reliability.
+[01:06.92]“Bug Buster（缺陷修复奖）”表彰发现、报告并解决漏洞，从而提升项目质量和可靠性的人士。
+[01:15.24]Catalyst honors contributions that improve developer workflows, automation, infrastructure, and AI-supported development.
+[01:15.24]“Catalyst（催化剂奖）”表彰改善开发者工作流、自动化、基础设施和 AI 辅助开发的贡献。
+[01:24.16]These additions complement existing categories for technical innovation, mentorship, community leadership, and ecosystem development.
+[01:24.16]这些新增类别补充了现有的技术创新、导师指导、社区领导力和生态系统发展类别。
+[01:34.30]Ava: The winner list shows that range. In Superhero, Thomas Ortner won for PyTorch.
+[01:34.30]Ava：获奖名单体现了这种广度。在 “Superhero（超级英雄奖）”类别中，Thomas Ortner 因 PyTorch 获奖。
+[01:40.42]Guangye Yu was the PyTorch Ecosystem Champion.
+[01:40.42]Guangye Yu 获得 PyTorch Ecosystem Champion（PyTorch 生态冠军奖）。
+[01:44.02]The two Knowledge Enhancers were Abdulsalam Yazid Bande for PyTorch and Suman Debnath for Ray.
+[01:44.02]两位 Knowledge Enhancer 得主是：PyTorch 项目的 Abdulsalam Yazid Bande，以及 Ray 项目的 Suman Debnath。
+[01:51.39]The Bug Busters were Guilherme Vieira Leobas and Vishal Goyal, both for PyTorch.
+[01:51.39]Bug Buster 得主是 Guilherme Vieira Leobas 和 Vishal Goyal，两人均来自 PyTorch 项目。
+[01:58.01]Brian: Then come two Newcomers: Johannes Lennart Zeiser for PyTorch and Jiangyun Zhu for vLLM.
+[01:58.01]Brian：接下来是两位 Newcomer（新人奖）得主：PyTorch 项目的 Johannes Lennart Zeiser，以及 vLLM 项目的 Jiangyun Zhu。
+[02:05.22]Wentao Ye won Review Powerhouse for vLLM.
+[02:05.22]Wentao Ye 凭借 vLLM 获得 Review Powerhouse（评审主力奖）。
+[02:08.62]The Innovator category went to Elfie Guo for PyTorch, Masahiro Tanaka for DeepSpeed, and Xinan Lin for PyTorch.
+[02:08.62]Innovator（创新者奖）授予 PyTorch 项目的 Elfie Guo、DeepSpeed 项目的 Masahiro Tanaka，以及 PyTorch 项目的 Xinan Lin。
+[02:18.18]Ava: The remaining awards were Catalyst and Outstanding Ambassador.
+[02:18.18]Ava：剩余奖项是 Catalyst 和 Outstanding Ambassador。
+[02:23.02]Harry Mellor won Catalyst for vLLM, Jiahao Tan won Catalyst for PyTorch, and Jiho Kim received Outstanding Ambassador for PyTorch.
+[02:23.02]Harry Mellor 凭借 vLLM 获得 Catalyst，Jiahao Tan 凭借 PyTorch 获得 Catalyst，Jiho Kim 则凭借 PyTorch 获得 Outstanding Ambassador（杰出大使奖）。
+[02:33.16]That accounts for all 15 winners across the nine categories.
+[02:33.16]这涵盖了九个类别中的全部 15 位获奖者。
+[02:38.19]Brian: The program also recognizes 11 nominees: Chandra Mohan Singh Negi, Arun Bhandari, Masahiro Hiramori, Luka Govedič, Irakli Salia, Jiahao Chen, Kunshang Ji, Rohit Kumar Tiwari, Subin George, Aaron Gokaslan, and Xunzhuo Liu.
+[02:38.19]Brian：该项目还表彰 11 位提名者：Chandra Mohan Singh Negi、Arun Bhandari、Masahiro Hiramori、Luka Govedič、Irakli Salia、Jiahao Chen、Kunshang Ji、Rohit Kumar Tiwari、Subin George、Aaron Gokaslan 和 Xunzhuo Liu。
+[02:56.80]Their contributions continue to make a difference across the PyTorch ecosystem.
+[02:56.80]他们的贡献持续为整个 PyTorch 生态系统带来积极影响。
+[03:03.81]Ava: You can watch the award ceremony at PyTorch Conference North America and explore the 2026 Contributor Awards to view the honorees.
+[03:03.81]Ava：你可以在 PyTorch Conference North America 观看颁奖典礼，并查看 2026 Contributor Awards 了解获表彰者。
+[03:13.16]There's a special thank you to the Contributor Awards Program Committee and to Red Hat, sponsor of the 2026 PyTorch Foundation Contributor Awards.
+[03:13.16]特别感谢 Contributor Awards Program Committee，以及 2026 PyTorch Foundation Contributor Awards 的赞助商 Red Hat。
+[03:24.01]Brian: So the useful takeaway is simple: 2026 expands recognition in both scale and scope.
+[03:24.01]Brian：所以，最实用的结论很简单：2026 年的表彰在规模和范围上都扩大了。
+[03:30.25]There are 15 winners, 3 new categories, and contributors recognized for technical innovation, knowledge sharing, bug fixing, workflow improvements, mentorship, community leadership, and ecosystem development.
+[03:30.25]共有 15 位获奖者和 3 个新增类别，贡献者因技术创新、知识分享、漏洞修复、工作流改进、导师指导、社区领导力和生态系统发展而受到表彰。
+[03:45.90]The Foundation says their work makes the ecosystem stronger, more collaborative, and more accessible to developers around the world.
+[03:45.90]基金会表示，他们的工作让生态系统更强大、更具协作性，也让世界各地的开发者更易参与。
+[03:56.18]Ava: It's a broad definition of contribution, and this year's list makes it visible.
+[03:56.18]Ava：这是对贡献的广义定义，而今年的名单让它清晰可见。
+[04:02.29]Brian: That's our briefing.
+[04:02.29]Brian：以上就是本期简报。
+[04:03.74]Congratulations to every winner and nominee, and thanks for listening.
+[04:03.74]祝贺每一位获奖者和提名者，也感谢您的收听。

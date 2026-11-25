@@ -1,0 +1,15 @@
+# PyTorch Day Japan 2026 日程公布
+
+依据：原文
+
+来源：https://pytorch.org/blog/schedule-live-see-whats-on-the-pytorch-day-japan-agenda/
+
+PyTorch Day Japan 2026 将于 12 月 10 日在东京举行，聚焦开源 AI 生态及相关技术。活动由 PyTorch Foundation、Hugging Face、IBM 和三菱电机共同主办，面向机器学习工程师、AI 研究人员、开发者和行业从业者。
+
+### 活动内容
+
+全天活动包括技术演讲、闪电演讲和社区交流。已公布的议题涵盖 DeepSpeed 的社区驱动训练优化、PyTorchKR 如何帮助学习者参与 PyTorch 生态建设，以及使用 ExecuTorch 编译机器人动作引导、在推理时执行反向传播。参会者可查看日程并选择感兴趣的场次。
+
+### 报名时间
+
+在日本标准时间 11 月 11 日 23:59 前报名，可享参会票折扣；学生和教职员工另有优惠票价。所提供正文未列出具体价格或折扣幅度。

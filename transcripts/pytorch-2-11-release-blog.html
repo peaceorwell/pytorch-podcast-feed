@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PyTorch 2.11: Differentiable Collectives, FlashAttention-4, and More</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/pytorch-2-11-release-blog/">原视频 / 原文</a></p><h1>PyTorch 2.11: Differentiable Collectives, FlashAttention-4, and More</h1>
+<p>原文：[PyTorch 2.11 Release Blog](https://pytorch.org/blog/pytorch-2-11-release-blog/)</p>
+<h2>摘要</h2>
+<p>本期介绍 PyTorch 2.11 的主要更新，包括可微分集合通信、FlexAttention 的 FlashAttention-4 后端、Apple Silicon MPS 算子扩展，以及 RNN/LSTM GPU 导出支持。对 Hopper 和 Blackwell GPU，FlashAttention-4 在计算受限工作负载上相比现有 Triton 实现可获得一点二到三点二倍加速，但功能仍在积极开发中。节目还讨论了 ROCm 调试与 TopK 优化、Intel XPU Graph、CPU 上通过 OpenBLAS 的 FP16 GEMM，以及 CUDA 13 默认版本。最后总结 TorchScript 弃用、2026 年改为每两个月发布一次，以及使用这些 API-UNSTABLE 功能时需要注意的限制。</p>
+<h2>对话</h2>
+<p>Ava: If your distributed training code needs gradients through communication, PyTorch 2.11 could change what you can build. And if you're on Hopper or Blackwell, attention kernels may get much faster. Brian, what landed in this release?</p>
+<p>Ava：如果你的分布式训练代码需要让梯度穿过通信操作，PyTorch 2.11 可能会改变你能构建的东西。如果你使用的是 Hopper 或 Blackwell，注意力核也可能快得多。Brian，这次版本发布了哪些功能？</p>
+<p>Brian: A lot, actually. PyTorch 2.11 has differentiable collectives, a FlashAttention-4 backend for FlexAttention, a much broader MPS story, GPU export for RNNs and LSTMs, and several device and inference improvements.</p>
+<p>Brian：其实有很多。PyTorch 2.11 带来了可微分集合通信、供 FlexAttention 使用的 FlashAttention-4 后端、更广泛的 MPS 支持、RNN 和 LSTM 的 GPU 导出支持，以及多项设备和推理方面的改进。</p>
+<p>Ava: Let's start with the distributed training change. The phrase “differentiable collectives” sounds important, but also a little abstract.</p>
+<p>Ava：先说分布式训练的变化。“可微分集合通信”听起来很重要，但也有点抽象。</p>
+<p>Brian: Sure. A collective is a communication operation used by distributed workers. In 2.11, functional collectives can support differentiation. That means a training workflow can backpropagate through the collective operation itself.</p>
+<p>Brian：当然。集合通信是分布式工作节点使用的一种通信操作。在 2.11 中，函数式集合通信可以支持求导。这意味着训练流程可以通过集合通信操作本身进行反向传播。</p>
+<p>Ava: Wait, so communication can now sit inside the gradient path?</p>
+<p>Ava：等等，也就是说，通信操作现在可以处在梯度传播路径中？</p>
+<p>Brian: Exactly. That's the key idea. Before this support, researchers might need custom autograd functions for some advanced workflows. With differentiable collectives, those workflows may be implemented without writing those custom functions.</p>
+<p>Brian：没错。这就是核心。此前，对某些高级训练流程，研究人员可能需要编写自定义 autograd 函数。有了可微分集合通信，这些流程或许就不需要编写自定义函数了。</p>
+<p>Ava: The article calls this a significant step for distributed deep learning research and advanced training techniques. Does it promise a specific new algorithm?</p>
+<p>Ava：文章称，这是分布式深度学习研究和高级训练技术的重要一步。它有承诺支持某种具体的新算法吗？</p>
+<p>Brian: No. It doesn't name a benchmark or one particular algorithm. The claim is about enabling a class of training workflows. The feature is also listed under API-UNSTABLE, so users should expect the interface to keep changing.</p>
+<p>Brian：没有。文章没有提到基准测试，也没有点名某个特定算法。它说的是，这项功能让一类训练流程成为可能。该功能还被列在 API-UNSTABLE 类别下，因此用户应该预期接口会继续变化。</p>
+<p>Ava: Got it. So the practical message is: gradients through communication are now possible, but the API isn't frozen yet.</p>
+<p>Ava：明白了。所以实际要点是：梯度现在可以穿过通信操作，但 API 还没有定型。</p>
+<p>Brian: Right. That's a good way to put it.</p>
+<p>Brian：对，这样概括很准确。</p>
+<p>Ava: Now let's talk about attention. What does the new FlashAttention-4 backend actually do inside FlexAttention?</p>
+<p>Ava：现在谈谈注意力机制。新的 FlashAttention-4 后端在 FlexAttention 中究竟做了什么？</p>
+<p>Brian: On Hopper and Blackwell GPUs, FlexAttention can use a FlashAttention-4 backend. PyTorch can automatically generate CuTeDSL score and mask modification functions, then just-in-time instantiate FlashAttention-4 kernels.</p>
+<p>Brian：在 Hopper 和 Blackwell GPU 上，FlexAttention 可以使用 FlashAttention-4 后端。PyTorch 可以自动生成用于修改分数和掩码的 CuTeDSL 函数，然后即时实例化 FlashAttention-4 核。</p>
+<p>Ava: Can you unpack that? What should an engineer picture?</p>
+<p>Ava：能展开讲讲吗？工程师该如何理解这个过程？</p>
+<p>Brian: Picture FlexAttention as the flexible front end. You describe how scores or masks should be modified. The backend then creates specialized kernels for that description. Here, those kernels come from FlashAttention-4, using CuTeDSL, and they're instantiated just in time.</p>
+<p>Brian：可以把 FlexAttention 想成灵活的前端。你描述分数或掩码该怎样修改，后端就会根据这个描述创建专用的核。在这里，这些核来自 FlashAttention-4，使用 CuTeDSL，并且会在需要时即时实例化。</p>
+<p>Ava: And the result is faster execution?</p>
+<p>Ava：结果就是执行速度更快？</p>
+<p>Brian: The article reports one point two to three point two times speedups over the existing Triton implementation on compute-bound workloads.</p>
+<p>Brian：文章报告称，在计算受限的工作负载上，相比现有的 Triton 实现，速度提高了 1.2 到 3.2 倍。</p>
+<p>Ava: That's a wide range. So it depends heavily on the workload.</p>
+<p>Ava：这个范围挺宽的。所以具体提升很大程度上取决于工作负载。</p>
+<p>Brian: Yes. The statement is specifically for compute-bound workloads. We shouldn't turn it into a universal speed claim. Also, this backend is still under active development, and its setup details and limitations are described in a separate FlexAttention and FlashAttention-4 post.</p>
+<p>Brian：是的。这个说法专门针对计算受限的工作负载。我们不该把它当成适用于所有情况的速度承诺。另外，这个后端仍在积极开发中，设置方法和限制在另一篇关于 FlexAttention 和 FlashAttention-4 的文章中有说明。</p>
+<p>Ava: So: promising numbers, specific hardware, specific workload, and a moving API.</p>
+<p>Ava：所以是：数据很有前景，但针对特定硬件、特定工作负载，而且 API 还在变化。</p>
+<p>Brian: Exactly. Hopper and Blackwell matter here, and the feature may change as it stabilizes.</p>
+<p>Brian：没错。这里 Hopper 和 Blackwell 很关键，而且这项功能在趋于稳定的过程中可能会变化。</p>
+<p>Ava: Let's move to Apple Silicon. MPS has been expanding for a while. What's new in 2.11?</p>
+<p>Ava：再来看看 Apple Silicon。MPS 已经扩展了一段时间。2.11 有什么新变化？</p>
+<p>Brian: MPS gets error reporting support and more operator coverage. New distribution functions include log_normal, cauchy, and geometric. There are also operator migrations, such as erfcx, and grid_sampler_2d now supports all operation modes. Finally, baddbmm and addbmm are extended to integer and complex types.</p>
+<p>Brian：MPS 增加了错误报告支持，并覆盖了更多算子。新增的分布函数包括 log_normal、cauchy 和 geometric。还有一些算子迁移，例如 erfcx；grid_sampler_2d 现在支持所有操作模式。最后，baddbmm 和 addbmm 的支持范围扩展到了整数类型和复数类型。</p>
+<p>Ava: The error reporting sounds especially useful. What problem does it catch?</p>
+<p>Ava：错误报告听起来特别有用。它能发现什么问题？</p>
+<p>Brian: Asynchronous error reporting can detect out-of-bounds access during GPU indexing operations. The article gives an example where an MPS tensor is indexed with an invalid index, and torch.mps.synchronize raises an index-out-of-bounds error.</p>
+<p>Brian：异步错误报告可以检测 GPU 索引操作中的越界访问。文章举了一个例子：用无效索引访问 MPS 张量时，torch.mps.synchronize 会抛出索引越界错误。</p>
+<p>Ava: So the failure might surface when you synchronize, rather than exactly where the indexing line runs.</p>
+<p>Ava：所以错误可能是在同步时才显现，而不是恰好在执行索引操作的那一行显现。</p>
+<p>Brian: Right. That's the important debugging detail. GPU work can be asynchronous, and synchronization is where the error is reported in that example.</p>
+<p>Brian：对。这是调试时要注意的一点。GPU 工作可能是异步的，在那个例子中，错误是在同步时报告的。</p>
+<p>Ava: Next, export support. The release says RNN modules, including LSTM and GRU, can now be exported on GPUs. Why does that matter?</p>
+<p>Ava：接下来说导出支持。这次发布称，RNN 模块，包括 LSTM 和 GRU，现在都可以在 GPU 上导出。这为什么重要？</p>
+<p>Brian: It broadens the model types that can be deployed with torch.export for production inference. In addition, tracing LSTM with dynamic shapes is now supported.</p>
+<p>Brian：这扩大了能够通过 torch.export 部署到生产推理环境的模型类型范围。此外，现在还支持以动态形状追踪 LSTM。</p>
+<p>Ava: And the GRU API stays the same?</p>
+<p>Ava：GRU API 还是一样的吗？</p>
+<p>Brian: Yes. The article says the GRU API is unchanged, while the new API is LSTM. So teams working with recurrent models get a larger export path without an API change for GRU.</p>
+<p>Brian：是的。文章说 GRU API 没有变化，而新 API 是 LSTM。因此，使用循环模型的团队有了更广的导出途径，同时不需要为 GRU 适配 API 变化。</p>
+<p>Ava: That sounds practical for production teams. What else is happening on AMD GPUs?</p>
+<p>Ava：这对生产团队听起来很实用。AMD GPU 方面还有什么变化？</p>
+<p>Brian: ROCm gets device-side assertions, which should improve debugging. It also gets significant TopK optimizations and radix-select improvements. Those improvements cache data in shared memory, helping both developer experience and performance on AMD GPUs.</p>
+<p>Brian：ROCm 增加了设备端断言，应该能改善调试体验。它还带来了显著的 TopK 优化和 radix-select 改进。这些改进把数据缓存在共享内存中，有助于提升 AMD GPU 上的开发体验和性能。</p>
+<p>Ava: Let's switch vendors again. What's XPU Graph?</p>
+<p>Ava：再换一家厂商。XPU Graph 是什么？</p>
+<p>Brian: XPU Graph is for Intel GPUs. It captures a sequence of XPU operations into a runtime execution graph. You can replay that graph multiple times.</p>
+<p>Brian：XPU Graph 面向 Intel GPU。它把一系列 XPU 操作捕获为运行时执行图，而你可以多次重放这个图。</p>
+<p>Ava: And replaying avoids repeated overhead?</p>
+<p>Ava：重放就能避免重复的开销？</p>
+<p>Brian: Yes. It reduces CPU overhead, including kernel-launch overhead and Python-runtime overhead. The goal is better workload performance on Intel GPUs. The article points users to the API documentation for usage details.</p>
+<p>Brian：是的。它能减少 CPU 开销，包括内核启动开销和 Python 运行时开销。目标是提升 Intel GPU 上的工作负载性能。文章建议用户查看 API 文档了解用法细节。</p>
+<p>Ava: There's also FP16 GEMM on CPUs through OpenBLAS. Is that mainly for servers?</p>
+<p>Ava：还有通过 OpenBLAS 在 CPU 上运行的 FP16 GEMM。这主要是给服务器用的吗？</p>
+<p>Brian: The article frames it as useful for CPU-based deployments, especially edge devices and CPU-only inference scenarios. OpenBLAS now provides FP16 half-precision GEMM support there, which can make FP16 inference faster.</p>
+<p>Brian：文章认为它适用于基于 CPU 的部署，尤其是边缘设备和纯 CPU 推理场景。OpenBLAS 现在为这些场景提供 FP16 半精度 GEMM 支持，可以加快 FP16 推理。</p>
+<p>Ava: Now, a release detail that can break build environments: CUDA.</p>
+<p>Ava：现在说一个可能让构建环境出问题的发布细节：CUDA。</p>
+<p>Brian: Starting with 2.11, CUDA 13 is the default installed version for both x86_64 and ARM platforms. Users who need another build can still use CPU-only packages or CUDA 12.8 builds from the relevant wheel subfolders.</p>
+<p>Brian：从 2.11 开始，x86_64 和 ARM 平台默认安装的 CUDA 版本都是 CUDA 13。需要其他构建版本的用户仍可从相应的 wheel 子目录获取纯 CPU 软件包或 CUDA 12.8 构建版本。</p>
+<p>Ava: So upgrading may mean checking which CUDA wheel your deployment expects.</p>
+<p>Ava：所以升级时可能需要检查部署环境预期使用哪个 CUDA wheel。</p>
+<p>Brian: Yes, especially if your environment is pinned to CUDA 12.8.</p>
+<p>Brian：是的，尤其是当你的环境固定使用 CUDA 12.8 时。</p>
+<p>Ava: And TorchScript?</p>
+<p>Ava：那 TorchScript 呢？</p>
+<p>Brian: TorchScript was deprecated in 2.10. The guidance is to use torch.export instead of the jit trace and script APIs, and to use ExecuTorch instead of the embedded runtime.</p>
+<p>Brian：TorchScript 在 2.10 中已被弃用。建议用 torch.export 代替 jit trace 和 script API，并用 ExecuTorch 代替嵌入式运行时。</p>
+<p>Ava: So 2.11 reinforces a migration that's already underway.</p>
+<p>Ava：所以 2.11 再次强调了已经开始的迁移方向。</p>
+<p>Brian: That's right. The release blog points readers to a PTC talk for more detail, but the main direction is clear: torch.export for export workflows, and ExecuTorch for the embedded runtime.</p>
+<p>Brian：没错。发布博客建议读者观看一场 PTC 演讲了解更多细节，但主要方向已经很明确：导出流程使用 torch.export，嵌入式运行时使用 ExecuTorch。</p>
+<p>Ava: How large was this release effort?</p>
+<p>Ava：这次版本发布的工作规模有多大？</p>
+<p>Brian: The release includes 2,723 commits from 432 contributors since PyTorch 2.10. The project thanks the community and encourages users to try the changes and report issues.</p>
+<p>Brian：自 PyTorch 2.10 以来，这次发布汇集了 432 位贡献者的 2,723 次提交。项目向社区表示感谢，并鼓励用户试用这些改动、报告问题。</p>
+<p>Ava: And the release rhythm is changing too.</p>
+<p>Ava：发布节奏也在变化。</p>
+<p>Brian: For 2026, PyTorch moves from quarterly releases to one release every two months. That means users may see features arrive more often, but they'll also need to track compatibility more closely.</p>
+<p>Brian：在 2026 年，PyTorch 将从每季度发布一次改为每两个月发布一次。这意味着用户可能会更频繁地看到新功能，但也需要更密切地关注兼容性。</p>
+<p>Ava: Before we close, give me the three points I should remember.</p>
+<p>Ava：结束前，告诉我应该记住哪三点。</p>
+<p>Brian: First, differentiable functional collectives let gradients pass through collective operations, opening advanced distributed-training workflows without custom autograd functions. Second, FlexAttention can use FlashAttention-4 on Hopper and Blackwell, with reported one point two to three point two times speedups on compute-bound workloads, while the backend remains under active development. Third, 2.11 expands deployment and hardware support: MPS operators and error reporting, GPU export for RNNs and LSTMs, ROCm debugging and TopK work, Intel XPU Graph, and CPU FP16 GEMM.</p>
+<p>Brian：首先，可微分的函数式集合通信操作允许梯度通过集合通信操作，从而无需自定义 autograd 函数即可实现高级分布式训练流程。其次，FlexAttention 可以在 Hopper 和 Blackwell 上使用 FlashAttention-4；据报告，在受计算性能限制的工作负载上可实现 1.2 到 3.2 倍的加速，但该后端仍在积极开发中。第三，2.11 扩展了部署和硬件支持，包括 MPS 算子和错误报告、RNN 和 LSTM 的 GPU 导出、ROCm 调试和 TopK 相关工作、Intel XPU Graph，以及 CPU FP16 GEMM。</p>
+<p>Ava: And the migration notes are CUDA 13 by default, TorchScript deprecated, and releases every two months in 2026.</p>
+<p>Ava：迁移注意事项则是默认使用 CUDA 13、TorchScript 已弃用，以及 2026 年每两个月发布一个版本。</p>
+<p>Brian: Exactly. Check the current documentation before relying on the API-UNSTABLE features, and report issues as you try them.</p>
+<p>Brian：没错。在依赖 API-UNSTABLE 功能之前，请查看最新文档；试用时如果遇到问题，也请报告。</p>
+<p>Ava: That's PyTorch 2.11. Thanks for listening, and we'll be back with another paper-to-practice conversation.</p>
+<p>Ava：以上就是 PyTorch 2.11。感谢收听，我们下次再聊另一场从论文到实践的对话。</p>
+<h2>术语</h2>
+<p>Term · 释义</p>
+<p>Differentiable Collectives · 可微分集合通信；允许梯度通过集合通信操作反向传播。</p>
+<p>Functional Collectives · 函数式集合通信 API，用于分布式工作进程之间的通信。</p>
+<p>Autograd · 自动微分系统，用于构建和计算反向传播梯度。</p>
+<p>FlexAttention · PyTorch 中可灵活定义分数和掩码修改的注意力接口。</p>
+<p>FlashAttention-4 · 用于 Hopper 和 Blackwell GPU 的注意力后端。</p>
+<p>CuTeDSL · 用于生成分数或掩码修改函数及专用 GPU 内核的领域特定语言。</p>
+<p>JIT instantiation · 即时实例化，在运行时生成或专门化内核。</p>
+<p>MPS · Apple Silicon GPU 后端，Metal Performance Shaders。</p>
+<p>torch.export · 用于导出模型并支持生产推理部署的 PyTorch API。</p>
+<p>Device-side assertions · 在 GPU 设备端触发断言，帮助定位运行时错误。</p>
+<p>TopK · 选取张量中最大或最小 K 个元素的算子。</p>
+<p>XPU Graph · 在 Intel GPU 上捕获并重复执行 XPU 操作序列的运行时图。</p>
+<p>GEMM · 通用矩阵乘法，General Matrix-Matrix Multiplication。</p>
+<p>OpenBLAS · 提供高性能 BLAS 运算实现的数学库。</p>
+<p>ExecuTorch · 用于嵌入式运行时的 PyTorch 部署方案。</p>
+<h2>口语表达</h2>
+<p>Phrase · 释义</p>
+<p>That's the key idea. · 这就是关键点。</p>
+<p>Can you unpack that? · 你能把这个讲得具体一点吗？</p>
+<p>It depends heavily on the workload. · 这很大程度取决于工作负载。</p>
+<p>Let's move to... · 我们转到……</p>
+<p>The practical message is... · 实际要点是……</p>
+<p>So the failure might surface when... · 所以错误可能会在……时暴露。</p>
+<p>Before we close... · 结束之前……</p>
+<p>That's a good way to put it. · 这样说很准确。</p>
+<h2>中文内容总结</h2>
+<p>PyTorch 2.11 于 2026 年 3 月 23 日发布，汇集了自 2.10 以来 432 名贡献者提交的 2723 次代码变更。此次更新涉及分布式训练、注意力计算、设备算子、模型导出和执行性能。文中将主要新功能列为 API 尚不稳定的功能。</p>
+<h3>分布式训练与注意力</h3>
+<p>功能式集合通信现在支持自动求导，训练过程可以反向传播经过集合通信操作，使部分分布式训练方法无需编写自定义 autograd 函数。FlexAttention 在 Hopper 和 Blackwell GPU 上新增 FlashAttention-4 后端，可自动生成 CuTeDSL 的分数与掩码修改函数，并从 PyTorch 即时实例化内核。官方报告称，在计算受限负载上，它比现有 Triton 实现快 1.2 至 3.2 倍；该后端仍在开发，接口和限制可能变化。</p>
+<h3>设备支持与算子</h3>
+<p>Apple Silicon 的 MPS 后端扩展了算子覆盖，包括 log_normal、cauchy、geometric 分布函数、erfcx、支持全部操作模式的 grid_sampler_2d，以及支持整数和复数类型的 baddbmm、addbmm。MPS 还增加异步错误报告，可发现 GPU 索引越界，文中示例在调用 torch.mps.synchronize() 时抛出错误。ROCm 增加设备端断言，并通过共享内存缓存优化 TopK 和 radix select。CPU 则可通过 OpenBLAS 执行 FP16 GEMM；原文称这有助于加快 FP16 推理，但未提供量化结果。</p>
+<h3>导出与执行</h3>
+<p>LSTM、GRU 等 RNN 模块现在可在 GPU 上导出，LSTM 跟踪也支持动态形状，扩大了 torch.export 可用于生产推理的模型范围。GRU API 保持不变，新增 API 面向 LSTM。Intel GPU 的 XPUGraph 可捕获一串 XPU 操作并重复回放，以减少内核启动和 Python 运行时带来的 CPU 开销；原文未给出性能数字。</p>
+<h3>版本选择与迁移</h3>
+<p>从 2.11 起，x86_64 和 ARM 平台默认安装 CUDA 13 版本。需要其他构建的用户仍可从对应下载目录获取纯 CPU 或 CUDA 12.8 版本。TorchScript 已在 2.10 弃用，官方建议用 torch.export 替代 jit trace 和 script API，用 ExecuTorch 替代嵌入式运行时。2026 年的发布频率也从每季度一次改为每两个月一次。</p>
+<h3>发布交流</h3>
+<p>官方安排在 3 月 31 日星期二上午 10 点举行直播，介绍可微分集合通信、FlexAttention 的新后端、MPS 扩展等内容，并进行现场问答；公告未注明该时间的时区。</p></body></html>

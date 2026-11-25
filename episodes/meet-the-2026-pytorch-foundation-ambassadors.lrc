@@ -1,0 +1,215 @@
+[ti:How the 2026 PyTorch Foundation Ambassadors Connect Communities]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: Imagine you know PyTorch well enough to build a model, but you want to contribute to its wider open source ecosystem.
+[00:00.00]Ava：假设你已经熟悉 PyTorch，能构建模型，也想为更广泛的开源生态做贡献。
+[00:07.38]Finding a useful place to start can still be hard.
+[00:07.38]但找到一个有意义的切入点仍不容易。
+[00:10.54]This announcement matters because it's about the people who help make that first connection.
+[00:10.54]这则公告重要，是因为它关注帮助人们迈出第一步的人。
+[00:16.69]Brian: Exactly.
+[00:16.69]Brian：没错。
+[00:17.30]The 2026 PyTorch Foundation Ambassador Program brings together community leaders who teach, mentor, organize events, create technical content, and contribute to open source projects.
+[00:17.30]2026 年 PyTorch 基金会大使计划汇聚了教授知识、指导新人、组织活动、创作技术内容并参与开源项目的社区领袖。
+[00:31.02]The idea is to connect local communities with the wider Foundation ecosystem, so more people can learn and participate.
+[00:31.02]计划旨在连接本地社区与更广泛的基金会生态，让更多人学习和参与。
+[00:40.35]Ava: I like that the starting point is a community need.
+[00:40.35]Ava：我喜欢它从社区需求出发。
+[00:43.81]A framework engineer may read documentation and find a project alone.
+[00:43.81]框架工程师或许能靠阅读文档，自己找到项目。
+[00:48.49]A student at a first workshop may need someone to explain what to try next and where questions are welcome.
+[00:48.49]第一次参加工作坊的学生，可能需要有人告诉他们下一步做什么、可以去哪里提问。
+[00:56.11]Brian: And the article describes both paths.
+[00:56.11]Brian：文章也谈到了这两种路径。
+[00:58.77]Someone new to PyTorch might attend a hands-on workshop.
+[00:58.77]PyTorch 新手可以参加实践工作坊。
+[01:02.80]An experienced developer might discover another Foundation project, meet maintainers, or make a first open source contribution.
+[01:02.80]有经验的开发者可以发现基金会的其他项目、结识维护者，或首次为开源项目做贡献。
+[01:11.95]Ambassadors help create those opportunities by bringing people together.
+[01:11.95]大使通过聚集人们来创造这些机会。
+[01:17.48]Ava: That changes the entry point.
+[01:17.48]Ava：这就改变了参与的起点。
+[01:19.39]If I'm already comfortable with tensors and training loops, an introductory lesson may be less useful than a conversation about a project's open questions.
+[01:19.39]如果我已经熟悉张量和训练循环，讨论项目尚待解决的问题，可能比入门课程更有帮助。
+[01:29.57]The program seems broad enough to serve both groups, though their needs differ.
+[01:29.57]这个计划似乎能兼顾两类人，尽管他们的需求不同。
+[01:35.11]Brian: Right. The ambassadors' backgrounds are broad too.
+[01:35.11]Brian：对。大使们的背景也很广泛。
+[01:38.57]The cohort includes people with experience in AI research, software and infrastructure engineering, technical education, open source maintenance, and community organizing.
+[01:38.57]这一届成员拥有 AI 研究、软件与基础设施工程、技术教育、开源维护和社区组织等领域的经验。
+[01:50.39]Their work can involve AI systems and model training, or documentation, workshops, mentoring, and local applications.
+[01:50.39]他们的工作可能涉及 AI 系统和模型训练，也可能涉及文档、工作坊、指导新人和本地应用。
+[01:58.84]Ava: So the useful contribution isn't always a code change.
+[01:58.84]Ava：所以有价值的贡献不一定是改代码。
+[02:02.49]Documentation and a well-run workshop can help a developer understand a project well enough to use it or contribute later.
+[02:02.49]文档和办得好的工作坊能帮助开发者理解项目，日后使用它或参与贡献。
+[02:10.74]That's especially relevant when the ecosystem has more than one project to explore.
+[02:10.74]当生态中有多个项目可供探索时，这一点尤其重要。
+[02:16.71]Brian: Yes.
+[02:16.71]Brian：是的。
+[02:17.01]The Foundation supports projects that help people build, train, optimize, and deploy AI systems.
+[02:17.01]基金会支持帮助人们构建、训练、优化和部署 AI 系统的项目。
+[02:24.28]The article names PyTorch, vLLM, DeepSpeed, Ray, Helion, and Safetensors.
+[02:24.28]文章提到了 PyTorch、vLLM、DeepSpeed、Ray、Helion 和 Safetensors。
+[02:29.81]Together, those examples span model training, inference, distributed computing, performance optimization, and model sharing.
+[02:29.81]这些项目涵盖模型训练、推理、分布式计算、性能优化和模型共享。
+[02:39.54]Ava: I'd separate those two ideas. The list shows how wide the ecosystem is.
+[02:39.54]Ava：我会把这两点分开看。这份名单体现了生态的广度。
+[02:44.52]It doesn't mean every ambassador teaches every project.
+[02:44.52]但这不意味着每位大使都会教授所有项目。
+[02:48.38]A local event could focus on one topic that fits its audience, then point interested people toward the wider community.
+[02:48.38]本地活动可以聚焦适合受众的一个主题，再引导感兴趣的人走向更广泛的社区。
+[02:57.08]Brian: That's consistent with the examples in the announcement.
+[02:57.08]Brian：这和公告中的例子一致。
+[03:00.84]An ambassador might run an introductory PyTorch workshop for students, help developers explore scalable inference with vLLM, introduce engineers to distributed AI technologies, or write technical content that makes a difficult concept easier to understand.
+[03:00.84]大使可能为学生举办 PyTorch 入门工作坊，帮助开发者探索用 vLLM 实现可扩展推理，向工程师介绍分布式 AI 技术，或撰写技术内容，让难懂的概念更容易理解。
+[03:18.40]Ava: Let's make that concrete.
+[03:18.40]Ava：举个具体例子。
+[03:20.22]Suppose a group of engineers is curious about scalable inference.
+[03:20.22]假设一群工程师对可扩展推理感兴趣。
+[03:24.94]A session around vLLM gives them a specific project to explore.
+[03:24.94]围绕 vLLM 的活动能让他们探索一个具体项目。
+[03:29.52]The article doesn't describe a particular setup or performance result; the useful point here is the connection between a practical interest and a community.
+[03:29.52]文章没有介绍具体配置或性能结果；这里的关键是把实际兴趣与社区连接起来。
+[03:41.19]Brian: And if the group is new to PyTorch, an introductory workshop serves a different purpose.
+[03:41.19]Brian：如果这群人刚接触 PyTorch，入门工作坊就有不同的作用。
+[03:47.10]It can give people practical skills and a place to meet others who are learning.
+[03:47.10]它能让大家学到实用技能，也能结识其他学习者。
+[03:52.47]The program also includes mentorship, which can help people keep moving after an event.
+[03:52.47]计划还包括导师指导，帮助人们在活动结束后继续前进。
+[03:58.66]Ava: Here's the practical difference.
+[03:58.66]Ava：实际区别在这里。
+[04:00.74]Reading about an unfamiliar project tells me what it does.
+[04:00.74]阅读陌生项目的资料，能让我知道它是做什么的。
+[04:04.51]Meeting people around that project can show me where to ask questions and how to join the work.
+[04:04.51]结识项目相关的人，则能让我知道去哪里提问、如何参与。
+[04:10.69]That second step matters when a developer wants to move from user to contributor.
+[04:10.69]开发者想从用户变成贡献者时，这一步很重要。
+[04:16.31]Brian: The article frames that as one of the ambassadors' jobs: helping people discover Foundation projects, understand practical applications, and find opportunities to contribute.
+[04:16.31]Brian：文章把这视为大使的一项职责：帮助人们发现基金会项目、了解实际应用，并找到贡献的机会。
+[04:29.17]It doesn't prescribe one route for every person.
+[04:29.17]文章没有为所有人规定同一条路径。
+[04:32.72]Workshops, meetups, educational resources, and mentoring can each open a different door.
+[04:32.72]工作坊、线下聚会、教育资源和导师指导，都能提供不同的入口。
+[04:39.58]Ava: There's also a local part to this.
+[04:39.58]Ava：这里还有本地社区的作用。
+[04:41.85]A meetup can respond to what its own community is interested in, while still connecting participants to projects and maintainers elsewhere.
+[04:41.85]聚会可以回应本地社区的兴趣，同时帮助参与者联系其他地方的项目和维护者。
+[04:51.11]That seems useful for an ecosystem whose contributors live and work in many places.
+[04:51.11]这个生态的贡献者分布在各地，这样做似乎很有用。
+[04:56.99]Brian: The cohort reflects that reach.
+[04:56.99]Brian：这一届大使也体现了这样的覆盖范围。
+[04:59.48]For 2026, the Foundation welcomes 24 ambassadors across five program regions: Africa, Asia, Europe, the Middle East, and North America.
+[04:59.48]2026 年，基金会迎来 24 位大使，分布在五个计划区域：非洲、亚洲、欧洲、中东和北美。
+[05:10.31]The article lists people connected to communities in countries including Nigeria, Burkina Faso, Singapore, India, Romania, Spain, the United Kingdom, and the United States.
+[05:10.31]文章列出的成员与尼日利亚、布基纳法索、新加坡、印度、罗马尼亚、西班牙、英国和美国等国的社区有联系。
+[05:24.46]Ava: That's a clear result we can report: who's in the cohort and how widely the program is organized.
+[05:24.46]Ava：有一个明确的结果可以报告：这届大使有哪些人，以及项目覆盖了多广的范围。
+[05:30.69]But it isn't an adoption metric.
+[05:30.69]但这不是衡量采用情况的指标。
+[05:32.75]We shouldn't turn the number of ambassadors into a claim about how many new contributors the projects will gain.
+[05:32.75]我们不能拿大使人数来推断这些项目会新增多少贡献者。
+[05:40.29]Brian: Agreed.
+[05:40.29]Brian：同意。
+[05:40.76]The article describes what these people bring and what they hope to do over the coming year.
+[05:40.76]文章介绍了这些人的经验，以及他们希望在未来一年做什么。
+[05:46.92]It doesn't establish future participation totals.
+[05:46.92]它没有给出未来的参与人数。
+[05:50.20]We can talk about the opportunities the program aims to create without treating those plans as measured outcomes.
+[05:50.20]我们可以谈项目打算创造哪些机会，但不能把计划当成已经取得的成果。
+[05:58.12]Ava: The ambassadors' reflections make those aims less abstract.
+[05:58.12]Ava：大使们的感想让这些目标更具体了。
+[06:02.09]One ambassador from Turkey describes contributing to PyTorch documentation and realizing that a small contribution could become part of something much bigger.
+[06:02.09]一位来自土耳其的大使说，她曾为 PyTorch 文档做贡献，并意识到小小的贡献也能成为更宏大事业的一部分。
+[06:12.73]That's a useful reminder for an engineer who assumes only large code changes count.
+[06:12.73]这提醒工程师：并非只有大规模代码改动才算贡献。
+[06:18.67]Brian: She hopes to help others feel that sense of belonging through practical learning, welcoming communities, and chances to contribute.
+[06:18.67]Brian：她希望通过实践学习、友好的社区和贡献机会，让更多人感受到归属感。
+[06:27.64]That gives documentation work a human context.
+[06:27.64]这也让文档工作有了人的温度。
+[06:30.79]It can help someone enter a project, and the act of contributing can help them feel part of it.
+[06:30.79]文档能帮助人们参与项目，而贡献本身也能让他们感到自己是其中一员。
+[06:37.65]Ava: Another ambassador, from Egypt, says open source communities taught her much of what she knows about building AI.
+[06:37.65]Ava：另一位来自埃及的大使说，开源社区教会了她许多构建 AI 的知识。
+[06:44.94]She wants to give back through teaching and mentoring, and bring more engineers from Egypt and Africa into the PyTorch ecosystem.
+[06:44.94]她想通过教学和指导回馈社区，帮助更多埃及和非洲的工程师加入 PyTorch 生态。
+[06:53.62]Brian: That example explains why the program includes people who teach as well as people who maintain software.
+[06:53.62]Brian：这个例子说明，项目为什么既吸纳教书育人的人，也吸纳维护软件的人。
+[07:00.66]If learning in a community helped an engineer build skills, teaching those skills can make the next person's entry easier.
+[07:00.66]如果工程师从社区学习并提升了技能，再把这些技能教给别人，就能让后来者更容易入门。
+[07:08.91]The article presents that as an ambassador's motivation, not as a measured effect.
+[07:08.91]文章说的是一位大使的愿望，而不是已经测得的效果。
+[07:14.80]Ava: The third reflection is especially interesting for someone following inference work.
+[07:14.80]Ava：第三位大使的感想，对关注推理工作的人尤其有意思。
+[07:20.54]An ambassador connected to Singapore and Malaysia wants hands-on education and mentorship to help more developers contribute.
+[07:20.54]一位与新加坡和马来西亚有联系的大使，希望通过实践教育和指导，帮助更多开发者参与贡献。
+[07:29.06]He also wants to bring the PyTorch and vLLM communities closer together in Singapore and across Asia-Pacific.
+[07:29.06]他还希望拉近新加坡及亚太地区 PyTorch 和 vLLM 社区之间的距离。
+[07:36.85]Brian: That gives us a specific example of a bridge between project communities.
+[07:36.85]Brian：这给出了一个连接不同项目社区的具体例子。
+[07:41.96]The announcement doesn't say what form that collaboration will take.
+[07:41.96]公告没有说明这种合作会采取什么形式。
+[07:46.73]It does tell us what he hopes to encourage: learning, contribution, and closer contact between people interested in those projects.
+[07:46.73]但它说明了他希望促进什么：学习、贡献，以及对这些项目感兴趣的人之间更密切的交流。
+[07:56.26]Ava: I can see a pattern across those reflections.
+[07:56.26]Ava：这些感想有一个共同点。
+[07:59.25]One person starts from documentation, another from teaching what a community taught her, and another from connecting project communities.
+[07:59.25]有人从文档入手，有人把从社区学到的知识教给别人，还有人致力于连接不同项目的社区。
+[08:08.36]Those are different activities, but each gives someone else a way to take part.
+[08:08.36]做法各不相同，但都为别人提供了参与的途径。
+[08:13.96]Brian: Yes, and the wider cohort brings still more experience.
+[08:13.96]Brian：是的，其他大使也带来了更多不同的经验。
+[08:17.65]The article mentions research, infrastructure, applications, and community organizing.
+[08:17.65]文章提到了研究、基础设施、应用开发和社区组织工作。
+[08:23.42]It doesn't assign every activity to every ambassador, so the safest reading is that the program gathers people with different skills and local connections.
+[08:23.42]文章并没有说每位大使都会做所有这些事。稳妥的理解是，这个项目汇集了技能和本地社区联系各不相同的人。
+[08:34.18]Ava: That's a useful boundary.
+[08:34.18]Ava：这个界限很有用。
+[08:35.92]For a technical listener, it's tempting to ask which project will get which workshop, or how many contributions will follow.
+[08:35.92]技术领域的听众可能会想知道，哪个项目会举办什么工作坊，之后又会产生多少贡献。
+[08:44.53]Those would be valuable things to learn later.
+[08:44.53]这些都值得以后关注。
+[08:47.72]This announcement is about the cohort and its intended work.
+[08:47.72]这份公告讲的是这届大使及其计划开展的工作。
+[08:52.24]Brian: And intended work still tells us something concrete.
+[08:52.24]Brian：计划中的工作仍然透露了具体信息。
+[08:56.15]Over the coming year, ambassadors will help create opportunities for developers, researchers, students, and open source enthusiasts to learn, connect, and contribute.
+[08:56.15]未来一年，大使们将为开发者、研究人员、学生和开源爱好者创造学习、交流和贡献的机会。
+[09:08.62]The activities described include technical education, community events, mentorship, and introductions to Foundation projects.
+[09:08.62]文章提到的活动包括技术教育、社区活动、指导，以及介绍基金会旗下的项目。
+[09:18.37]Ava: So what happens next?
+[09:18.37]Ava：接下来会怎样？
+[09:19.83]If I follow this as an engineer, I'd look for the workshops, resources, and community initiatives the ambassadors create.
+[09:19.83]如果我是关注此事的工程师，我会留意大使们推出的工作坊、资源和社区活动。
+[09:28.27]Those would show how the broad goal turns into something people can actually use.
+[09:28.27]这些能让我们看到，宏观目标如何变成人们真正用得上的东西。
+[09:34.27]Brian: That's fair.
+[09:34.27]Brian：有道理。
+[09:35.08]The article says the Foundation looks forward to what the ambassadors will teach, organize, create, and contribute during the year ahead.
+[09:35.08]文章说，基金会期待看到大使们在未来一年教授、组织、创造和贡献的成果。
+[09:44.28]It gives us a direction, while leaving the exact events and outcomes for the future.
+[09:44.28]它指出了方向，具体活动和成效则要留待日后揭晓。
+[09:50.27]Ava: Where does that leave us?
+[09:50.27]Ava：那我们该如何理解这件事？
+[09:52.04]I'd take away that the Foundation's ecosystem includes several kinds of AI work, and people need different ways into it.
+[09:52.04]我的看法是，基金会的生态涵盖多种 AI 工作，人们需要不同的参与途径。
+[10:00.53]A local introduction, useful documentation, or contact with a maintainer can each help someone find a next step.
+[10:00.53]本地引导、实用文档，或与维护者建立联系，都能帮助人们找到下一步。
+[10:08.81]Brian: And I'd keep the scale in view: 24 ambassadors across five program regions, with backgrounds ranging from engineering to education and community work.
+[10:08.81]Brian：我也会记住它的规模：24 位大使，覆盖五个项目区域，背景从工程、教育到社区工作。
+[10:19.12]The program connects those people to learning and contribution across PyTorch Foundation projects.
+[10:19.12]这个项目让这些人围绕 PyTorch 基金会的各个项目，推动学习和贡献。
+[10:25.85]What comes from those connections will become clearer as the year unfolds.
+[10:25.85]随着这一年展开，这些联系会带来什么，将逐渐明朗。
+[10:31.29]Ava: That's the useful takeaway for me.
+[10:31.29]Ava：这就是我觉得最有用的收获。
+[10:33.36]If you're already building with PyTorch, there's more to explore around it.
+[10:33.36]如果你已经在用 PyTorch 开发，还有更多相关内容值得探索。
+[10:37.94]And if you want to contribute, the community connections may help you find a place where your skills are useful.
+[10:37.94]如果你想贡献力量，社区的人脉也许能帮你找到发挥所长的地方。
+[10:45.13]Brian: We'll leave it there.
+[10:45.13]Brian：今天就聊到这里。
+[10:46.91]The 2026 cohort is in place, and the practical work lies ahead: teaching, organizing, creating, and helping others join in.
+[10:46.91]2026 届成员已经就位，接下来要做的是教学、组织、创作，帮助更多人参与。
+[10:57.34]Thanks for listening.
+[10:57.34]感谢收听。

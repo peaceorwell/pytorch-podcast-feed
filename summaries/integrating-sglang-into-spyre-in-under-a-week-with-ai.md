@@ -1,0 +1,27 @@
+# SGLang 在 IBM Spyre 上的快速集成
+
+依据：原文
+
+来源：https://pytorch.org/blog/integrating-sglang-into-spyre-in-under-a-week-with-ai/
+
+IBM 团队用两名开发者和 AI 编码代理，在不到一周内把 SGLang 推理服务栈接入 Spyre 加速器，形成约 1500 行的插件。集成主要复用了 PyTorch、torch-spyre 和现有 vLLM Spyre 后端中的硬件实现，并利用 SGLang 明确的扩展接口完成设备、注意力后端、KV 缓存和算子调度对接。测试显示，SGLang 在 Spyre 上的吞吐量约为基于 torch-spyre 的参考 PyTorch 推理实现的 3.6 倍；在 Granite 3.3 8B 和 Gemma 4 26B A4B 的已测工作负载上，性能与 vLLM 相当。
+
+### 问题与起点
+
+团队希望让 IBM Spyre 用户使用 SGLang 的服务能力，包括内置的前缀共享。Spyre 面向企业 AI 推理，通过 torch-spyre 注册为 PyTorch 设备，并接入 torch.compile，以标准 PyTorch API 暴露硬件能力。已有可用的编译器、PyTorch 硬件支持和推理服务框架，为后续集成提供了共同实现层。
+
+### 集成方案与代码复用
+
+AI 编码代理以现有 PyTorch Spyre 算子实现和 vLLM 的 Spyre 后端为参考，将硬件代码改接到 SGLang 的后端接口。四个小补丁中，两个让已有执行路径摆脱 CUDA 专属依赖，两个注册 Spyre 设备及不依赖 Triton 的注意力后端。SGLang 的平台注册、注意力后端、KV 池和算子调度把工作拆成边界清晰的任务，同时保留原有调度器、请求处理和服务循环。现有 vLLM Spyre 后端约 3500 行，SGLang 插件约 1500 行，其中约三分之二的差异来自复用注意力基类提供的外围逻辑，只需在 Spyre 后端覆盖内部的缩放点积注意力操作。团队还复用了输入分桶、张量形状处理和基于 PyTorch 的 KV 缓存分配方式，并把 RMSNorm、SiLU、GeLU、旋转位置编码和线性层接入 SGLang 的算子调度。
+
+### 性能结果与条件
+
+文章报告的实测结果显示，SGLang 在 Spyre 上达到参考 PyTorch 推理实现约 3.6 倍的吞吐量。团队还在 Spyre 上比较了 SGLang 与 vLLM，测试模型为 Granite 3.3 8B 和 Gemma 4 26B A4B；在这两个模型的已测工作负载中，SGLang 性能与 vLLM 相当。文章没有给出更广泛模型、绝对吞吐量或所有测试配置，因此这些结果只支持所列工作负载范围内的比较。
+
+### 无需专用改动的能力
+
+RadixCache 的前缀共享由 SGLang 调度器在执行到加速器之前完成，因此无需增加 Spyre 专用代码即可工作。SGLang 的设备无关 KV 池也只需覆盖一次缓冲区创建方法；当原有路径依赖 Triton 时，实际分配仍需使用 PyTorch 处理。
+
+### 限制、后续计划与实际使用
+
+示例要求预先安装并配置 Spyre 运行时、torch-spyre、SGLang 插件和兼容性补丁，并使用 device 为 spyre、attention_backend 为 spyre_paged、float16、page_size 64、单个运行请求和禁用 CUDA Graph 等参数。插件已随上游 SGLang 开源。作者预计未来数月加入动态形状支持，以减少当前的形状管理；并预计在当年晚些时候加入 Triton 支持，再在其上启用 RadixAttention。这些是后续计划，不是当前测得的结果。整体经验表明，把硬件支持放在 PyTorch，把框架适配集中在 SGLang 扩展点，可以降低新加速器接入服务栈的工作量，并让后续编译器和运行时改进继续复用同一基础。

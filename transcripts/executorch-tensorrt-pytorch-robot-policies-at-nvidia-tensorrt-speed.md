@@ -1,0 +1,174 @@
+# Running PyTorch Robot Policies with ExecuTorch and TensorRT
+
+原文：[ExecuTorch-TensorRT: PyTorch Robot Policies at NVIDIA TensorRT Speed - PyTorch](https://pytorch.org/blog/executorch-tensorrt-pytorch-robot-policies-at-nvidia-tensorrt-speed/)
+
+## 摘要
+
+这篇文章介绍了如何用 Torch-TensorRT 2.15 将 PyTorch 模型编译为 ExecuTorch 1.6 程序，并在不加载 PyTorch 的情况下运行。在相同权重、相同输入且未量化的 Jetson Orin Nano Super 测试中，ExecuTorch-TensorRT 的每个动作块耗时和进程内存占用与 ONNX-TensorRT 相差均在 4% 以内。一个拥有 36 亿参数的 pi0.5 策略在这块 8 GB 开发板上每个动作块耗时 467 ms，而 PyTorch eager 模式因内存不足无法运行。节目还讨论了不受 TensorRT 支持的算子如何交给 CUDA 后端，以及大型策略的分段构建和多个策略共享 GPU 时的限制。
+
+## 对话
+
+Ava: A 3.6-billion-parameter robot policy ran on an 8 GB Jetson Orin Nano with ExecuTorch-TensorRT. PyTorch eager mode ran out of memory on that board. The measured time was 467 ms per action chunk.
+
+Ava：一个拥有36亿参数的机器人策略通过 ExecuTorch-TensorRT 在配备 8 GB 内存的 Jetson Orin Nano 上运行。PyTorch eager 模式在这块板子上耗尽了内存。测得每个动作片段耗时 467 ms。
+
+Brian: That matters because a policy produces a short plan, called an action chunk. If the next chunk isn't ready when the robot finishes the current one, it waits. Sending the work to a server adds a network round trip that can easily take 100 ms.
+
+Brian：这很重要，因为策略会生成一个称为动作片段的短期计划。如果机器人完成当前片段时，下一个片段还没准备好，就只能等待。把计算交给服务器还会增加一次网络往返，耗时很容易达到 100 ms。
+
+Ava: TensorRT is fast on NVIDIA hardware, but getting a PyTorch model there has been awkward. With ONNX-TensorRT, the model has to pass through both the PyTorch ONNX exporter and the TensorRT ONNX parser. An unsupported op can stop the build.
+
+Ava：TensorRT 在 NVIDIA 硬件上速度很快，但把 PyTorch 模型部署到 TensorRT 一直不太方便。使用 ONNX-TensorRT 时，模型必须先后经过 PyTorch ONNX 导出器和 TensorRT ONNX 解析器。只要有一个不受支持的算子，就可能导致构建中止。
+
+Brian: Torch-TensorRT already converts PyTorch ops directly to TensorRT. Its usual output still needs libtorch at run time, though. The new route pairs Torch-TensorRT 2.15 with ExecuTorch 1.6, so the robot can run the compiled program without libtorch.
+
+Brian：Torch-TensorRT 已经能把 PyTorch 算子直接转换为 TensorRT。不过，它通常生成的程序在运行时仍需要 libtorch。新方案将 Torch-TensorRT 2.15 与 ExecuTorch 1.6 结合起来，让机器人无需 libtorch 就能运行编译后的程序。
+
+Ava: Where does the split happen if TensorRT can't convert part of a policy?
+
+Ava：如果 TensorRT 无法转换策略中的某一部分，程序会在哪里拆分？
+
+Brian: torch.export first captures a graph of PyTorch ops. TensorRT claims the parts it can convert. ExecuTorch's CUDA backend takes supported parts that TensorRT leaves behind, including preprocessing. Both backends can run in one program on the same CUDA stream.
+
+Brian：torch.export 首先捕获由 PyTorch 算子组成的计算图。TensorRT 接手其中能转换的部分。ExecuTorch 的 CUDA 后端接手 TensorRT 留下且受其支持的部分，包括预处理。两个后端可以在同一个程序中、同一条 CUDA 流上运行。
+
+Ava: The article's toy model uses erfinv, which has no TensorRT converter. So the CUDA backend takes that op, and the compiler reports why it didn't go to TensorRT. That's useful when a build doesn't follow the path you expected.
+
+Ava：文章中的玩具模型用到了 erfinv，而 TensorRT 没有对应的转换器。所以 CUDA 后端会接手这个算子，编译器也会报告它为何没有交给 TensorRT。如果构建结果没有走预期的路径，这些信息就很有用。
+
+Brian: TensorRT builds engines for its parts, while the CUDA backend compiles its part with AOTInductor. The engines go into a .pte program file. The CUDA backend's weights go into a .ptd data file beside it. The CUDA backend needs a CUDA toolkit with nvcc at export time. Tensors passed between the backends can stay on the GPU.
+
+Brian：TensorRT 为自己负责的部分构建引擎，CUDA 后端则用 AOTInductor 编译自己负责的部分。引擎会放进 .pte 程序文件。CUDA 后端的权重放在旁边的 .ptd 数据文件中。CUDA 后端在导出时需要带有 nvcc 的 CUDA 工具包。后端之间传递的张量可以一直留在 GPU 上。
+
+Ava: And if neither backend can compile a custom op?
+
+Ava：如果两个后端都无法编译某个自定义算子呢？
+
+Brian: You can write it as a Triton kernel and register it with torch.library.triton_op. The CUDA backend compiles it into the program. The robot doesn't need Triton or PyTorch installed to run that program.
+
+Brian：可以把它写成 Triton 内核，并通过 torch.library.triton_op 注册。CUDA 后端会把它编译进程序。机器人运行这个程序时，无需安装 Triton 或 PyTorch。
+
+Ava: The article also mentions use_cuda_graphs=True. What does that buy us?
+
+Ava：文章还提到了 use_cuda_graphs=True。这能带来什么好处？
+
+Brian: It records each engine's GPU work once as a CUDA graph. Later calls replay that work with a single launch, making each call cheaper.
+
+Brian：它会把每个引擎在 GPU 上执行的工作录制一次，形成 CUDA 图。之后的调用只需一次启动就能重放这些工作，从而降低每次调用的开销。
+
+Ava: What changes at deployment? A robot shouldn't have to load the full training framework just to run a policy.
+
+Ava：部署时会有什么变化？机器人不应该仅仅为了运行策略就加载整个训练框架。
+
+Brian: PyTorch is needed for compilation, but the compiled program runs through the smaller ExecuTorch runtime. It can run from C++ or from Python using NumPy arrays without importing torch. On the Orin Nano, the article measured about 2.2 s and 550 MB just to import PyTorch. The prebuilt wheels target CUDA 13.2 on Linux x86-64 and Arm64. On Jetson, that requires JetPack 7.2 or newer.
+
+Brian：编译时需要 PyTorch，但编译后的程序通过体积更小的 ExecuTorch 运行时执行。它可以从 C++ 运行，也可以在不导入 torch 的情况下，用 NumPy 数组从 Python 运行。文章测得，在 Orin Nano 上，仅导入 PyTorch 就需要约 2.2 s 和 550 MB。预构建的 wheel 面向 Linux x86-64 和 Arm64 平台上的 CUDA 13.2。在 Jetson 上，这要求 JetPack 7.2 或更新版本。
+
+Ava: There's a smaller run-time install, too: about 4.6 GB instead of 11 GB for the full install. If a camera frame is already on the GPU and you export with device inputs and outputs, the C++ app can pass its GPU pointer directly and write actions to an output buffer on the GPU.
+
+Ava：运行时还有一个更小的安装包：约 4.6 GB，而完整安装包是 11 GB。如果相机画面已经在 GPU 上，并且导出时使用设备端输入和输出，C++ 应用就可以直接传入它的 GPU 指针，并把动作写入 GPU 上的输出缓冲区。
+
+Brian: The performance test used four LeRobot policies on a Jetson Orin Nano Super with 8 GB of memory. Each route used the same trained weights and inputs, with no quantization. The tables measure time per action chunk and the memory held by the running process, counting CPU and GPU memory together.
+
+Brian：性能测试在一台配备 8 GB 内存的 Jetson Orin Nano Super 上使用了 4 个 LeRobot 策略。每条运行路径都使用相同的训练权重和输入，且没有量化。表格测量的是每个动作片段的耗时，以及运行中进程占用的内存，其中 CPU 和 GPU 内存合并计算。
+
+Ava: For ACT, ExecuTorch-TensorRT took 26 ms per chunk, versus 25 ms for ONNX-TensorRT and 48 ms for PyTorch eager. For SmolVLA, it took 120 ms, versus 121 ms for ONNX-TensorRT and 765 ms for eager.
+
+Ava：对于 ACT，ExecuTorch-TensorRT 每个片段耗时 26 ms，ONNX-TensorRT 为 25 ms，PyTorch eager 为 48 ms。对于 SmolVLA，三者分别为 120 ms、121 ms 和 765 ms。
+
+Brian: The larger policies show the memory advantage. pi0.5 took 467 ms per chunk and held 5538 MiB with ExecuTorch-TensorRT. ONNX-TensorRT took 452 ms and held 5429 MiB. PyTorch eager, torch.compile, and Torch-TensorRT inside PyTorch all ran out of memory for that policy on the Orin Nano.
+
+Brian：较大的策略体现出了内存方面的优势。运行 pi0.5 时，ExecuTorch-TensorRT 每个片段耗时 467 ms，进程占用 5538 MiB；ONNX-TensorRT 耗时 452 ms，占用 5429 MiB。对于这项策略，PyTorch eager、torch.compile，以及在 PyTorch 内运行的 Torch-TensorRT，都会在 Orin Nano 上耗尽内存。
+
+Ava: So the Orin Nano result is close to the ONNX route across all four policies: within 4% in chunk time and process memory. How were those numbers measured?
+
+Ava：所以在全部 4 个策略上，Orin Nano 的结果都与 ONNX 路径接近：每个片段的耗时和进程内存占用差距都在 4% 以内。这些数字是怎么测出来的？
+
+Brian: Time is the median of three runs of 100 chunks, after 20 warm-up chunks. Memory is the median of three runs over the last 30 s of a 120 s run. Files the process only reads aren't counted. The TensorRT routes and torch.compile replay CUDA graphs, with maximum power and a locked GPU clock.
+
+Brian：耗时是在预热 20 个片段后，对 3 次各运行 100 个片段的结果取中位数。内存数据来自 3 次各持续 120 s 的运行，对每次运行最后 30 s 的数据取中位数。进程只读取的文件不计入内存占用。TensorRT 路径和 torch.compile 都会重放 CUDA 图；测试时功率设为最大，GPU 时钟频率也被锁定。
+
+Ava: They also tested a Jetson AGX Thor. For pi0.5, ExecuTorch-TensorRT took 80.5 ms per chunk and held 5617 MiB. ONNX-TensorRT took 86.1 ms and held 5495 MiB. The article says the compiled routes had similar performance on that board.
+
+Ava：他们还测试了 Jetson AGX Thor。对于 pi0.5，ExecuTorch-TensorRT 每个片段耗时 80.5 ms，占用 5617 MiB；ONNX-TensorRT 耗时 86.1 ms，占用 5495 MiB。文章称，这块板子上的几条编译后运行路径性能相近。
+
+Brian: There is a build-time constraint on the smaller board. A TensorRT engine is built for one kind of GPU, and building the entire 3.6-billion-parameter policy at once needs more memory than the 8 GB Orin Nano has.
+
+Brian：在较小的板子上，构建时有一个限制。TensorRT 引擎是针对特定类型的 GPU 构建的，而一次性构建整个拥有 36 亿参数的策略，需要的内存超过了 8 GB Orin Nano 的容量。
+
+Ava: So pi0.5 and GR00T 1.7 were split into smaller programs. Each was built in its own process with only its own weights. The denoising step then runs 10 times for pi0.5 and 4 times for GR00T, with tensors passed between programs on the GPU.
+
+Ava：所以 pi0.5 和 GR00T 1.7 被拆分成了更小的程序。每个程序都在单独的进程中构建，只加载自己的权重。随后，pi0.5 的去噪步骤运行 10 次，GR00T 的运行 4 次，张量则在 GPU 上的各个程序之间传递。
+
+Brian: At run time, ExecuTorch's shared GPU memory allocator also helps the engines fit. The article says pi0.5's second engine wouldn't load on the Orin Nano without it.
+
+Brian：在运行时，ExecuTorch 的共享 GPU 内存分配器也有助于让这些引擎装入内存。文章说，如果没有它，pi0.5 的第 2 个引擎就无法在 Orin Nano 上加载。
+
+Ava: A robot may run several policies on one GPU. If one process loads the same program twice, the engines can stay in GPU memory just once. On the Orin Nano, that second load took 76 MiB instead of 805 MiB.
+
+Ava：机器人可能会在一块 GPU 上运行多个策略。如果同一个进程把同一个程序加载 2 次，引擎只需在 GPU 内存中保留 1 份。在 Orin Nano 上，第 2 次加载占用了 76 MiB，而不是 805 MiB。
+
+Brian: Sharing compute is harder. A CUDA green context can give each policy a fixed set of streaming multiprocessors, with its own stream and thread. Memory bandwidth is still shared, and an engine can fail if its green context has too few streaming multiprocessors for its kernels.
+
+Brian：共享计算资源更难。CUDA 绿色上下文可以给每个策略分配固定数量的流式多处理器，并让每个策略拥有自己的流和线程。不过，内存带宽仍然是共享的；如果某个绿色上下文分到的流式多处理器太少，无法满足引擎内核的需要，该引擎就可能运行失败。
+
+Ava: So the useful picture is a small run-time program, TensorRT engines where they fit, and a CUDA backend for supported parts they can't take. The Orin Nano measurements show why both speed and process memory matter for these policies.
+
+Ava：所以整体来看，就是一个小型运行时程序，能用 TensorRT 引擎的部分交给 TensorRT，其余受支持的部分交给 CUDA 后端。Orin Nano 的测量结果说明，对这些策略来说，速度和进程内存占用都很重要。
+
+Brian: And big policies still need careful building on an 8 GB board. That's it for this episode. Thanks for listening.
+
+Brian：而在一块 8 GB 的板子上构建大型策略，仍然需要仔细规划。这期节目就到这里。感谢收听。
+
+## 术语
+
+| Term | 释义 |
+|---|---|
+| action chunk | 策略一次生成的一小段动作计划。 |
+| TensorRT | NVIDIA 的推理编译器。 |
+| ExecuTorch | 用于在边缘设备上运行预先编译的模型程序的 PyTorch 方案。 |
+| libtorch | PyTorch 的 C++ 库；文中的新运行路径不需要加载它。 |
+| torch.export | 将模型捕获为 PyTorch 算子图的接口。 |
+| CUDA backend | 在同一 ExecuTorch 程序中运行其所支持的 GPU 计算部分的后端；导出时需要带 nvcc 的 CUDA toolkit。 |
+| AOTInductor | 文中用于预先编译 CUDA 后端所负责部分的编译器。 |
+| CUDA graph | 可记录并重放 GPU 工作的机制。 |
+| ONNX-TensorRT | 先导出 ONNX 文件，再从该文件构建 TensorRT 引擎的路径。 |
+| process memory | 文中性能表统计的运行中进程持有的 CPU 与 GPU 内存合计；仅被进程读取的文件不计入。 |
+| CUDA green context | 为模型分配固定数量 GPU 流式多处理器的机制。 |
+| streaming multiprocessors | GPU 的计算单元；文中简称 SM。 |
+
+## 口语表达
+
+| Phrase | 释义 |
+|---|---|
+| That matters because | 这很重要，因为…… |
+| Where does the split happen | 划分发生在哪一步？ |
+| What does that buy us? | 这样做带来什么好处？ |
+| What changes at deployment? | 部署时有什么变化？ |
+| How were those numbers measured? | 这些数字是怎样测得的？ |
+| Sharing compute is harder. | 共享计算资源更难。 |
+| Thanks for listening. | 感谢收听。 |
+
+## 中文内容总结
+
+Torch-TensorRT 2.15 与 ExecuTorch 1.6 可将 PyTorch 模型编译为 TensorRT 引擎，打包成无需加载 PyTorch 的 ExecuTorch 程序，供机器人通过 C++ 或 Python 运行。目标是在有限内存中获得接近直接运行 TensorRT 的速度。
+
+### 部署难点
+
+机器人策略按批次生成动作，下一批若未及时完成，机器人就得等待。摄像头、控制器和模型还要共享设备内存与 GPU。以往的 ONNX-TensorRT 路线依赖两级转换，遇到不支持的算子可能需要编写 C++ 插件；常规 Torch-TensorRT 虽可跳过 ONNX，运行时却需要体积较大的 libtorch。
+
+### 编译与运行机制
+
+torch.export 先捕获 PyTorch 计算图，TensorRT 接收可转换的部分，其余部分可交给 ExecuTorch 的 CUDA 后端编译。各部分在同一程序和 CUDA 流中运行，中间张量可留在 GPU；自定义算子也可用 Triton 编写并在编译时纳入程序。引擎保存在 .pte 文件中，CUDA 后端的数据可另存为 .ptd。运行端只需 ExecuTorch、相应后端及依赖库。
+
+### 实测性能
+
+作者在 8 GB Jetson Orin Nano Super 上，用相同权重和输入、未经量化的四种 LeRobot 策略测试。ExecuTorch-TensorRT 每批动作耗时分别为 ACT 26 毫秒、SmolVLA 120 毫秒、pi0.5 467 毫秒、GR00T 1.7 215 毫秒，均在所测 ONNX-TensorRT 结果的 4% 以内。pi0.5 含 36 亿参数，运行时占 5538 MiB；它和 GR00T 1.7 在 PyTorch eager 模式下均因内存不足而无法运行。计时取三轮测试的中位数，每轮预热 20 批后测量 100 批；测试使用最高功率并锁定 GPU 时钟。AGX Thor 上各编译路线的性能也较接近，但不能将 Orin Nano 的 4% 差距直接套用于 Thor。
+
+### 小设备与多模型运行
+
+大型策略无法在 Orin Nano 上一次装入内存完成编译，因此作者把 pi0.5 和 GR00T 拆成多个程序，分别加载权重构建，并重复调用去噪步骤。运行时的共享 GPU 内存分配器帮助多个引擎装入；同一进程重复加载相同程序时，引擎只保留一份。多策略并行可用 CUDA green context 分配 SM，但内存带宽仍共享，SM 数量也有限；若上下文分到的 SM 不足，引擎可能运行失败。
+
+### 使用条件与后续工作
+
+安装入口是 torch_tensorrt[executorch]。预构建包面向 Linux 的 x86-64 和 Arm64，使用 CUDA 13.2；Jetson 需要 JetPack 7.2 或更新版本，且 Torch-TensorRT 2.15 所需的 TensorRT 11.4 不能复用 JetPack 7.2 自带的 TensorRT 10。作者计划支持大型策略的整体编译，并与 LeRobot 团队推进策略导出；这些属于后续工作，不是本文的实测结果。

@@ -1,0 +1,319 @@
+1
+00:00:00,000 --> 00:00:09,710
+Ava: We’ll focus on how the EUROPA consortium made trillion-parameter MoE training workable on shared public infrastructure.
+Ava：我们将重点讨论 EUROPA 联盟如何让万亿参数规模的 MoE 训练在共享公共基础设施上变得可行。
+
+2
+00:00:09,710 --> 00:00:26,044
+Brian: The key result is a rise from 90 to about 1,300 tokens per second per GPU, using 384 NVIDIA GH200 GPUs per data-parallel replica, across 96 nodes.
+Brian：关键成果是将每 GPU 每秒处理的 token 数从 90 提升到约 1,300，使用 384 个 NVIDIA GH200 GPU 组成一个数据并行副本，分布在 96 个节点上。
+
+3
+00:00:26,044 --> 00:00:39,570
+Ava: This result came from the EuroHPC Frontier AI Grand Challenge, which aimed to show that sovereign, open-source AI could compete at frontier levels on shared public resources.
+Ava：这一成果来自 EuroHPC Frontier AI Grand Challenge，目标是展示主权开源 AI 也能依托共享公共资源达到前沿水平。
+
+4
+00:00:39,570 --> 00:00:56,648
+Brian: The EUROPA consortium was selected for a project requiring an open European MoE model of at least 400B parameters, support for all 24 official EU languages, and strict compliance with the EU AI Act.
+Brian：EUROPA 联盟获选承担一个项目：开发至少拥有 400B 参数的开放式欧洲 MoE 模型，支持全部 24 种欧盟官方语言，并严格遵守《欧盟人工智能法案》。
+
+5
+00:00:56,648 --> 00:01:08,734
+Ava: That matters because JUPITER is publicly funded research infrastructure shared by hundreds of projects, rather than a cluster reserved for one model developer.
+Ava：这很重要，因为 JUPITER 是由公共资金支持、供数百个项目共享的科研基础设施，而不是为某一家模型开发者保留的集群。
+
+6
+00:01:08,734 --> 00:01:17,088
+Brian: JUPITER is the EuroHPC exascale supercomputer hosted at Forschungszentrum Jülich.
+Brian：JUPITER 是部署在 Forschungszentrum Jülich 的 EuroHPC 百亿亿次级超级计算机。
+
+7
+00:01:17,088 --> 00:01:41,364
+The model has 951.9 billion total parameters, with 32.8 billion active per token, 74 layers, 384 routed experts with top-8 routing, a hidden size of 6,144, a vocabulary of 256,000, and a pretraining sequence length of 65,536 tokens.
+该模型总计有 951.9 billion 个参数，每个 token 激活 32.8 billion 个参数，共 74 层，配备 384 个路由专家并采用 top-8 路由，隐藏层大小为 6,144，词表大小为 256,000，预训练序列长度为 65,536 个 token。
+
+8
+00:01:41,364 --> 00:01:50,810
+Ava: And the optimizer is Muon plus AdamW, which becomes important because optimizer state takes a lot of memory at this scale.
+Ava：优化器采用 Muon 加 AdamW；在这一规模下，优化器状态会占用大量内存，因此这点很重要。
+
+9
+00:01:50,810 --> 00:01:59,661
+Brian: Each JUPITER Booster node has four NVIDIA GH200 Grace Hopper Superchips.
+Brian：每个 JUPITER Booster 节点配有四个 NVIDIA GH200 Grace Hopper Superchip。
+
+10
+00:01:59,661 --> 00:02:17,344
+Each superchip pairs a Hopper GPU with 96 GB of HBM3 and a 72-core Grace CPU with 120 GB of LPDDR5X, connected by a 900 GB/s NVLink-C2C link.
+每个 Superchip 将一块配备 96 GB HBM3 的 Hopper GPU，与一颗配备 120 GB LPDDR5X 的 72 核 Grace CPU 组合在一起，两者通过 900 GB/s 的 NVLink-C2C 链路连接。
+
+11
+00:02:17,344 --> 00:02:25,359
+Ava: Inside a node, GPUs connect through NVLink 4 at 150 GB/s per direction.
+Ava：在节点内部，GPU 通过 NVLink 4 互连，每个方向的带宽为 150 GB/s。
+
+12
+00:02:25,359 --> 00:02:34,062
+Each node also has four InfiniBand NDR200 adapters, about 25 GB/s per GPU.
+每个节点还配有四个 InfiniBand NDR200 适配器，每个 GPU 约 25 GB/s。
+
+13
+00:02:34,062 --> 00:02:37,278
+Brian: So inter-node traffic is the hard boundary.
+Brian：所以，节点间流量是主要瓶颈。
+
+14
+00:02:37,278 --> 00:02:47,876
+InfiniBand is 36 times slower than the link between a GPU and its own CPU, so communication has to overlap aggressively with computation.
+InfiniBand 的速度比 GPU 与自身 CPU 之间的链路慢 36 倍，因此通信必须与计算高度重叠。
+
+15
+00:02:47,876 --> 00:02:51,117
+Ava: The host-memory side is tight too.
+Ava：主机内存一侧也很紧张。
+
+16
+00:02:51,117 --> 00:03:01,410
+JUPITER’s compute nodes use 120 GB per Grace, and after the kernel’s share, about 108 GiB per GPU is usable.
+JUPITER 的计算节点为每个 Grace 提供 120 GB 内存，扣除内核占用后，每个 GPU 约有 108 GiB 可用。
+
+17
+00:03:01,410 --> 00:03:04,810
+Some nodes start jobs with less.
+有些节点启动任务时的可用内存还要更少。
+
+18
+00:03:04,810 --> 00:03:14,255
+Brian: Those constraints led to 384-way FSDP, 4-way expert parallelism inside each node, and no pipeline parallelism.
+Brian：这些限制促成了 384 路 FSDP、每个节点内 4 路专家并行，以及不使用流水线并行。
+
+19
+00:03:14,255 --> 00:03:20,616
+The MoE token all-to-all stays on NVLink because it’s hard to overlap.
+MoE 的 token 全互发通信保留在 NVLink 上，因为很难与计算重叠。
+
+20
+00:03:20,616 --> 00:03:37,094
+Ava: Without pipeline parallelism, steps tend to be shorter, and the team amortized fixed costs with a batch of 384 sequences of 65,536 tokens, about 25 million tokens per step.
+Ava：由于没有流水线并行，每个步骤往往更短；团队用包含 384 个、每个长度为 65,536 token 的序列的批次来摊薄固定开销，每步约处理 2,500 万个 token。
+
+21
+00:03:37,094 --> 00:03:47,236
+Brian: FSDP already overlaps the gather of layer n+1 with computation of layer n, so the remaining work is to make that overlap effective.
+Brian：FSDP 已经将第 n+1 层的参数聚合与第 n 层的计算重叠起来，因此剩下的工作是让这种重叠真正发挥效果。
+
+22
+00:03:47,236 --> 00:03:51,592
+Ava: The first major optimization is FlexShard for Muon.
+Ava：第一个主要优化是用于 Muon 的 FlexShard。
+
+23
+00:03:51,592 --> 00:03:59,970
+Muon is used for about 99.5% of the parameters, while AdamW handles the router and embeddings.
+约 99.5% 的参数使用 Muon，路由器和嵌入层则由 AdamW 处理。
+
+24
+00:03:59,970 --> 00:04:03,488
+Ava: Why does Muon create a communication problem?
+Ava：为什么 Muon 会带来通信问题？
+
+25
+00:04:03,488 --> 00:04:07,894
+Brian: Muon runs Newton-Schulz iterations on a whole matrix.
+Brian：Muon 会在整个矩阵上执行 Newton-Schulz 迭代。
+
+26
+00:04:07,894 --> 00:04:19,283
+If FSDP splits each matrix into 384 shards, a simple implementation gathers the matrix on one rank, computes there, and scatters it back.
+如果 FSDP 将每个矩阵拆成 384 个分片，简单实现会先在一个 rank 上聚合整个矩阵，在那里计算，再将结果分散回去。
+
+27
+00:04:19,283 --> 00:04:24,454
+On this interconnect, that communication is too expensive.
+在这种互连条件下，这样的通信开销太高。
+
+28
+00:04:24,454 --> 00:04:27,972
+Ava: FlexShard changes the ownership pattern.
+Ava：FlexShard 改变了所有权分配方式。
+
+29
+00:04:27,972 --> 00:04:28,542
+Brian: Exactly.
+Brian：没错。
+
+30
+00:04:28,542 --> 00:04:37,446
+Experts are sharded by whole expert, so each rank owns complete expert matrices and runs Newton-Schulz with no communication.
+专家按完整专家进行分片，因此每个 rank 都拥有完整的专家矩阵，可以无需通信地运行 Newton-Schulz。
+
+31
+00:04:37,446 --> 00:04:48,338
+Dense matrices still move to an owning rank, while each rank processes its experts during that transfer, overlapping communication with computation.
+密集矩阵仍会传输到其所属 rank，而每个 rank 在传输期间处理自己的专家，从而将通信与计算重叠。
+
+32
+00:04:48,338 --> 00:04:54,247
+Ava: The optimizer initially ran on Grace because parameters were CPU-offloaded.
+Ava：由于参数采用 CPU 卸载，优化器最初运行在 Grace 上。
+
+33
+00:04:54,247 --> 00:05:00,112
+That took about 35 seconds per step for Newton-Schulz on 72 Arm cores.
+在 72 个 Arm 核心上执行 Newton-Schulz 时，每步约需 35 秒。
+
+34
+00:05:00,112 --> 00:05:06,085
+Brian: They added GPU execution while keeping parameters offloaded.
+Brian：他们在保留参数卸载的同时加入了 GPU 执行。
+
+35
+00:05:06,085 --> 00:05:19,974
+The optimizer step fell from 41.7 seconds to 2.2 seconds, and throughput rose from 441 to 597 tokens per second per GPU, a 35% increase.
+优化器步骤耗时从 41.7 秒降至 2.2 秒，每 GPU 每秒处理的 token 数从 441 增至 597，提升了 35%。
+
+36
+00:05:19,974 --> 00:05:23,603
+Ava: The next lever is activation memory.
+Ava：下一个突破口是激活值内存。
+
+37
+00:05:23,603 --> 00:05:36,452
+At 65,536 tokens, boundary activations for 74 layers take about 55 GiB per GPU, so they don’t fit beside the weights in HBM.
+在 65,536 个 token 的序列长度下，74 层的边界激活值每个 GPU 约占 55 GiB，因此无法与权重一起放入 HBM。
+
+38
+00:05:36,452 --> 00:05:45,447
+Brian: TorchTitan’s FullAC stores activations only at layer boundaries and recomputes the work inside each layer during backward.
+Brian：TorchTitan 的 FullAC 只在层边界保存激活值，并在反向传播期间重新计算每层内部的工作。
+
+39
+00:05:45,447 --> 00:05:58,330
+Since the GPU was idle for much of the baseline step, the extra compute didn’t lengthen it, and throughput rose from 90 to 370 tokens per second per GPU at 32,768 tokens.
+由于基线步骤中 GPU 大部分时间处于空闲状态，额外计算并未延长步骤耗时；在 32,768 个 token 时，每 GPU 每秒处理的 token 数从 90 提升到 370。
+
+40
+00:05:58,330 --> 00:06:07,275
+Ava: At the longer sequence length, they offloaded boundary activations to Grace over the 900 GB/s NVLink-C2C link.
+Ava：在更长的序列长度下，他们通过 900 GB/s 的 NVLink-C2C 链路将边界激活值卸载到 Grace。
+
+41
+00:06:07,275 --> 00:06:16,488
+Each activation moves to Grace after forward, then returns to Hopper one layer before backward recomputation.
+每个激活值在前向传播后移至 Grace，并在反向重计算前一层时返回 Hopper。
+
+42
+00:06:16,488 --> 00:06:26,583
+Brian: That offload raised throughput from 370 to 508 tokens per second per GPU, a 37% increase.
+Brian：这种卸载将每 GPU 每秒处理的 token 数从 370 提升到 508，增幅为 37%。
+
+43
+00:06:26,583 --> 00:06:34,646
+The sequence length reached 49,152 tokens and then 65,536 with Muon.
+序列长度先达到 49,152 个 token，随后在使用 Muon 时达到 65,536 个。
+
+44
+00:06:34,646 --> 00:06:41,908
+Ava: The final optimization in this episode is about allocator fragmentation in FSDP’s streams.
+Ava：本期最后一个优化针对 FSDP 各流中的分配器碎片化。
+
+45
+00:06:41,908 --> 00:06:52,005
+Brian: After a software-stack upgrade, the CUDA caching allocator retried allocations on every rank at about 70% memory utilization.
+Brian：软件栈升级后，CUDA 缓存分配器在内存利用率约 70% 时，会在每个 rank 上重试分配。
+
+46
+00:06:52,005 --> 00:06:57,282
+Even with 25 to 30 GiB free, it couldn’t find a usable block.
+即使还有 25 到 30 GiB 的空闲内存，它也找不到可用的内存块。
+
+47
+00:06:57,282 --> 00:07:05,896
+Ava: The reason was that FSDP uses one compute stream and four side streams, with a separate allocator pool per stream.
+Ava：原因在于 FSDP 使用一个计算流和四个辅助流，每个流都有独立的分配器内存池。
+
+48
+00:07:05,896 --> 00:07:10,856
+Memory freed by one stream can only be reused by that stream.
+一个流释放的内存只能由该流重新使用。
+
+49
+00:07:10,856 --> 00:07:17,168
+Brian: At peak memory, side streams held 27.3 GiB, but only 6.4 GiB was in use.
+Brian：在内存峰值时，辅助流占用了 27.3 GiB，但实际使用的只有 6.4 GiB。
+
+50
+00:07:17,168 --> 00:07:28,126
+The remaining 20.9 GiB was unreachable from the compute stream, which then couldn’t find a 4 GiB block for an MoE buffer.
+剩余的 20.9 GiB 对计算流不可达，因此计算流找不到用于 MoE 缓冲区的 4 GiB 内存块。
+
+51
+00:07:28,126 --> 00:07:32,220
+Ava: How did they fix that without changing the model parallelism?
+Ava：他们是怎么在不改变模型并行配置的情况下修好这个问题的？
+
+52
+00:07:32,220 --> 00:07:42,223
+Brian: They used FSDP2’s unshard_async_op flag, which runs the all-gather setup on the compute stream while NCCL uses its internal stream.
+Brian：他们使用了 FSDP2 的 unshard_async_op 标志：NCCL 使用内部流时，该标志会在计算流上执行 all-gather 的准备工作。
+
+53
+00:07:42,223 --> 00:07:46,499
+Gather buffers then come from the compute stream’s pool.
+这样，gather 缓冲区就来自计算流的内存池。
+
+54
+00:07:46,499 --> 00:07:55,706
+The custom gather was made asynchronous, so the compute stream waits for the network only when it needs the weights.
+自定义 gather 改为异步执行，因此计算流只会在需要权重时等待网络。
+
+55
+00:07:55,706 --> 00:08:01,094
+Ava: That removed allocator retries on all 384 ranks.
+Ava：这样就在全部 384 个 rank 上消除了分配器重试。
+
+56
+00:08:01,094 --> 00:08:14,128
+Peak reserved memory fell from 88.1 to 74.6 GiB, and throughput rose from 996 to 1,210 tokens per second per GPU.
+峰值预留内存从 88.1 降至 74.6 GiB，吞吐量从每 GPU 每秒 996 个 token 提升至 1,210 个。
+
+57
+00:08:14,128 --> 00:08:23,838
+Brian: The flag is being moved into a public FSDP API, so this fix can help other FSDP users too.
+Brian：该标志正被纳入公开的 FSDP API，因此这项修复也能帮助其他 FSDP 用户。
+
+58
+00:08:23,838 --> 00:08:42,116
+Ava: The team also upstreamed a shared RoPE cache, skipped embedding re-gather in backward, added configurable seed-offset mesh axes, fixed CPU initialization resetting the RNG state, and fixed trunc_normal_ all-gathering DTensors.
+Ava：团队还向上游贡献了共享 RoPE 缓存，在反向传播中跳过 embedding 的再次 gather，加入可配置的 seed-offset 网格轴，修复 CPU 初始化重置 RNG 状态的问题，并修复 trunc_normal_ 对 DTensors 执行 all-gather 的问题。
+
+59
+00:08:42,116 --> 00:08:52,375
+Brian: The resulting setup sustains about 1,300 tokens per second per GPU on 384 GH200s per data-parallel replica.
+Brian：这套配置在每个数据并行副本使用 384 张 GH200 时，可稳定达到每 GPU 每秒约 1,300 个 token。
+
+60
+00:08:52,375 --> 00:09:01,642
+With four replicas, that’s 1,536 GPUs, and the model fits by using both HBM and Grace memory.
+四个副本就是 1,536 张 GPU，模型借助 HBM 与 Grace 内存的组合得以装下。
+
+61
+00:09:01,642 --> 00:09:15,432
+Ava: So the takeaway is a stack of targeted changes: place Muon’s shards to avoid communication, move activation checkpoints to Grace, and keep FSDP’s gather allocations on the compute stream.
+Ava：所以关键是一组针对性的改动：合理放置 Muon 分片以避免通信，将激活检查点移到 Grace，并让 FSDP 的 gather 分配留在计算流上。
+
+62
+00:09:15,432 --> 00:09:27,422
+Brian: Together, those changes show that shared public infrastructure can sustain frontier-scale training when the software gives engineers control over memory, communication, and execution.
+Brian：这些改动共同表明，只要软件让工程师能够控制内存、通信和执行，共享的公共基础设施也能支撑前沿规模训练。
+
+63
+00:09:27,422 --> 00:09:33,772
+Ava: At trillion-parameter scale, system details decide whether the training run is practical.
+Ava：在万亿参数规模下，系统细节决定训练任务是否可行。
+
+64
+00:09:33,772 --> 00:09:35,620
+Thanks for listening.
+感谢收听。

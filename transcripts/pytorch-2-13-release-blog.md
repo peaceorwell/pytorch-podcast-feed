@@ -1,0 +1,306 @@
+# PyTorch 2.13: Faster Kernels, Leaner Training, and Better Distributed Systems
+
+原文：[PyTorch 2.13 Release Blog](https://pytorch.org/blog/pytorch-2-13-release-blog/)
+
+## 摘要
+
+PyTorch 2.13 继续把框架推向面向生产、跨硬件、可大规模训练和推理的平台。它为 Apple Silicon 带来 FlexAttention，为 CUDA 提供确定性反向路径，并通过 CuTeDSL 和原生 Metal kernel 改善性能。大词表训练可使用融合的 nn.LinearCrossEntropyLoss，将峰值显存最多降低约四倍；分布式方面新增 torchcomms，并让 FSDP2 的 all-gather 与 reduce-scatter 重叠。该版本也支持 Linux 上的 Python 3.15 wheel，但仍有 beta、平台覆盖和 API unstable 等限制。
+
+## 对话
+
+Ava: If you're training large language models or running PyTorch on Apple Silicon, this release could change your daily work. PyTorch 2.13 is out, and it targets speed, memory, and cluster reliability at the same time.
+
+Ava：如果你正在训练大型语言模型，或者在 Apple Silicon 上运行 PyTorch，这次发布可能会改变你的日常工作。PyTorch 2.13 已经发布，同时着力提升速度、内存效率和集群可靠性。
+
+Brian: Right. The headline is that PyTorch keeps moving from a research-first framework toward a unified, hardware-agnostic platform for production training and inference at scale.
+
+Brian：没错。最值得关注的是，PyTorch 正在从一个以研究为先的框架，逐步发展成一个不依赖特定硬件、可用于大规模生产训练和推理的统一平台。
+
+Ava: So let's start with the biggest practical wins. What would an engineer notice first?
+
+Ava：那我们先说最重要的实际收益。工程师会首先注意到什么？
+
+Brian: There are four big areas. FlexAttention expands to Apple Silicon and gets deterministic backward on CUDA. CuTeDSL gives Inductor another high-performance GPU path. A fused linear-plus-loss operation cuts memory for huge vocabularies. And distributed training gets torchcomms plus better communication overlap in FSDP2.
+
+Brian：主要有四个方面。FlexAttention 扩展到了 Apple Silicon，并在 CUDA 上支持确定性的反向传播。CuTeDSL 为 Inductor 提供了另一条高性能 GPU 路径。融合线性层与损失计算的操作降低了超大词表所需的内存。分布式训练则加入了 torchcomms，FSDP2 中的通信重叠也得到了改进。
+
+Ava: Let's unpack FlexAttention first. People often hear “custom attention” and think they need to write a CUDA kernel.
+
+Ava：我们先详细说说 FlexAttention。人们听到“自定义注意力”，往往会以为自己得写 CUDA 内核。
+
+Brian: That is exactly what PyTorch is trying to avoid. FlexAttention is a unified API where you describe an attention pattern as a plain Python function. The compiler turns that description into a fused kernel. In 2.13, it works on Metal, also called MPS, Apple's backend.
+
+Brian：这正是 PyTorch 想让用户避免的事。FlexAttention 提供了统一的 API，你可以用普通 Python 函数描述注意力模式，编译器再把这段描述转换成融合内核。在 2.13 中，它可以在 Metal 上运行；这里的 Metal 也叫 MPS，是 Apple 的后端。
+
+Ava: So a Mac user can express sparse attention without hand-writing Metal code?
+
+Ava：也就是说，Mac 用户不用手写 Metal 代码，就能表达稀疏注意力？
+
+Brian: Yes. The MPS implementation includes hand-written Metal kernels for sparse prefill and decode paths, including grouped-query attention, or GQA, and captured buffers. The article describes the user experience as writing a two-line Python function while the compiler builds the fast kernel.
+
+Brian：对。MPS 实现包含用于稀疏预填充和解码路径的手写 Metal 内核，还支持分组查询注意力，即 GQA，以及捕获的缓冲区。文章把用户体验描述为：只需写一个两行的 Python 函数，编译器就会构建快速内核。
+
+Ava: What kind of speed are we talking about?
+
+Ava：速度能快到什么程度？
+
+Brian: For sparse masks, the numbers are substantial. On a one-by-eight-by-thirty-two-thousand-seven-hundred-sixty-eight-by-sixty-four shape, with a two-hundred-fifty-six-element sliding window and zero point eight percent density, FlexAttention runs in about thirty-five milliseconds. SDPA, scaled dot-product attention, takes about four hundred thirty-one milliseconds. That's roughly twelve point three times faster.
+
+Brian：对稀疏掩码来说，数据相当可观。在 1×8×32768×64 的形状下，使用含 256 个元素的滑动窗口、密度为 0.8% 时，FlexAttention 的运行时间约为 35 毫秒。SDPA，也就是缩放点积注意力，需要约 431 毫秒。前者大约快 12.3 倍。
+
+Ava: And a shorter sequence?
+
+Ava：序列短一些呢？
+
+Brian: An eight-thousand-one-hundred-ninety-two length with a sixty-four-window case reaches about four point one five times faster. But dense patterns still favor SDPA, so the gain depends heavily on sparsity.
+
+Brian：序列长度为 8192、窗口大小为 64 的情况下，速度可达到约 4.15 倍。不过，密集模式仍然更适合 SDPA，所以收益很大程度上取决于稀疏程度。
+
+Ava: That's a useful limitation. What changed on CUDA?
+
+Ava：这个限制很有参考价值。CUDA 上有什么变化？
+
+Brian: The existing FlexAttention flash backend now has a deterministic backward path. By default, it used atomic operations to accumulate dQ, which could make repeated runs produce slightly different gradients.
+
+Brian：现有的 FlexAttention flash 后端现在有了一条确定性的反向传播路径。此前默认使用原子操作来累加 dQ，这可能让重复运行产生略有不同的梯度。
+
+Ava: That sounds painful for debugging and regression tests.
+
+Ava：这对调试和回归测试听起来很棘手。
+
+Brian: Exactly. The new compute_dq_write_order path precomputes a write order instead of using atomics. It gives bit-for-bit reproducible gradients without a meaningful performance penalty. The measured end-to-end overhead on create_block_mask is well under one percent at longer sequence lengths, with zero point two percent at a sequence length of thirty-two-thousand-seven-hundred-sixty-eight.
+
+Brian：没错。新的 compute_dq_write_order 路径会预先计算写入顺序，不再使用原子操作。它能产生逐位一致、可复现的梯度，同时没有明显的性能损失。测得的 create_block_mask 端到端开销在较长序列下远低于 1%；序列长度为 32768 时，开销为 0.2%。
+
+Ava: How do users enable it?
+
+Ava：用户该怎么启用它？
+
+Brian: They opt in with the existing torch.use_deterministic_algorithms setting. No extra code changes are required. The API is marked unstable, though.
+
+Brian：通过现有的 torch.use_deterministic_algorithms 设置选择启用即可，不需要修改其他代码。不过，这个 API 仍被标记为不稳定。
+
+Ava: Before we leave Apple Silicon, there is also a larger native Metal migration.
+
+Ava：说完 Apple Silicon 之前，还要提一下规模更大的原生 Metal 迁移。
+
+Brian: Yes. Many operations previously went through MPSGraph, which adds compilation and scheduling overhead on each dispatch. PyTorch now moves a broad set to hand-written Metal compute kernels.
+
+Brian：对。以前许多操作要经过 MPSGraph，每次分派都会带来编译和调度开销。现在，PyTorch 把大量操作迁移到了手写的 Metal 计算内核。
+
+Ava: Which operations?
+
+Ava：包括哪些操作？
+
+Brian: Copy and cast, random-number generation, comparisons, reductions like sum and mean, cumulative operations, sorting, embedding backward, and scatter or gather with bounds checking. Direct control over thread dispatch and memory access should reduce kernel launch latency for common training and inference workloads.
+
+Brian：包括复制和类型转换、随机数生成、比较、sum 和 mean 等归约操作、累积操作、排序、embedding 的反向传播，以及带边界检查的 scatter 或 gather。直接控制线程分派和内存访问，应该能降低常见训练和推理负载的内核启动延迟。
+
+Ava: Now let's talk about memory, because large-vocabulary models can burn through it before the real computation begins.
+
+Ava：接下来谈谈内存，因为大词表模型可能在真正开始计算前就耗掉大量内存。
+
+Brian: The new nn.LinearCrossEntropyLoss addresses that. In the standard path, the final linear projection creates the full logits matrix over the vocabulary. With vocabularies above one hundred thousand tokens, that matrix can consume tens of gigabytes of GPU memory.
+
+Brian：新的 nn.LinearCrossEntropyLoss 就是为解决这个问题而设计的。在标准路径中，最后的线性投影会生成覆盖整个词表的 logits 矩阵。词表超过 100000 个 token 时，这个矩阵可能占用数十 GB 的 GPU 内存。
+
+Ava: And the fused operation avoids materializing that matrix?
+
+Ava：融合操作可以避免把这个矩阵完整地存到内存里？
+
+Brian: Right. It combines the final linear projection and cross-entropy computation, processing the vocabulary dimension in chunks. Peak memory drops by up to about four times for large-vocabulary workloads, while keeping numerical equivalence with the unfused path.
+
+Brian：对。它把最后的线性投影和交叉熵计算合在一起，分块处理词表维度。对大词表工作负载，峰值内存最多可降至约原来的四分之一，同时在数值上与未融合的路径保持等价。
+
+Ava: Does it support the features people already use?
+
+Ava：它支持大家已经在使用的那些功能吗？
+
+Brian: It supports label smoothing, weight tying, and z-loss regularization out of the box. It also works with torch.compile. Since it replaces separate nn.Linear and nn.CrossEntropyLoss modules, adoption requires no other code changes.
+
+Brian：它开箱即用地支持标签平滑、权重绑定和 z-loss 正则化，也能与 torch.compile 配合使用。由于它替代的是单独的 nn.Linear 和 nn.CrossEntropyLoss 模块，采用它不需要再改动其他代码。
+
+Ava: That sounds unusually convenient for a low-level optimization.
+
+Ava：对一项底层优化来说，这听起来方便得少见。
+
+Brian: Yes, although the API is still unstable. PyTorch 2.13 also makes torch.load detect safetensors files natively. Safetensors is popular because it supports memory-mapped loading and avoids arbitrary code execution risk. You no longer need a separate library just to load those weights.
+
+Brian：是的，不过这个 API 仍然不稳定。PyTorch 2.13 还让 torch.load 能原生识别 safetensors 文件。Safetensors 受欢迎，是因为它支持内存映射加载，并避免了任意代码执行的风险。现在仅仅为了加载这些权重，不必再安装单独的库。
+
+Ava: Let's move to distributed training. What problem is torchcomms solving?
+
+Ava：我们转到分布式训练。torchcomms 要解决什么问题？
+
+Brian: PyTorch Distributed historically relied on c10d's ProcessGroup abstraction for collectives such as all-reduce and all-gather. It was designed mainly around NCCL. As training uses more dimensions, elastic scaling, and mixed interconnects, error handling and observability become bottlenecks.
+
+Brian：过去，PyTorch Distributed 在 all-reduce 和 all-gather 等集合通信操作上依赖 c10d 的 ProcessGroup 抽象。它主要是围绕 NCCL 设计的。随着训练涉及更多维度、弹性扩缩容和混合互连，错误处理和可观测性逐渐成为瓶颈。
+
+Ava: So torchcomms is a new backend?
+
+Ava：所以 torchcomms 是一个新后端？
+
+Brian: Yes. It is integrated into PyTorch Distributed's CI and device-mesh paths. It aims to improve fault tolerance through graceful timeouts and partial-group recovery, scalability across large clusters, and debugging through structured logging and collective tracing. It keeps API compatibility with the existing c10d backends.
+
+Brian：对。它已集成到 PyTorch Distributed 的 CI 和 device-mesh 路径中。它希望通过平稳的超时处理和部分组恢复来提高容错能力，支持大规模集群扩展，并借助结构化日志和集合通信追踪来方便调试。同时，它与现有 c10d 后端保持 API 兼容。
+
+Ava: And FSDP2 gets communication overlap?
+
+Ava：FSDP2 也获得了通信重叠能力？
+
+Brian: FSDP means Fully Sharded Data Parallel. By default, all-gather and reduce-scatter share one NCCL communicator. NCCL serializes operations on the same communicator, so the two collectives cannot overlap.
+
+Brian：FSDP 是 Fully Sharded Data Parallel。默认情况下，all-gather 和 reduce-scatter 共用一个 NCCL 通信器。NCCL 会把同一通信器上的操作串行执行，所以这两种集合通信无法重叠。
+
+Ava: Which leaves bandwidth unused.
+
+Ava：这样就会有带宽闲置。
+
+Brian: Exactly. FSDPModule.set_separate_reduce_scatter_group enables a dedicated communicator for reduce-scatter. Then all-gather and reduce-scatter can progress concurrently. That creates AG/RS overlap and improves throughput for fully sharded workloads without model-code changes. It is opt-in, and the API is unstable.
+
+Brian：没错。FSDPModule.set_separate_reduce_scatter_group 会为 reduce-scatter 启用专用通信器。这样，all-gather 和 reduce-scatter 就能同时推进，实现 AG/RS 重叠，无需修改模型代码即可提高完全分片工作负载的吞吐量。这个功能需要主动启用，而且 API 仍不稳定。
+
+Ava: What does PyTorch 2.13 add on the compiler side?
+
+Ava：PyTorch 2.13 在编译器方面增加了什么？
+
+Brian: There is torch.compiler.set_default_backend. Before this, a custom or out-of-tree backend had to be passed explicitly to every torch.compile call. Now infrastructure teams can set a process-wide default, while an explicit backend argument still overrides it.
+
+Brian：新增了 torch.compiler.set_default_backend。以前，自定义后端或树外后端必须显式传给每一次 torch.compile 调用。现在，基础设施团队可以设置整个进程的默认后端，而显式传入的 backend 参数仍会覆盖这个默认值。
+
+Ava: And on NVIDIA GPUs, CuTeDSL is the other major compiler story.
+
+Ava：在 NVIDIA GPU 上，CuTeDSL 是另一个重要的编译器进展。
+
+Brian: CuTeDSL is a Python-native domain-specific language built on NVIDIA's CuTe, or CUDA Templates, library. It gives direct control over tensor layouts, tiling, and memory access. Inductor can use it alongside Triton for matrix multiplication, also called GEMM, and RMSNorm.
+
+Brian：CuTeDSL 是一种基于 NVIDIA 的 CuTe，也就是 CUDA Templates 库构建的 Python 原生领域专用语言。它让开发者可以直接控制张量布局、分块和内存访问。Inductor 可以在 Triton 之外使用它来处理矩阵乘法，也叫 GEMM，以及 RMSNorm。
+
+Ava: So Inductor now has a second code-generation route for key transformer kernels.
+
+Ava：这么说，Inductor 现在有第二条为关键 Transformer 内核生成代码的路径了。
+
+Brian: Right. The Quack-derived overrides aim for higher-quality matrix-multiply code. Compilation also moved from a thread pool to a subprocess pool, reducing the Python GIL, or Global Interpreter Lock, bottleneck and improving compile-time parallelism.
+
+Brian：对。源自 Quack 的覆盖实现旨在生成质量更高的矩阵乘法代码。编译工作也从线程池转移到了子进程池，从而减轻 Python GIL，也就是 Global Interpreter Lock，造成的瓶颈，并提高编译时的并行度。
+
+Ava: What about other hardware?
+
+Ava：其他硬件呢？
+
+Brian: ROCm gets AOTriton zero point twelve beta, analytical Origami GEMM selection, and native HIP support in CMake. Arm adds Armv9-A targeting for torch.compile, including the correct feature set for one-hundred-twenty-eight-bit and two-hundred-fifty-six-bit SVE. Intel XPU adds telemetry APIs for memory, utilization, power, clocks, temperature, cache size, synchronization, and integrated-GPU detection.
+
+Brian：ROCm 获得了 AOTriton 0.12 beta、分析式的 Origami GEMM 选择机制，以及 CMake 中的原生 HIP 支持。Arm 为 torch.compile 增加了 Armv9-A 目标支持，包括针对 128 位和 256 位 SVE 的正确特性集。Intel XPU 增加了遥测 API，可获取内存、利用率、功耗、时钟频率、温度、缓存大小、同步情况和集成 GPU 检测信息。
+
+Ava: There is also Python 3.15 support, but the details matter.
+
+Ava：还有 Python 3.15 支持，但具体情况很重要。
+
+Brian: Very much. Linux torch wheels support Python 3.15 and the free-threaded 3.15t build. Python 3.15 is still beta, and stable release is scheduled for October 2026. Support covers x86_64 and aarch64 CPU, CUDA, ROCm, and XPU builds.
+
+Brian：确实。Linux 版 torch wheel 支持 Python 3.15 和自由线程版 3.15t。Python 3.15 仍处于 beta 阶段，稳定版计划于 2026 年 10 月发布。支持范围包括 x86_64 和 aarch64 的 CPU、CUDA、ROCm 及 XPU 构建版本。
+
+Ava: What is missing?
+
+Ava：哪些还没有支持？
+
+Brian: Torchvision has no 3.15 build yet. torch.compile is not supported on Python 3.15. There are no Windows or macOS wheels. The wheels are also available only through the PyTorch download index, not PyPI.
+
+Brian：Torchvision 目前还没有 3.15 构建版本。Python 3.15 上不支持 torch.compile。Windows 和 macOS 也没有相应的 wheel。这些 wheel 只能通过 PyTorch 下载索引获取，PyPI 上没有。
+
+Ava: Any changes that could break older projects?
+
+Ava：有哪些改动可能会让旧项目无法正常运行？
+
+Brian: Named tensors have been removed completely. Distributed collectives are moving to a single naming scheme: all_gather_single and reduce_scatter_single. The old names remain as deprecated wrappers. The Bazel build is gone too. Python 3.13t was dropped from the Linux binary matrix, and CUDA 13 remains the default build.
+
+Brian：命名张量已被彻底移除。分布式集合通信正在统一命名，采用 all_gather_single 和 reduce_scatter_single。旧名称仍保留为已弃用的封装接口。Bazel 构建也已移除。Python 3.13t 已从 Linux 二进制构建矩阵中移除，而 CUDA 13 仍是默认构建版本。
+
+Ava: And ExecuTorch?
+
+Ava：那 ExecuTorch 呢？
+
+Brian: This release marks ExecuTorch's integration into PyTorch Core, making on-device inference a first-class capability of the framework.
+
+Brian：此次发布标志着 ExecuTorch 集成进 PyTorch Core，使设备端推理成为框架的一项一等能力。
+
+Ava: Let's finish with the three things listeners should remember.
+
+Ava：最后说说听众应该记住的三件事。
+
+Brian: First, performance follows the hardware and workload: FlexAttention is especially strong for sparse attention, native Metal reduces dispatch overhead, and CuTeDSL adds another optimized GPU path.
+
+Brian：第一，性能取决于硬件和工作负载：FlexAttention 在稀疏注意力场景中尤其出色，原生 Metal 降低了分发开销，CuTeDSL 则提供了另一条经过优化的 GPU 路径。
+
+Ava: Second, memory and scale improve together: fused linear cross-entropy cuts peak memory, torchcomms improves cluster fault handling and visibility, and FSDP2 can overlap all-gather with reduce-scatter.
+
+Ava：第二，内存效率和扩展能力同步提升：融合线性层与交叉熵降低了峰值内存占用，torchcomms 改善了集群故障处理和运行状态的可见性，FSDP2 则可以让 all-gather 与 reduce-scatter 重叠执行。
+
+Brian: Third, check the boundaries before upgrading. Many APIs are unstable, Python 3.15 support is limited and still beta, dense attention may favor SDPA, and named tensors plus Bazel are removed.
+
+Brian：第三，升级前要留意适用边界。许多 API 尚不稳定，Python 3.15 支持范围有限且仍处于 beta 阶段，密集注意力场景可能更适合 SDPA，而命名张量和 Bazel 都已移除。
+
+Ava: That is PyTorch 2.13: faster kernels, less memory pressure, and more tools for large-scale systems.
+
+Ava：这就是 PyTorch 2.13：更快的内核、更小的内存压力，以及更多用于大规模系统的工具。
+
+Brian: Try the features, read the release notes, and report issues as the two-series keeps evolving.
+
+Brian：试用这些功能，阅读发布说明，并随着 2 系列不断演进，报告遇到的问题。
+
+Ava: Thanks for listening. See you next time.
+
+Ava：感谢收听。下次见。
+
+## 术语
+
+| Term | 释义 |
+|---|---|
+| FlexAttention | 用于用 Python 表达自定义注意力模式并编译成融合 kernel 的统一 API |
+| MPS | Apple Silicon 的 Metal Performance Shaders 后端 |
+| SDPA | Scaled Dot-Product Attention，缩放点积注意力 |
+| Deterministic backward | 确定性反向传播，使相同输入得到逐 bit 可复现的梯度 |
+| nn.LinearCrossEntropyLoss | 融合最终线性投影和交叉熵计算、降低峰值显存的模块 |
+| torchcomms | PyTorch Distributed 的新通信后端，增强容错、扩展性和可调试性 |
+| FSDP2 | Fully Sharded Data Parallel 2，全分片数据并行第二代实现 |
+| all-gather | 集合通信操作，把各进程数据收集到所有进程 |
+| reduce-scatter | 先归约再分发结果的集合通信操作 |
+| CuTeDSL | 基于 NVIDIA CuTe 的 Python 原生领域特定语言 |
+| GEMM | General Matrix-Matrix Multiplication，通用矩阵乘法 |
+| Inductor | PyTorch 编译器中的代码生成与优化组件 |
+| NCCL | NVIDIA Collective Communications Library，NVIDIA 集合通信库 |
+| Safetensors | 支持内存映射且避免任意代码执行风险的模型权重格式 |
+| CUPTI | CUDA Profiling Tools Interface，用于收集 GPU 活动和指标的接口 |
+
+## 口语表达
+
+| Phrase | 释义 |
+|---|---|
+| What would an engineer notice first? | 工程师首先会注意到什么？ |
+| Let's unpack that. | 我们把这个拆开讲讲。 |
+| That sounds painful for debugging. | 这对调试来说听起来很麻烦。 |
+| What kind of speed are we talking about? | 我们说的速度提升大概是什么量级？ |
+| That is exactly what PyTorch is trying to avoid. | 这正是 PyTorch 想要避免的情况。 |
+| What is missing? | 还有哪些东西没有支持？ |
+| Let's finish with the three things listeners should remember. | 最后总结听众应该记住的三件事。 |
+| Check the boundaries before upgrading. | 升级前先确认限制条件。 |
+
+## 中文内容总结
+
+PyTorch 2.13 于 2026 年 7 月发布，汇集自 2.12 以来 526 名贡献者的 3,328 次提交。更新覆盖注意力计算、大词表训练、编译、集群通信和设备支持，并将 ExecuTorch 纳入 PyTorch Core。
+
+### 注意力计算与显存
+
+FlexAttention 现可在 Apple Silicon 的 MPS 上运行，支持稀疏预填充和解码。官方测试中，序列长度 32768、滑动窗口 256 的稀疏场景耗时约 35 毫秒，SDPA 约 431 毫秒，提速约 12.3 倍；密集注意力仍更适合 SDPA。CUDA 的确定性反向路径用预先计算的写入顺序替代原子操作，可通过 torch.use_deterministic_algorithms(True) 启用；在针对 create_block_mask 的端到端测量中，S=32768 时开销约增加 0.2%。nn.LinearCrossEntropyLoss 分块融合最终线性投影与交叉熵计算，避免生成完整 logits 矩阵。官方称，在大词表任务中峰值显存最多降低约 4 倍，并保持与未融合计算的数值等价。
+
+### 编译、加载与分布式训练
+
+Inductor 增加 CuTeDSL 代码生成路径，用于 GEMM 和 RMSNorm；内核编译改用子进程池以提高并行度。torch.compiler.set_default_backend 可设置进程级默认编译后端，torch.load 可直接识别 safetensors 文件。分布式方面，新后端 torchcomms 改进超时处理、部分进程组恢复和集合通信追踪。FSDP2 可选择为 reduce-scatter 使用独立 NCCL 通信器，使其与 all-gather 并行执行；吞吐量收益取决于具体负载。
+
+### 设备与开发工具
+
+MPS 将复制、随机数、归约和排序等多类操作迁移到原生 Metal 内核，以减少 MPSGraph 的逐操作编译开销。ROCm 引入 AOTriton 0.12b、分析式 GEMM 配置选择和原生 HIP CMake；Armv9-A 获得 torch.compile 目标支持，Intel XPU 增加内存、利用率、功耗等设备状态查询。实验性 CUPTI monitor 异步收集 GPU 指标，CUDAGraph.get_graph_data() 可读取图节点和依赖关系；稳定 C++ ABI 也开始支持获取随机数生成器。
+
+### 适用范围与兼容性
+
+在 PyTorch 2.13 发布时，Python 3.15 仍处于 beta 预发布阶段，稳定版当时计划于 2026 年 10 月发布。Python 3.15 和实验性的 3.15t 仅提供 Linux x86_64、aarch64 的 torch wheel，需从 PyTorch 下载索引安装；此版本尚无对应 torchvision、torch.compile 支持或 Windows、macOS wheel。命名张量和 Bazel 构建已移除，部分分布式集合通信函数改名，旧名称暂以弃用包装保留。CUDA 13.0 仍是默认构建，CUDA 12.8、12.9 构建及 Linux 的 CPython 3.13t 二进制包已移除。文中多项新 API 标为不稳定，升级时需检查相关调用。

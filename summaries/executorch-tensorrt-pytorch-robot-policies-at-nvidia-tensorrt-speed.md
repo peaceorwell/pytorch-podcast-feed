@@ -1,0 +1,27 @@
+# ExecuTorch-TensorRT：在机器人上运行 PyTorch 策略
+
+依据：原文
+
+来源：https://pytorch.org/blog/executorch-tensorrt-pytorch-robot-policies-at-nvidia-tensorrt-speed/
+
+Torch-TensorRT 2.15 与 ExecuTorch 1.6 可将 PyTorch 模型编译为 TensorRT 引擎，打包成无需加载 PyTorch 的 ExecuTorch 程序，供机器人通过 C++ 或 Python 运行。目标是在有限内存中获得接近直接运行 TensorRT 的速度。
+
+### 部署难点
+
+机器人策略按批次生成动作，下一批若未及时完成，机器人就得等待。摄像头、控制器和模型还要共享设备内存与 GPU。以往的 ONNX-TensorRT 路线依赖两级转换，遇到不支持的算子可能需要编写 C++ 插件；常规 Torch-TensorRT 虽可跳过 ONNX，运行时却需要体积较大的 libtorch。
+
+### 编译与运行机制
+
+torch.export 先捕获 PyTorch 计算图，TensorRT 接收可转换的部分，其余部分可交给 ExecuTorch 的 CUDA 后端编译。各部分在同一程序和 CUDA 流中运行，中间张量可留在 GPU；自定义算子也可用 Triton 编写并在编译时纳入程序。引擎保存在 .pte 文件中，CUDA 后端的数据可另存为 .ptd。运行端只需 ExecuTorch、相应后端及依赖库。
+
+### 实测性能
+
+作者在 8 GB Jetson Orin Nano Super 上，用相同权重和输入、未经量化的四种 LeRobot 策略测试。ExecuTorch-TensorRT 每批动作耗时分别为 ACT 26 毫秒、SmolVLA 120 毫秒、pi0.5 467 毫秒、GR00T 1.7 215 毫秒，均在所测 ONNX-TensorRT 结果的 4% 以内。pi0.5 含 36 亿参数，运行时占 5538 MiB；它和 GR00T 1.7 在 PyTorch eager 模式下均因内存不足而无法运行。计时取三轮测试的中位数，每轮预热 20 批后测量 100 批；测试使用最高功率并锁定 GPU 时钟。AGX Thor 上各编译路线的性能也较接近，但不能将 Orin Nano 的 4% 差距直接套用于 Thor。
+
+### 小设备与多模型运行
+
+大型策略无法在 Orin Nano 上一次装入内存完成编译，因此作者把 pi0.5 和 GR00T 拆成多个程序，分别加载权重构建，并重复调用去噪步骤。运行时的共享 GPU 内存分配器帮助多个引擎装入；同一进程重复加载相同程序时，引擎只保留一份。多策略并行可用 CUDA green context 分配 SM，但内存带宽仍共享，SM 数量也有限；若上下文分到的 SM 不足，引擎可能运行失败。
+
+### 使用条件与后续工作
+
+安装入口是 torch_tensorrt[executorch]。预构建包面向 Linux 的 x86-64 和 Arm64，使用 CUDA 13.2；Jetson 需要 JetPack 7.2 或更新版本，且 Torch-TensorRT 2.15 所需的 TensorRT 11.4 不能复用 JetPack 7.2 自带的 TensorRT 10。作者计划支持大型策略的整体编译，并与 LeRobot 团队推进策略导出；这些属于后续工作，不是本文的实测结果。

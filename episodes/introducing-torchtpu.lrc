@@ -1,0 +1,255 @@
+[ti:TorchTPU: Bringing Native PyTorch to Google TPUs]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: If your training code is already PyTorch, moving it to a TPU raises a practical question: how much of the program has to change?
+[00:00.00]Ava：如果训练代码已经用 PyTorch，迁移到 TPU 时有个实际问题：程序要改多少？
+[00:09.60]TorchTPU matters because it aims to make a Google TPU feel like a native PyTorch device.
+[00:09.60]TorchTPU 的目标是让 Google TPU 像原生 PyTorch 设备一样使用。
+[00:16.55]Brian: And that promise goes beyond moving a model.
+[00:16.55]Brian：而且，这不只是把模型搬过去。
+[00:20.24]TorchTPU supports eager execution, torch.compile, and PyTorch distributed APIs.
+[00:20.24]TorchTPU 支持即时执行、torch.compile 和 PyTorch 分布式 API。
+[00:26.86]That gives teams a path to run familiar code first, then tune the parts that need to fit TPU hardware better.
+[00:26.86]团队可以先运行熟悉的代码，再针对 TPU 硬件调整必要的部分。
+[00:36.34]Ava: The motivation makes sense.
+[00:36.34]Ava：这个出发点很合理。
+[00:38.46]PyTorch/XLA brought compiled PyTorch to TPUs, but its Lazy Tensor approach didn't support PyTorch's native eager mode.
+[00:38.46]PyTorch/XLA 让 PyTorch 能在 TPU 上编译运行，但它的 Lazy Tensor 机制不支持 PyTorch 原生的即时执行模式。
+[00:47.75]It also required explicit changes to mark compilable regions.
+[00:47.75]它还要求显式修改代码，标出可编译的区域。
+[00:52.55]That's a serious migration cost for an existing training stack.
+[00:52.55]对于现有训练系统，这样的迁移成本很高。
+[00:57.86]Brian: Right. The project started at Google in mid-2025 with the PyTorch team at Meta.
+[00:57.86]Brian：没错。这个项目由 Google 和 Meta 的 PyTorch 团队于 2025 年年中启动。
+[01:03.94]Its design puts eager mode and existing PyTorch idioms first.
+[01:03.94]它在设计上优先支持即时执行和现有的 PyTorch 编程习惯。
+[01:08.64]The goal is that a workload can start by changing its device from CUDA to TPU, even if peak performance takes more work.
+[01:08.64]目标是让工作负载只需把设备从 CUDA 改为 TPU 就能先跑起来，即使达到最佳性能还需要进一步调整。
+[01:18.22]Ava: Let's make that concrete.
+[01:18.22]Ava：说得具体一点。
+[01:20.29]For a single-device model, the change can be as small as moving it with model.to("tpu") instead of model.to("cuda").
+[01:20.29]对单设备模型来说，改动可能只需把 model.to("cuda") 换成 model.to("tpu")。
+[01:29.86]But shapes, sharding, and operators chosen for a GPU may still be poor choices for a TPU.
+[01:29.86]但为 GPU 选择的张量形状、分片方式和算子，在 TPU 上未必合适。
+[01:37.56]Brian: Exactly.
+[01:37.56]Brian：正是如此。
+[01:38.27]TorchTPU uses PyTorch's autoload mechanism when its wheel is installed on a TPU machine.
+[01:38.27]在 TPU 机器上安装 TorchTPU 的 wheel 包后，它会通过 PyTorch 的自动加载机制接入。
+[01:46.13]For distributed code, the example changes the process group backend from nccl to tpu_dist.
+[01:46.13]对于分布式代码，示例把进程组后端从 nccl 改为 tpu_dist。
+[01:54.17]It also shows a device-neutral option through torch.accelerator.current_accelerator().
+[01:54.17]示例还展示了不依赖特定设备的写法：torch.accelerator.current_accelerator()。
+[02:02.20]Ava: Before the software details, the hardware explains some of those tuning choices.
+[02:02.20]Ava：在谈软件细节前，先看看硬件为什么会影响这些调优选择。
+[02:08.06]A TPU TensorCore has large matrix units, while a SparseCore can handle sparse work and collectives.
+[02:08.06]TPU 的 TensorCore 有大型矩阵运算单元，SparseCore 则能处理稀疏计算和集合通信。
+[02:15.32]So a model's matrix shapes and communication pattern can matter as much as its device string.
+[02:15.32]因此，模型的矩阵形状和通信模式可能和设备名称一样重要。
+[02:22.49]Brian: Yes.
+[02:22.49]Brian：是的。
+[02:22.86]The matrix-multiply units, or MXUs, need sufficiently wide shapes to reach their potential.
+[02:22.86]矩阵乘法单元，也就是 MXU，需要足够宽的形状才能发挥性能。
+[02:31.24]Underneath TorchTPU, XLA compiles StableHLO programs, and PjRT launches the resulting executables.
+[02:31.24]在 TorchTPU 底层，XLA 编译 StableHLO 程序，PjRT 启动生成的可执行程序。
+[02:40.26]TPU work is asynchronous, so the CPU can keep going until it needs a result.
+[02:40.26]TPU 的工作是异步的，所以 CPU 可以继续运行，直到需要计算结果。
+[02:47.61]Ava: That brings us to eager execution.
+[02:47.61]Ava：这就说到即时执行了。
+[02:50.06]I usually expect one PyTorch operator to be dispatched at a time.
+[02:50.06]我通常以为 PyTorch 会一次派发一个算子。
+[02:54.76]TorchTPU keeps that option, but it can also hold operators back and compile a larger group when a result has to be materialized.
+[02:54.76]TorchTPU 保留了这种方式，也可以暂缓执行算子，等到必须得到结果时再把更多算子一起编译。
+[03:04.35]Brian: Strict is the default eager mode: it dispatches one ATen operator at a time, asynchronously.
+[03:04.35]Brian：Strict 是默认的即时执行模式：它异步地逐个派发 ATen 算子。
+[03:11.63]Debug mode makes those launches synchronous and enables bound checks.
+[03:11.63]Debug 模式会同步启动这些算子，并启用边界检查。
+[03:17.09]DeferAndFuse is the hybrid mode.
+[03:17.09]DeferAndFuse 是混合模式。
+[03:19.62]It groups deferred operators and can be 50% or more faster than Strict, while reducing peak HBM use.
+[03:19.62]它将延后执行的算子合并，相比 Strict 可快 50% 或更多，同时降低 HBM 峰值用量。
+[03:27.88]Ava: There's a catch.
+[03:27.88]Ava：但这里有个问题。
+[03:29.01]If execution waits until a value goes back to the CPU, wouldn't the TPU sit idle while Python builds the deferred work?
+[03:29.01]如果要等到数据传回 CPU 才执行，Python 构建待执行任务时，TPU 不会闲着吗？
+[03:37.38]A transformer stack might repeat the same pattern many times before that transfer.
+[03:37.38]在数据传回前，Transformer 网络可能已经多次重复相同的计算模式。
+[03:43.50]Brian: That's why TorchTPU also has a Repeated Ops Heuristic.
+[03:43.50]Brian：所以 TorchTPU 还采用了重复算子启发式策略（Repeated Ops Heuristic）。
+[03:47.55]It can trigger materialization before a TPU-to-CPU transfer.
+[03:47.55]它能在数据从 TPU 传回 CPU 前触发计算，得到所需结果。
+[03:52.04]The team expects the compilation cache to fill after the first few steps, leaving CPU tracing and dispatch ahead of longer TPU computations in typical workloads.
+[03:52.04]团队预计，前几步之后编译缓存就会填充起来。在典型工作负载中，CPU 的计算追踪和派发便能走在耗时更长的 TPU 计算前面。
+[04:04.46]Ava: And when materialization happens, it isn't simply every operator seen so far.
+[04:04.46]Ava：而且触发计算时，也不是把此前见过的所有算子都执行一遍。
+[04:10.20]TorchTPU checks which deferred operations contribute to the requested value.
+[04:10.20]TorchTPU 会检查哪些延后执行的操作会影响所请求的值。
+[04:15.86]It preserves side effects, including collectives and their order.
+[04:15.86]它会保留有副作用的操作，包括集合通信及其执行顺序。
+[04:20.70]That sounds important for correctness across replicas.
+[04:20.70]这听起来对多个副本之间的正确性很重要。
+[04:25.07]Brian: It is. TorchTPU then looks for a compiled executable in its cache.
+[04:25.07]Brian：确实如此。随后，TorchTPU 会在缓存中查找已编译的可执行程序。
+[04:30.11]The first tier is in process memory.
+[04:30.11]第一级缓存在进程内存中。
+[04:32.86]A second tier can share serialized executables across processes on one machine, and a third can persist them across hosts or job restarts.
+[04:32.86]第二级可让同一台机器上的进程共享序列化后的可执行程序；第三级可在不同主机或任务重启后继续使用。
+[04:43.41]That third tier needs an explicit shared storage path.
+[04:43.41]第三级需要显式指定共享存储路径。
+[04:47.88]Ava: Caching helps compile time, but semantics are another hurdle.
+[04:47.88]Ava：缓存能缩短编译时间，但语义上还有一道难题。
+[04:52.69]In PyTorch, two tensor views can share storage, and an in-place write through one view becomes visible through the other.
+[04:52.69]在 PyTorch 中，两个张量视图可以共享存储；通过一个视图进行原地写入，另一个视图也能看到变化。
+[05:02.21]StableHLO treats values as immutable. How does TorchTPU bridge that difference?
+[05:02.21]StableHLO 将值视为不可变。TorchTPU 如何弥合这个差异？
+[05:08.78]Brian: It uses view decomposition, view inversion, and deferred operations to preserve PyTorch view behavior.
+[05:08.78]Brian：它通过视图分解、视图求逆和延迟操作，保留 PyTorch 的视图行为。
+[05:15.86]The detail matters because changing a device should preserve the result of existing code, including writes through views.
+[05:15.86]这点很重要：切换设备后，现有代码的结果应保持一致，包括通过视图写入的结果。
+[05:24.26]The article points to concatenated parameter arrays in distributed training as one useful pattern this supports.
+[05:24.26]文章举出的一个应用是分布式训练中拼接的参数数组。
+[05:32.38]Ava: Precision has a similar migration issue.
+[05:32.38]Ava：精度迁移也有类似的问题。
+[05:35.73]A program may say FP32, but TPU matrix multiplication is built around BF16 inputs.
+[05:35.73]程序可能指定 FP32，但 TPU 矩阵乘法主要使用 BF16 输入。
+[05:42.58]I'd want to know what arithmetic actually runs before comparing convergence or speed.
+[05:42.58]在比较收敛性或速度前，我想先弄清楚实际执行了什么运算。
+[05:50.04]Brian: TorchTPU defaults to medium precision for matrix multiplication: BF16 multiplication with FP32 accumulation.
+[05:50.04]Brian：TorchTPU 的矩阵乘法默认采用 medium 精度：用 BF16 相乘，以 FP32 累加。
+[05:59.62]Its high mode uses 3 passes to recover most FP32 precision, at roughly 3 times the MXU compute cost.
+[05:59.62]high 模式通过 3 轮运算恢复大部分 FP32 精度，MXU 计算成本约为 3 倍。
+[06:08.50]Highest uses 6 passes for an approximation of full IEEE FP32 accuracy, at roughly 6 times the compute cost.
+[06:08.50]highest 模式通过 6 轮运算逼近完整的 IEEE FP32 精度，计算成本约为 6 倍。
+[06:18.35]Ava: That distinction matters.
+[06:18.35]Ava：这个区别很关键。
+[06:20.17]The precision modes describe matrix multiplication, while non-contracting FP32 operations run on the vector unit.
+[06:20.17]这些精度模式针对矩阵乘法；非收缩型 FP32 运算则在向量单元上执行。
+[06:28.42]So the article recommends medium by default, with higher precision reserved for an identified convergence problem.
+[06:28.42]因此，文章建议默认使用 medium，仅在发现收敛问题时才提高精度。
+[06:37.08]Brian: And there are two controls.
+[06:37.08]Brian：控制精度有两种方式。
+[06:39.26]The global PyTorch setting is torch.set_float32_matmul_precision.
+[06:39.26]PyTorch 的全局设置是 torch.set_float32_matmul_precision。
+[06:44.49]TorchTPU also offers the thread-local torch.tpu.precision context manager for a sensitive section.
+[06:44.49]TorchTPU 还提供线程局部的 torch.tpu.precision 上下文管理器，可用于精度敏感的代码段。
+[06:52.38]Selecting high or highest triggers a performance warning, which makes that cost harder to miss.
+[06:52.38]选择 high 或 highest 会触发性能警告，提醒用户留意这项成本。
+[07:00.38]Ava: Now suppose the eager path works and I want a larger compiled graph.
+[07:00.38]Ava：假设即时执行路径已经可用，我想编译更大的计算图。
+[07:06.06]TorchTPU uses torch.compile with the tpu backend.
+[07:06.06]TorchTPU 使用 torch.compile，并指定 tpu 后端。
+[07:10.16]Does that go through the usual PyTorch compiler front end, or does it bring back Lazy Tensors?
+[07:10.16]它会经过常规的 PyTorch 编译器前端，还是重新引入 Lazy Tensors？
+[07:18.37]Brian: It goes through Dynamo.
+[07:18.37]Brian：它会经过 Dynamo。
+[07:20.12]TorchTPU traces the graph with its operations deferred, produces one StableHLO program for that graph, compiles it, and returns a callable that launches the TPU executable.
+[07:20.12]TorchTPU 在延迟执行操作的同时追踪计算图，为该图生成一个 StableHLO 程序，编译后返回一个可调用对象，用于启动 TPU 可执行程序。
+[07:33.23]The trade-off is that dynamic shape support is still being developed; torch.compile currently sets dynamic to false on a TPU machine.
+[07:33.23]代价是动态形状支持仍在开发中；目前在 TPU 机器上，torch.compile 会将 dynamic 设为 false。
+[07:43.72]Ava: So a changing sequence length is still a real engineering concern.
+[07:43.72]Ava：所以序列长度变化仍是一个实际的工程问题。
+[07:48.48]What happens when the shape varies between steps?
+[07:48.48]如果各步骤的形状不同，会发生什么？
+[07:52.00]Traditional XLA compilation assumes shapes are known, and manually padding to a larger size adds work to the model code.
+[07:52.00]传统 XLA 编译要求预先知道形状；手动填充到更大尺寸又会增加模型代码的工作量。
+[08:00.99]Brian: The planned answer is bounded dynamism.
+[08:00.99]Brian：计划采用有界动态性来解决。
+[08:03.90]The compiled graph allocates a buffer using a known upper bound, while the actual logical size can vary at runtime.
+[08:03.90]编译后的计算图按已知上界分配缓冲区，实际逻辑大小则可在运行时变化。
+[08:12.47]XLA handles padding and slicing without recompiling for each change.
+[08:12.47]XLA 负责填充和切片，无须为每次变化重新编译。
+[08:17.54]TorchTPU is actively developing this support, and it isn't enabled by default for torch.compile yet.
+[08:17.54]TorchTPU 正在开发这项支持，目前 torch.compile 尚未默认启用。
+[08:25.34]Ava: Distributed training adds another test of whether this really feels like PyTorch.
+[08:25.34]Ava：分布式训练也是检验它是否真像 PyTorch 的一关。
+[08:32.22]DTensor and FSDP expect collectives through familiar framework APIs.
+[08:32.22]DTensor 和 FSDP 都希望通过熟悉的框架 API 使用集合通信。
+[08:37.99]But TPU collectives live inside StableHLO programs, so the backend has to connect those two worlds.
+[08:37.99]但 TPU 的集合通信位于 StableHLO 程序内部，后端必须把两者接起来。
+[08:46.74]Brian: TorchTPU implements collectives at the Process Group API level, including support for eager and compiled execution.
+[08:46.74]Brian：TorchTPU 在 Process Group API 层实现集合通信，支持即时执行和编译执行。
+[08:55.17]It uses one process per device.
+[08:55.17]它采用每个设备一个进程的方式。
+[08:57.44]By default, it compiles each collective into its own small StableHLO module, called a Skinny Collective.
+[08:57.44]默认情况下，它把每个集合通信操作编译成独立的小型 StableHLO 模块，称为 Skinny Collective。
+[09:05.06]That keeps communication consistent when different ranks execute different model operations.
+[09:05.06]这样，即使不同 rank 执行不同的模型操作，通信也能保持一致。
+[09:12.15]Ava: The cost is less room for XLA to overlap communication with computation.
+[09:12.15]Ava：代价是 XLA 更难让通信与计算重叠执行。
+[09:17.58]The article gives an example of a 30–40% end-to-end penalty.
+[09:17.58]文章给出的例子中，端到端性能损失为 30%–40%。
+[09:22.11]If a region is genuinely the same across ranks, can the compiler keep collectives inside a larger graph?
+[09:22.11]如果某段代码在各 rank 上确实相同，编译器能否把集合通信留在更大的计算图中？
+[09:30.31]Brian: Yes, with the optional spmd_safe decorator.
+[09:30.31]Brian：可以，使用可选的 spmd_safe 装饰器。
+[09:33.59]It lets torch.compile avoid graph breaks around collectives in a section the user knows is SPMD.
+[09:33.59]对于用户确认符合 SPMD 的代码段，它让 torch.compile 避免在集合通信处断开计算图。
+[09:40.93]But that promise is the user's responsibility; rank-dependent work can be subtle.
+[09:40.93]但用户要为这一保证负责；依赖 rank 的操作可能很隐蔽。
+[09:47.13]A compilation handshake that checks graph agreement across replicas is proposed as another route.
+[09:47.13]另一个提议是通过编译握手检查各副本的计算图是否一致。
+[09:54.90]Ava: That leaves room for hardware-specific tuning without making it mandatory for every model.
+[09:54.90]Ava：这样既能针对硬件调优，也不要求每个模型都这么做。
+[10:01.46]TorchTPU can connect custom Pallas kernels to PyTorch, and it supports kernels from Tokamax.
+[10:01.46]TorchTPU 可将自定义 Pallas 内核接入 PyTorch，也支持 Tokamax 的内核。
+[10:08.17]Helion is another option, though the article calls that path experimental.
+[10:08.17]Helion 是另一个选择，不过文章称这条路径仍处于实验阶段。
+[10:13.92]Brian: In practice, that split is useful.
+[10:13.92]Brian：这种分工在实践中很有用。
+[10:16.31]Standard PyTorch operations can get a workload running.
+[10:16.31]标准 PyTorch 操作能先让工作负载跑起来。
+[10:20.18]Pallas kernels can target a costly part of the model, including communication over the TPU interconnect.
+[10:20.18]Pallas 内核可针对模型中开销较高的部分优化，包括通过 TPU 互连进行的通信。
+[10:27.49]The article's large-scale training example does use specialized kernels, so its numbers shouldn't be read as pure out-of-box performance.
+[10:27.49]文章中的大规模训练示例确实使用了专用内核，因此不能把其中的数据视为纯粹的开箱即用性能。
+[10:37.48]Ava: Let's look at the evidence in layers.
+[10:37.48]Ava：我们分层来看证据。
+[10:40.34]The model coverage study tested 4,917 Hugging Face models.
+[10:40.34]模型覆盖研究测试了 4,917 个 Hugging Face 模型。
+[10:44.83]Its first question was whether models could run and compile without crashing.
+[10:44.83]首先检验模型能否正常运行和编译，而不发生崩溃。
+[10:50.78]Numerical agreement with a GPU baseline was checked on a smaller architectural set.
+[10:50.78]数值结果与 GPU 基线的一致性，则在较小的架构样本组上检验。
+[10:57.55]Brian: For the popularity set, 4,821 of 4,917 models passed the no-crash check, or 98%.
+[10:57.55]Brian：在热门模型组中，4,917 个模型有 4,821 个通过无崩溃检查，占 98%。
+[11:05.56]In the architecture set, 638 of 657 representative models met the numerical parity test, or 97%.
+[11:05.56]在架构样本组中，657 个代表性模型有 638 个通过数值一致性测试，占 97%。
+[11:15.16]Separately, bounded dynamism testing found correct numerics on 834 of 839 causal language models.
+[11:15.16]另一项有界动态性测试发现，839 个因果语言模型中有 834 个数值结果正确。
+[11:24.86]Those are different checks with different scopes.
+[11:24.86]这些检查的内容和范围各不相同。
+[11:30.11]Ava: The pure PyTorch performance example answers a different question: can standard modules and collectives make good use of a TPU without model-specific custom kernels?
+[11:30.11]Ava：纯 PyTorch 性能示例回答了另一个问题：标准模块和集合通信操作无需针对模型定制内核，能否充分利用 TPU？
+[11:41.96]The authors used a Muse Glimmer 30B implementation and reported both inference prefill and training results.
+[11:41.96]作者采用 Muse Glimmer 30B 的实现，报告了推理预填充和训练结果。
+[11:50.07]Brian: At a sequence length of 5,120, prefill on one TPU v7 chip reached about 25,700 tokens per second at 59% MFU.
+[11:50.07]Brian：序列长度为 5,120 时，单颗 TPU v7 芯片的预填充速度约为每秒 25,700 个 token，MFU 为 59%。
+[12:00.31]That prefill run used FSDP with a world size of 2, because the chip exposes two TensorCores as separate PyTorch devices.
+[12:00.31]这次预填充运行采用 FSDP，world size 为 2，因为该芯片将两个 TensorCore 呈现为独立的 PyTorch 设备。
+[12:11.68]Training on 4 TPU v7 chips reached about 5,600 tokens per second per TPU at 38% MFU.
+[12:11.68]在 4 颗 TPU v7 芯片上训练时，每颗 TPU 的速度约为每秒 5,600 个 token，MFU 为 38%。
+[12:19.64]The training setup used FSDP and activation checkpointing, so those choices belong with the numbers.
+[12:19.64]训练配置采用了 FSDP 和激活检查点；解读这些数字时也要考虑这些设置。
+[12:29.47]Ava: The scale test is more specialized.
+[12:29.47]Ava：规模测试更有针对性。
+[12:32.46]It trained a Qwen3 MoE 235B model with TorchTitan, using Pallas kernels and several training optimizations.
+[12:32.46]它使用 TorchTitan 训练 Qwen3 MoE 235B 模型，并采用 Pallas 内核和多项训练优化。
+[12:41.60]As the run grew from 1 to 8 slices, the batch size grew too. That's a weak-scaling test.
+[12:41.60]运行规模从 1 个切片增至 8 个切片时，批量大小也随之增加。这是弱扩展测试。
+[12:49.47]Brian: Across those endpoints, the setup went from 1,024 to 8,192 TPU v7 chips.
+[12:49.47]Brian：从起点到终点，配置从 1,024 颗 TPU v7 芯片扩展到 8,192 颗。
+[12:56.65]Throughput per TensorCore went from 2,236 to 2,104 tokens per second, while MFU went from 28.8% to 27.1%.
+[12:56.65]每个 TensorCore 的吞吐量从每秒 2,236 个 token 变为 2,104 个，MFU 从 28.8% 变为 27.1%。
+[13:07.11]The article attributes the nearly flat per-core throughput in part to overlapping cross-slice gradient all-reduce with computation.
+[13:07.11]文章认为，每核吞吐量几乎不变，部分得益于跨切片梯度全归约与计算的重叠执行。
+[13:20.52]Ava: So I'd separate the takeaways.
+[13:20.52]Ava：所以我会分别看这些结论。
+[13:22.73]Compatibility has broad test coverage, a standard PyTorch model has measured TPU performance, and a tuned training stack has shown weak scaling.
+[13:22.73]兼容性经过广泛测试；标准 PyTorch 模型有实测的 TPU 性能；经过调优的训练栈也展现了弱扩展能力。
+[13:33.31]It depends on the workload. What should an engineer watch as TorchTPU develops?
+[13:33.31]这取决于工作负载。随着 TorchTPU 发展，工程师应该关注什么？
+[13:39.47]Brian: Watch bounded dynamism in torch.compile, better overlap for Skinny Collectives, and the TPU limit that allows only one user-space process per device, which complicates colocated reinforcement-learning workloads.
+[13:39.47]Brian：关注 torch.compile 中的有界动态性、Skinny Collectives 的重叠执行改进，以及每台 TPU 设备只允许一个用户态进程的限制；这一限制让强化学习工作负载更难共置运行。
+[13:54.16]For now, the useful path is clear: try the familiar PyTorch workload, check its numerics, then profile the shapes and communication.
+[13:54.16]目前的实用路径很清楚：先运行熟悉的 PyTorch 工作负载，检查数值结果，再分析张量形状和通信性能。
+[14:03.35]Thanks for listening.
+[14:03.35]感谢收听。

@@ -1,0 +1,209 @@
+1
+00:00:00,000 --> 00:00:13,430
+Ava: For a framework engineer, this roundup matters because it shows how ambassadors bring people together to learn PyTorch, share technical knowledge, and contribute to the wider open-source AI ecosystem.
+Ava：对框架工程师来说，这份汇总很重要，因为它展示了大使如何聚集人们学习 PyTorch、分享技术知识，并为更广泛的开源 AI 生态系统作出贡献。
+
+2
+00:00:13,430 --> 00:00:22,068
+Brian: The November roundup spans local meetups, university sessions, technical articles, and practical learning resources.
+Brian：11月汇总涵盖本地聚会、大学课程、技术文章和实用学习资源。
+
+3
+00:00:22,068 --> 00:00:36,268
+The range is concrete: retrieval-augmented generation in Kampala, native PyTorch on Google TPUs in Dhaka, efficient LLM inference in Nepal, and several academic and open-source sessions.
+内容范围很具体：坎帕拉的检索增强生成、达卡在 Google TPUs 上运行原生 PyTorch、尼泊尔的高效 LLM 推理，以及多场学术和开源活动。
+
+4
+00:00:36,268 --> 00:00:43,402
+Ava: Kampala is a useful place to start because it paired technical content with visible community growth.
+Ava：坎帕拉是很好的起点，因为那里把技术内容与显著的社区增长结合了起来。
+
+5
+00:00:43,402 --> 00:01:01,482
+On September 19, Pacifique Mugisho organized an in-person PyTorch East Africa community meetup at Makerere University in Kampala, Uganda, in collaboration with the IndabaX Makerere Student Chapter and the IEEE Computer Society Makerere Student Branch.
+9月19日，Pacifique Mugisho 在乌干达坎帕拉的 Makerere University 组织了一场线下 PyTorch East Africa 社区聚会，并与 IndabaX Makerere Student Chapter 和 IEEE Computer Society Makerere Student Branch 合作。
+
+6
+00:01:01,482 --> 00:01:05,604
+Brian: It received 103 registrations and welcomed 32 attendees.
+Brian：活动收到103份报名，迎来了32位参会者。
+
+7
+00:01:05,604 --> 00:01:14,141
+The talks covered retrieval-augmented generation, external knowledge integration, and advanced retrieval techniques.
+演讲涵盖检索增强生成、外部知识整合和高级检索技术。
+
+8
+00:01:14,141 --> 00:01:25,016
+Pacifique then led a practical workshop on embeddings and semantic search, including how to combine those pieces in PyTorch-based applications.
+随后，Pacifique 主讲了一场关于嵌入向量和语义搜索的实践工作坊，包括如何在基于 PyTorch 的应用中结合这些组件。
+
+9
+00:01:25,016 --> 00:01:27,079
+Ava: The follow-through mattered too.
+Ava：后续行动同样重要。
+
+10
+00:01:27,079 --> 00:01:39,550
+An interactive quiz gave people another way to engage, the community gained 20 WhatsApp members and 4 LinkedIn members, and the gathering laid the groundwork for further in-person meetups.
+互动问答让大家多了一种参与方式；WhatsApp 社区新增20名成员，LinkedIn 新增4名成员，这次聚会也为进一步举办线下活动打下了基础。
+
+11
+00:01:39,550 --> 00:01:43,185
+Brian: Dhaka moved from retrieval to hardware access.
+Brian：达卡的话题从检索转向了硬件使用。
+
+12
+00:01:43,185 --> 00:01:55,830
+On October 30, Zaynul Abedin Miah delivered a technical talk and live demonstration, “PyTorch on TPU with TorchTPU,” at a community meetup in Dhaka, Bangladesh.
+10月30日，Zaynul Abedin Miah 在孟加拉国达卡的一场社区聚会上发表了技术演讲并进行了现场演示，主题是“使用 TorchTPU 在 TPU 上运行 PyTorch”。
+
+13
+00:01:55,830 --> 00:02:05,268
+It showed students and early-career developers how to run native PyTorch on Google TPUs using free Colab notebooks.
+他向学生和职业生涯早期的开发者展示了如何使用免费的 Colab 笔记本在 Google TPUs 上运行原生 PyTorch。
+
+14
+00:02:05,268 --> 00:02:14,728
+Ava: The session covered device setup, tensor operations, and torch.compile, with an interactive “predict, then run” exercise.
+Ava：课程涵盖设备设置、张量运算和 torch.compile，并安排了互动式“先预测、再运行”练习。
+
+15
+00:02:14,728 --> 00:02:20,045
+It received 91 registrations, and all 50 approved seats were filled.
+活动收到91份报名，获批的50个名额全部报满。
+
+16
+00:02:20,045 --> 00:02:26,925
+Participants travelled from several cities, with some journeys exceeding 330 kilometres.
+参与者从多个城市赶来，有些路程超过330公里。
+
+17
+00:02:26,925 --> 00:02:35,954
+Slides and a runnable notebook were shared with all registrants so they could continue experimenting afterward.
+主办方把幻灯片和可运行的 notebook 分享给所有报名者，方便他们之后继续试验。
+
+18
+00:02:35,954 --> 00:02:41,615
+Brian: An inference angle came from PyTorch Community Nepal’s first online technical session.
+Brian：PyTorch Community Nepal 的首次线上技术活动带来了推理主题。
+
+19
+00:02:41,615 --> 00:02:49,318
+On November 1, Arun Bhandari organized and hosted “Accelerating LLM Inference with Speculative Decoding at the Edge.”
+11月1日，Arun Bhandari 组织并主持了“在边缘端通过推测解码加速 LLM 推理”。
+
+20
+00:02:49,318 --> 00:03:04,216
+Manjil Nepal, a Research Associate at the Indian Institute of Science in Bangalore, discussed speculative decoding in edge–server environments and approaches to improving draft models through local and federated learning.
+Manjil Nepal 是 Bangalore 的 Indian Institute of Science 研究助理，他讨论了边缘与服务器环境中的推测解码，以及通过本地学习和联邦学习改进草稿模型的方法。
+
+21
+00:03:04,216 --> 00:03:10,852
+Ava: Arun coordinated the speaker, registration, promotion, moderation, and audience discussion.
+Ava：Arun 负责协调演讲嘉宾、报名、宣传、主持和观众讨论。
+
+22
+00:03:10,852 --> 00:03:19,530
+The session attracted 86 registrations and 20 attendees, and presentation slides and source code were shared afterward.
+活动吸引了86份报名和20位参会者，演示幻灯片与源代码也在会后分享。
+
+23
+00:03:19,530 --> 00:03:31,038
+It created an opportunity for researchers and Nepal’s AI and machine learning community to exchange knowledge and connect through a technical discussion.
+这为研究人员以及尼泊尔的 AI 和机器学习社区提供了交流知识、通过技术讨论建立联系的机会。
+
+24
+00:03:31,038 --> 00:03:35,902
+Brian: The academic sessions in Nigeria focused on research entry points.
+Brian：尼日利亚的学术活动聚焦于进入研究领域的切入点。
+
+25
+00:03:35,902 --> 00:03:44,230
+During September, Abdulsalam Yazid Bande delivered two introductory sessions in Nigeria and reached 75 attendees.
+9月期间，Abdulsalam Yazid Bande 在尼日利亚举办了两场入门活动，共有75人参加。
+
+26
+00:03:44,230 --> 00:03:56,979
+“From Research Question to PyTorch Experiment” introduced 35 graduate and postgraduate students to modern AI, neural networks, generative AI, and PyTorch’s role in research.
+“从研究问题到 PyTorch 实验”向35名研究生和博士生介绍了现代 AI、神经网络、生成式 AI，以及 PyTorch 在研究中的作用。
+
+27
+00:03:56,979 --> 00:04:12,068
+“Getting Started with AI Research Using PyTorch” welcomed 40 faculty members for a practical introduction to experimentation, model development, and machine learning applications in academic research.
+“使用 PyTorch 开始 AI 研究”为40名教职员工提供了关于学术研究中实验、模型开发和机器学习应用的实践入门。
+
+28
+00:04:12,068 --> 00:04:15,233
+Ava: The roundup then moves to Lithuania and Duke.
+Ava：接下来，汇总转向立陶宛和 Duke。
+
+29
+00:04:15,233 --> 00:04:30,214
+In September, Eyup Cinar visited Vilnius Tech University in Lithuania to deliver a guest lecture on rapid application development with large language models to approximately 30 undergraduate and graduate students.
+9月，Eyup Cinar 访问立陶宛的 Vilnius Tech University，为约30名本科生和研究生讲授了利用大语言模型进行快速应用开发的客座课程。
+
+30
+00:04:30,214 --> 00:04:38,021
+It introduced the PyTorch ecosystem and its role in developing, training, and deploying LLM-based applications.
+课程介绍了 PyTorch 生态系统，以及它在开发、训练和部署基于 LLM 的应用中的作用。
+
+31
+00:04:38,021 --> 00:04:46,179
+On September 4, Sahdev Zala presented to more than 25 students in Duke University’s AI Engineering master’s program.
+9月4日，Sahdev Zala 为 Duke University AI Engineering 硕士项目的超过25名学生进行了演讲。
+
+32
+00:04:46,179 --> 00:04:53,002
+The session helped students understand how to get started contributing to PyTorch and Kubernetes.
+这场活动帮助学生了解如何开始为 PyTorch 和 Kubernetes 作出贡献。
+
+33
+00:04:53,002 --> 00:05:01,018
+Participants joined both in person and online to explore opportunities to contribute to open-source projects.
+参与者在线下和线上共同参加，探索为开源项目贡献力量的机会。
+
+34
+00:05:01,018 --> 00:05:10,436
+Brian: At Google DevFest Kuala Lumpur 2026 on November 14, Vensen Mu presented “Practical Train–Inference Consistency in LLM RL Post-Training.”
+Brian：11月14日，在 Google DevFest Kuala Lumpur 2026 上，Vensen Mu 做了题为“LLM 强化学习后训练中的实用训练—推理一致性”的演讲。
+
+35
+00:05:10,436 --> 00:05:19,645
+The talk examined numerical discrepancies between training and inference systems in reinforcement learning for large language models.
+演讲考察了大语言模型强化学习中训练系统与推理系统之间的数值差异。
+
+36
+00:05:19,645 --> 00:05:33,360
+Vensen also explained how the open-source RL-Kernel project works toward bitwise consistency across training and rollout workflows, with engineering considerations relevant to PyTorch and vLLM.
+Vensen 还解释了开源 RL-Kernel 项目如何致力于在训练和 rollout 工作流之间实现位级一致性，以及其中与 PyTorch 和 vLLM 相关的工程考量。
+
+37
+00:05:33,360 --> 00:05:36,659
+Ava: The written resources extend those sessions.
+Ava：书面资源延伸了这些活动的内容。
+
+38
+00:05:36,659 --> 00:05:45,656
+Zhiqing Xiao published a Simplified Chinese WeChat article introducing PyTorch 2.14, which received more than 300 views.
+Zhiqing Xiao 发布了一篇介绍 PyTorch 2.14 的简体中文微信文章，阅读量超过300。
+
+39
+00:05:45,656 --> 00:06:01,526
+Sahdev Zala published an IBM Developer article based on a transfer-learning demonstration using PyTorch and Torchvision’s pretrained ResNet-18 model, and made the accompanying source code publicly available.
+Sahdev Zala 在 IBM Developer 发布了一篇文章，内容基于使用 PyTorch 和 Torchvision 预训练 ResNet-18 模型进行的迁移学习演示，并公开了配套源代码。
+
+40
+00:06:01,526 --> 00:06:41,467
+Brian: So the useful takeaway is a connected set of learning opportunities: Kampala covered RAG, external knowledge integration, advanced retrieval, embeddings, and semantic search; Dhaka showed how to run native PyTorch on Google TPUs using free Colab notebooks; Nepal discussed speculative decoding and approaches to improving draft models through local and federated learning; Nigeria introduced AI research, Vilnius Tech introduced LLM application development, Duke explored open-source contributions, and Kuala Lumpur focused on train–inference consistency.
+Brian：因此，最有价值的收获是一组彼此连接的学习机会：坎帕拉涵盖 RAG、外部知识整合、高级检索、嵌入向量和语义搜索；达卡展示了如何使用免费的 Colab 笔记本在 Google TPUs 上运行原生 PyTorch；尼泊尔讨论了推测解码，以及通过本地学习和联邦学习改进草稿模型的方法；尼日利亚介绍了 AI 研究，Vilnius Tech 介绍了 LLM 应用开发，Duke 探索了开源贡献，吉隆坡则聚焦于训练与推理的一致性。
+
+41
+00:06:41,467 --> 00:06:50,679
+The roundup closes by thanking ambassadors for sharing knowledge, creating learning opportunities, and bringing people together.
+汇总最后感谢各位大使分享知识、创造学习机会并把人们聚在一起。
+
+42
+00:06:50,679 --> 00:06:52,540
+Thanks for listening.
+感谢收听。

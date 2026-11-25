@@ -1,0 +1,173 @@
+[ti:Fast by Default: Compile-Time Heuristics for Helion Kernels]
+[ar:Ava & Brian]
+[al:PyTorch Blog Podcast]
+[00:00.00]Ava: A Helion kernel can lower into thousands of Triton kernels, and choosing among them can dominate the wait.
+[00:00.00]Ava：一个 Helion 内核可 lower 成数千个 Triton 内核，而在这些候选中做选择可能占据大部分等待时间。
+[00:07.97]One earlier paged-attention effort tuned 72 shapes for 10 hours in quick mode and 25 hours at full effort.
+[00:07.97]此前一项 paged-attention 工作在 quick 模式下为 72 种形状调优 10 小时，在 full effort 下调优 25 小时。
+[00:16.29]Brian: That's why this work matters.
+[00:16.29]Brian：这正是这项工作重要的原因。
+[00:18.43]Helion now reads a kernel's IR and dataflow at compile time, emits a config directly, and gets near-autotuned speed without autotuning.
+[00:18.43]Helion 现在在编译时读取内核的 IR 和数据流，直接生成配置，无需 autotuning 也能达到接近自动调优的速度。
+[00:28.76]Ava: So the compiler isn't searching every candidate.
+[00:28.76]Ava：所以编译器不会搜索每个候选项。
+[00:31.99]How does it decide which kind of kernel it's looking at?
+[00:31.99]它如何判断正在处理哪一类内核？
+[00:36.11]Brian: The first pass classifies kernels into matmul, reduction, or pointwise families.
+[00:36.11]Brian：第一遍会把内核归入 matmul、reduction 或 pointwise 类别。
+[00:41.84]Any matmul, including hl.dot or torch.baddbmm, takes the matmul heuristic; a reduction with no matmul takes the reduction heuristic; everything else takes pointwise.
+[00:41.84]任何 matmul（包括 hl.dot 或 torch.baddbmm）都采用 matmul 启发式；不含 matmul 的 reduction 采用 reduction 启发式；其余采用 pointwise。
+[00:53.66]The families are broad on purpose, so they apply to custom kernels too.
+[00:53.66]这些类别特意设得很宽，因此也适用于自定义内核。
+[00:58.74]If all extents aren't known at compile time, no heuristic fires and Helion keeps its original default.
+[00:58.74]如果编译时无法得知所有 extent，任何启发式都不会触发，Helion 会保留原有默认值。
+[01:06.39]Ava: What exactly is emitted?
+[01:06.39]Ava：具体会生成什么？
+[01:08.95]Brian: A primary heuristic emits the default config when autotuning is off.
+[01:08.95]Brian：关闭 autotuning 时，主启发式会生成默认配置。
+[01:13.72]With autotuning on, helper heuristics add roughly 5 to 20 related configs to seed the autotuner.
+[01:13.72]开启 autotuning 后，辅助启发式会增加大约 5 到 20 个相关配置，为 autotuner 提供种子。
+[01:20.46]The primary config should be strong by itself; the seeds are meant to make the later search start in a better place.
+[01:20.46]主配置本身应当足够强；这些种子旨在让后续搜索从更好的起点开始。
+[01:28.96]Ava: That sounds like a deliberate tradeoff between performance and wait time.
+[01:28.96]Ava：听起来这是在性能和等待时间之间有意做出的权衡。
+[01:34.23]Brian: Exactly.
+[01:34.23]Brian：正是。
+[01:34.82]Autotuning can benchmark thousands of configs, so the goal isn't to beat a full search.
+[01:34.82]autotuning 可能要测试数千个配置，因此目标不是胜过完整搜索。
+[01:41.26]It's to add a useful point between performance and wait time.
+[01:41.26]而是在性能与等待时间之间提供一个实用折中。
+[01:45.77]The analysis itself changes compile time by only tens of milliseconds, which is negligible beside Triton compilation.
+[01:45.77]分析本身只会让编译时间增加几十毫秒，相比 Triton 编译几乎可以忽略。
+[01:54.78]Ava: What does the common analysis measure?
+[01:54.78]Ava：通用分析会测量什么？
+[01:57.63]Brian: For candidate block sizes, it estimates, at each kernel step, how many registers, shared memory, and, on Blackwell, tensor memory one CTA needs.
+[01:57.63]Brian：对于候选 block size，它会估算每个内核步骤中一个 CTA 需要多少寄存器、共享内存，以及在 Blackwell 上需要多少 tensor memory。
+[02:07.47]It uses liveness analysis to find each value's last use and guesses where Triton will place it.
+[02:07.47]它利用 liveness analysis 找出每个值的最后一次使用，并猜测 Triton 会把它放在哪里。
+[02:13.96]That estimate is approximate because Triton may keep values in registers, stage them through shared memory, or fuse them away.
+[02:13.96]这个估算只是近似值，因为 Triton 可能把值保存在寄存器中、通过共享内存分阶段暂存，或将其融合掉。
+[02:22.92]Ava: That estimate feeds occupancy.
+[02:22.92]Ava：这个估算会用于计算 occupancy。
+[02:25.93]If a CTA uses 0.1 of an SM's registers, 0.1 of its shared memory, and 0.6 of its tensor memory, two CTAs would need 1.2 times the tensor-memory budget, so only one CTA fits on the SM.
+[02:25.93]如果一个 CTA 使用某个 SM 寄存器容量的 0.1、共享内存容量的 0.1 和 tensor memory 容量的 0.6，那么两个 CTA 就需要 1.2 倍的 tensor-memory 预算，因此该 SM 只能容纳一个 CTA。
+[02:44.70]Brian: Peak live registers spread over the threads tell the heuristic whether the assembler may spill.
+[02:44.70]Brian：线程间分摊的峰值 live registers 能让启发式判断 assembler 是否可能 spill。
+[02:51.42]After choosing settings, a pessimistic feasibility pass adds tensor memory, shared memory, and registers to confirm the config can launch.
+[02:51.42]选定设置后，悲观可行性检查会把 tensor memory、共享内存和寄存器纳入计算，确认该配置可以启动。
+[03:01.54]Ava: How does that become a matmul config?
+[03:01.54]Ava：这些结果如何转成 matmul 配置？
+[03:04.50]Brian: For block_size, if the launch would create fewer CTAs than the GPU has SMs, the heuristic shrinks a grid-axis block so it creates more CTAs.
+[03:04.50]Brian：对于 block_size，如果启动会产生少于 GPU SM 数量的 CTA，启发式就缩小某个网格轴上的 block，以生成更多 CTA。
+[03:16.67]For num_stages, more stages hide load latency, but six stages could consume the shared-memory budget and leave one CTA per SM, while three stages might allow two CTAs per SM.
+[03:16.67]对于 num_stages，更多 stage 可以隐藏加载延迟，但 6 个 stage 可能耗尽共享内存预算，使每个 SM 只剩 1 个 CTA；而 3 个 stage 可能让每个 SM 容纳 2 个 CTA。
+[03:32.14]Ava: And num_warps has two competing effects.
+[03:32.14]Ava：而 num_warps 有两种相互竞争的影响。
+[03:36.09]Brian: Below four warps, or with an M block under 64, Triton emits the smaller synchronous MMA.
+[03:36.09]Brian：当 warp 数少于 4，或 M block 小于 64 时，Triton 会生成较小的同步 MMA。
+[03:42.94]Otherwise it can use the larger high-throughput instruction, wgmma on Hopper or tcgen05 on Blackwell.
+[03:42.94]否则它可以使用更大的高吞吐指令：Hopper 上是 wgmma，Blackwell 上是 tcgen05。
+[03:50.81]Usually the larger instruction wins, but with little matmul work, more CTAs using small MMAs can overlap loads.
+[03:50.81]通常较大的指令更胜一筹，但 matmul 工作量较少时，更多采用小 MMA 的 CTA 可以与加载重叠。
+[03:59.46]The heuristic counts dynamic matmul work and also raises warps when register pressure would cause spilling.
+[03:59.46]启发式会统计动态 matmul 工作量，并在寄存器压力可能导致 spill 时增加 warp 数。
+[04:08.14]Ava: When a kernel has multiple matmuls, such as attention or linear attention, each hl.dot gets a starting answer, but shared knobs can conflict.
+[04:08.14]Ava：当内核包含多个 matmul（例如 attention 或 linear attention）时，每个 hl.dot 都会得到一个初始答案，但共享参数可能冲突。
+[04:19.25]Brian: The heuristic ranks dots by importance.
+[04:19.25]Brian：启发式会按重要性给各个 dot 排名。
+[04:22.12]A loop-carried accumulator comes first, then dynamic matmul work, then output area.
+[04:22.12]循环携带的累加器优先，其次是动态 matmul 工作量，最后是输出区域。
+[04:28.25]The higher-ranked dot wins whenever they disagree about a shared block size or num_warps.
+[04:28.25]当它们对共享 block size 或 num_warps 有分歧时，排名更高的 dot 优先。
+[04:35.17]Ava: Reduction kernels use the same resource picture, but their choices differ.
+[04:35.17]Ava：reduction 内核使用相同的资源模型，但选择不同。
+[04:41.32]The warp count starts from the largest reduction, then tests fewer warps for residency and register pressure.
+[04:41.32]warp 数先从最大的 reduction 开始，再测试更少的 warp，以评估驻留和寄存器压力。
+[04:50.39]A reduction over 128 elements may need one or two warps, while 16,384 elements needs many more.
+[04:50.39]对 128 个元素做 reduction 可能只需 1 或 2 个 warp，而 16,384 个元素则需要多得多。
+[04:58.63]Brian: Block sizes can shrink to fit more CTAs per SM, but the stride-one axis must stay wide enough for coalesced loads.
+[04:58.63]Brian：block size 可以缩小，以便每个 SM 容纳更多 CTA，但 stride-one 轴必须保持足够宽，才能进行合并加载。
+[05:06.53]Persistence is allowed to trade some spilling or residency for avoiding a second memory read when a row is read twice, as in RMSNorm.
+[05:06.53]在 RMSNorm 这类一行读取两次的场景中，Persistence 可以牺牲少量 spill 或 residency，避免第二次内存读取。
+[05:15.74]Because block size and warp count affect each other, the heuristic iterates until both stay unchanged for a full round.
+[05:15.74]由于 block size 和 warp 数会相互影响，启发式会迭代，直到两者在完整一轮中都保持不变。
+[05:24.33]Ava: Let's talk results.
+[05:24.33]Ava：来谈谈结果。
+[05:26.19]The linear-attention test covered nine variants, six production shapes, and H100, in forward and forward-plus-backward modes.
+[05:26.19]线性注意力测试覆盖 9 个变体、6 种生产形状，并在 H100 上测试了 forward 和 forward-plus-backward 模式。
+[05:38.44]The shapes ranged from batch 1 to 8, heads 8 to 96, sequence length 1024 to 16384, and head dimension 64 to 256.
+[05:38.44]这些形状的 batch 为 1 到 8、heads 为 8 到 96、sequence length 为 1024 到 16384，head dimension 为 64 到 256。
+[05:49.76]Brian: Against handwritten Triton in FLA, the computed config reached 1.18x in forward and 1.12x with backward included.
+[05:49.76]Brian：与 FLA 中手写的 Triton 实现相比，计算得到的配置在 forward 中达到 1.18x，包含 backward 时达到 1.12x。
+[05:59.47]Across 96 kernel-and-shape cells, it was 2.13x faster than Helion's previous no-autotune default on H100.
+[05:59.47]在 96 个内核与形状组合中，它在 H100 上比 Helion 之前的 no-autotune 默认配置快 2.13 倍。
+[06:08.85]Ava: Before the heuristics, the choice was 0.52x of FLA with no autotuning or 1.26x after full autotuning.
+[06:08.85]Ava：在采用启发式规则之前，选择是：不进行自动调优时达到 FLA 的 0.52x，完全自动调优后达到 1.26x。
+[06:18.98]The heuristic gives 1.18x without paying the autotuning cost.
+[06:18.98]启发式方法可在无需承担自动调优开销的情况下达到 1.18x。
+[06:25.45]Ava: vLLM's test covered six production reduction kernels and 153 kernel-and-shape cells on H100.
+[06:25.45]Ava：vLLM 的测试涵盖 H100 上 6 个生产级归约内核，以及 153 个内核与形状组合单元。
+[06:34.31]They include two FP8 quantizers, RMSNorm and SiLU-and-multiply fused with quantization, and fused QK-normalization plus RoPE.
+[06:34.31]其中包括两个 FP8 量化器、RMSNorm、与量化融合的 SiLU-and-multiply，以及融合的 QK-normalization 与 RoPE。
+[06:46.70]Brian: The computed config reached 1.27x vLLM's handwritten CUDA/C++ operators, versus 0.58x for Helion's previous default and 1.31x with full autotuning.
+[06:46.70]Brian：计算得到的配置达到 vLLM 手写 CUDA/C++ 算子的 1.27x；Helion 之前的默认配置为 0.58x，完全自动调优为 1.31x。
+[06:58.77]So full autotuning bought only about 3 percent over the free config on these kernels, and the computed config was 2.2x faster than the previous default.
+[06:58.77]因此，在这些内核上，完全自动调优相较于免调优配置只带来约 3% 的提升，而计算得到的配置比之前的默认配置快 2.2x。
+[07:11.61]Ava: For everyday kernels, they forced torch.compile(mode="max-autotune-no-cudagraphs") onto Triton.
+[07:11.61]Ava：对于日常内核，他们让 Triton 强制使用 torch.compile(mode="max-autotune-no-cudagraphs")。
+[07:19.92]On ten reduction kernels and 80 kernel-shape combinations, the computed config reached 1.09x of that baseline, while Helion's unseeded default was 0.27x.
+[07:19.92]在 10 个归约内核和 80 个内核-形状组合上，计算得到的配置达到该基线的 1.09x，而 Helion 未设种子的默认配置为 0.27x。
+[07:33.65]Brian: Across 13 matmul families and 70 shapes, the computed config reached 1.88x of max-autotune torch.compile, versus 0.51x for Helion's default.
+[07:33.65]Brian：在 13 个矩阵乘系列和 70 种形状中，计算得到的配置达到 max-autotune torch.compile 的 1.88x，而 Helion 默认配置为 0.51x。
+[07:45.77]The comparison isn't always apples-to-apples because some PyTorch implementations materialize intermediates that Helion fuses.
+[07:45.77]这个比较并非总是完全可比，因为一些 PyTorch 实现会显式生成 Helion 会融合的中间结果。
+[07:56.67]Jagged HSTU attention is a real regression: the old default reached 3.72x, while the heuristic reached 3.27x.
+[07:56.67]Jagged HSTU 注意力确实出现性能回退：旧默认配置达到 3.72x，而启发式方法达到 3.27x。
+[08:06.45]Ava: The helper configs also seed the autotuner.
+[08:06.45]Ava：辅助配置还会为自动调优器提供种子。
+[08:09.53]The test used 38 matmul and multi-matmul kernels, one shape per kernel, and compared random starting populations with seeded populations under full autotuning.
+[08:09.53]测试使用了 38 个 matmul 和 multi-matmul 内核，每个内核一个形状，并在完全自动调优下比较随机初始种群与带种子种群。
+[08:21.27]Brian: Seeding helps early, not late.
+[08:21.27]Brian：种子在早期有帮助，后期没有。
+[08:24.25]Across the 38 cells, median counts to get within 50% of the best found were 35.5 configs without seeds and 1.0 with seeds; within 25% took 103.5 versus 2.5; within 5% took 255.5 versus 175.0; and completing the search took 521.5 versus 420.5.
+[08:24.25]在 38 个单元中，与已找到的最佳结果相差不超过 50% 时，配置数中位数为无种子 35.5、带种子 1.0；不超过 25% 时为 103.5 对 2.5；不超过 5% 时为 255.5 对 175.0；完成搜索则为 521.5 对 420.5。
+[08:48.23]Those counts include configs that failed to compile or produce a timing because they still consume budget.
+[08:48.23]这些计数包括编译失败或无法生成计时结果的配置，因为它们仍会消耗预算。
+[08:59.09]Ava: So seeds cut the early budget by 35x to get something decent and 41x to get within 25%, but only 1.5x to get within 5% and 1.2x to finish.
+[08:59.09]Ava：因此，种子使达到尚可结果所需的早期预算减少 35x，使结果进入 25% 范围内所需预算减少 41x；但进入 5% 范围内只减少 1.5x，完成搜索只减少 1.2x。
+[09:13.52]Brian: They don't improve the final answer.
+[09:13.52]Brian：它们不会改善最终结果。
+[09:16.13]Replaying both winners on one GPU put them within a fraction of a percent.
+[09:16.13]在同一块 GPU 上重放两个最佳配置后，二者差距不到一个百分点的一小部分。
+[09:21.50]Seeding changes how fast the search finds a good config, not where the search ends.
+[09:21.50]种子改变的是搜索找到优良配置的速度，而不是搜索最终停留的位置。
+[09:27.87]Ava: What should engineers keep in mind?
+[09:27.87]Ava：工程师应牢记什么？
+[09:30.64]Brian: The central limitation is that the heuristics predict Triton's decisions.
+[09:30.64]Brian：核心局限在于，这些启发式规则是在预测 Triton 的决策。
+[09:35.73]They guess whether values land in registers, shared memory, or tensor memory, and those guesses can be wrong.
+[09:35.73]它们会猜测数值会落在寄存器、共享内存还是张量内存中，而这些猜测可能出错。
+[09:43.33]A clean future fix is to compile once, read register and shared-memory usage from the assembler, and correct the estimate.
+[09:43.33]一个直接的未来修复方案是只编译一次，从汇编器读取寄存器和共享内存用量，然后修正估算。
+[09:52.18]Ava: They also currently decline kernels whose extents are unknown at compile time, though a rough default or mean might still beat the very poor base default.
+[09:52.18]Ava：它们目前还会拒绝编译时 extent 未知的内核，不过粗略默认值或均值也许仍能胜过很差的基础默认值。
+[10:02.40]Other future directions include setting more knobs, specializing parent heuristics for families such as vLLM quantization, and supporting more backends.
+[10:02.40]其他未来方向还包括设置更多参数、针对 vLLM 量化等系列专门化上层启发式规则，以及支持更多后端。
+[10:12.84]Brian: Today these heuristics are merged into Helion and enabled by default for H100 and B200 on the Triton backend.
+[10:12.84]Brian：目前，这些启发式规则已合并进 Helion，并在 Triton 后端针对 H100 和 B200 默认启用。
+[10:20.62]The approach isn't inherently NVIDIA-specific, but its constants and ladders were tuned on those two chips.
+[10:20.62]这种方法本身并非 NVIDIA 专属，但其中的常数和阶梯参数是在这两款芯片上调出的。
+[10:28.62]Ava: So the claim is measured: static analysis doesn't beat search, but the gap is now small enough that skipping search is reasonable for some kernels.
+[10:28.62]Ava：所以，这一结论有测量依据：静态分析没有胜过搜索，但差距已小到某些内核可以合理地跳过搜索。
+[10:39.00]Brian: Full autotuning remains the right call when you're shipping a fixed set of shapes and can pay once.
+[10:39.00]Brian：如果要发布固定的形状集合且可以一次性承担开销，完全自动调优仍是正确选择。
+[10:45.28]The new option is a strong default config with no tuning time, while helper seeds can shorten the early search.
+[10:45.28]新选项提供了无需调优时间的高质量默认配置，而辅助种子可以缩短早期搜索。
+[10:52.67]Ava: Useful takeaway: classify the kernel, estimate resources, choose the main config at compile time, and use related configs to seed autotuning when you need it.
+[10:52.67]Ava：实用要点是：对内核分类、估算资源、在编译时选择主配置，并在需要时用相关配置为自动调优提供种子。
+[11:04.20]Brian: And check the conditions behind every speedup: kernel family, shape set, backend, and baseline.
+[11:04.20]Brian：还要核对每次加速背后的条件：内核系列、形状集合、后端和基线。
+[11:12.37]Helion's heuristics are enabled by default on H100 and B200 with Triton.
+[11:12.37]Helion 的启发式规则已在使用 Triton 的 H100 和 B200 上默认启用。
+[11:18.55]Thanks for listening.
+[11:18.55]感谢收听。

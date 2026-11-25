@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nscale Joins the PyTorch Foundation: What Changes for Engineers?</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/nscale-joins-the-pytorch-foundation-as-a-platinum-member/">原视频 / 原文</a></p><h1>Nscale Joins the PyTorch Foundation: What Changes for Engineers?</h1>
+<p>原文：[Nscale Joins the PyTorch Foundation as a Platinum Member - PyTorch](https://pytorch.org/blog/nscale-joins-the-pytorch-foundation-as-a-platinum-member/)</p>
+<h2>摘要</h2>
+<p>Nscale 成为 PyTorch Foundation 的白金会员，并承诺继续投资 Ray 及其贡献者社区。节目从工程师的角度讨论 PyTorch、Ray 和云基础设施各自承担的工作，以及 Nscale 希望加强这些层之间协作的动机。白金会员资格带来一个基金会管理委员会席位；Nscale 的另一位负责人将加入技术咨询委员会。Anyscale 收购仍处于计划阶段，这些组织层面的变化本身不能说明具体工作负载会获得怎样的性能收益。</p>
+<h2>对话</h2>
+<p>Ava: If your PyTorch workload has to run across a large GPU cluster, the framework is only part of the story. Scheduling work and operating the infrastructure matter too. Nscale has joined the PyTorch Foundation as a Platinum member, so this announcement touches all three layers.</p>
+<p>Ava：如果你的 PyTorch 工作负载必须在大型 GPU 集群上运行，框架只是其中一部分。任务调度和基础设施运维同样重要。Nscale 已作为铂金会员加入 PyTorch Foundation，因此这则公告涉及这三个层面。</p>
+<p>Brian: And it matters because Nscale is also tied to Ray, which sits in the Foundation's project ecosystem. Nscale says it'll keep investing in Ray and its contributors. The immediate news is organizational, but the engineering question is how PyTorch, distributed computing, and cloud infrastructure fit together.</p>
+<p>Brian：这件事也很重要，因为 Nscale 还与 Ray 有关联，而 Ray 属于基金会的项目生态。Nscale 表示会继续投资 Ray 及其贡献者。眼前的消息关乎组织层面，但工程上的问题是 PyTorch、分布式计算和云基础设施如何协同。</p>
+<p>Ava: Let's put that in context. A training loop can be clear and efficient on one machine, while a much larger run depends on work outside that loop. The announcement seems to be asking whether the framework, the distributed layer, and the cluster can work together with less friction.</p>
+<p>Ava：我们来看看背景。训练循环在一台机器上可能清晰又高效，但规模大得多的运行还依赖循环之外的工作。这则公告似乎在问：框架、分布式层和集群能否更顺畅地协同工作？</p>
+<p>Brian: That's the stated direction. Nscale describes itself as a full-stack AI cloud platform. It brings power, data centers, compute, and software into one vertically integrated offering. Its cloud platform is meant for AI training and inference. That description tells us what parts of the stack Nscale operates; it doesn't specify a new PyTorch feature.</p>
+<p>Brian：这正是他们提出的方向。Nscale 将自己描述为全栈 AI 云平台，把电力、数据中心、计算资源和软件整合为一项纵向一体化服务。它的云平台面向 AI 训练和推理。这番描述说明了 Nscale 运营技术栈的哪些部分，但没有提出新的 PyTorch 功能。</p>
+<p>Ava: Suppose a team wants to take an existing model workload beyond one machine. I can see why the handoff between layers would matter. The model code is one concern. Getting work distributed is another. Then someone has to provide and run the underlying cluster. Where does Ray enter that picture?</p>
+<p>Ava：假设一个团队想让现有模型工作负载突破单机范围，我能理解为什么各层之间的衔接很重要。模型代码是一回事，分配工作是另一回事，随后还得有人提供和运营底层集群。Ray 在这里发挥什么作用？</p>
+<p>Brian: The article calls Ray an open-source framework for distributed computing and scaling AI workloads. Nick Jones, Nscale's vice president of cloud native platform engineering, draws a broad distinction: PyTorch keeps the Pythonic style researchers know while addressing performance, and Ray helps that work run across thousands of GPUs.</p>
+<p>Brian：文章称 Ray 是一个用于分布式计算和扩展 AI 工作负载的开源框架。Nscale 云原生平台工程副总裁 Nick Jones 做了一个总体区分：PyTorch 在解决性能问题的同时保留了研究人员熟悉的 Pythonic 风格，而 Ray 帮助这些工作在数千块 GPU 上运行。</p>
+<p>Ava: That's a useful distinction. Ray addresses the problem of distributing AI work, while Nscale is talking about the infrastructure beneath it. For our hypothetical team, those are separate engineering decisions: how to spread the work, and what cluster will run it. The announcement connects the layers as an ambition rather than describing a particular job design.</p>
+<p>Ava：这个区分很有用。Ray 解决的是如何分配 AI 工作的问题，而 Nscale 谈的是其下方的基础设施。对我们假设的团队来说，这是两项不同的工程决策：如何分配工作，以及用什么集群来运行。公告把这些层面联系起来，表达的是一种目标，并没有描述具体的任务设计。</p>
+<p>Brian: The link to Ray also needs careful wording. Nscale has a planned acquisition of Anyscale, the company behind Ray. The article says Nscale has committed to continued investment in Ray's development and contributor community. The acquisition is described as planned, so we should keep that future step separate from today's membership.</p>
+<p>Brian：谈到 Ray 与 Nscale 的关系，措辞也要准确。Nscale 计划收购 Ray 背后的公司 Anyscale。文章说，Nscale 已承诺继续投资 Ray 的开发和贡献者社区。收购仍被描述为计划中的事项，因此应将这个未来步骤与今天的会员资格分开看。</p>
+<p>Ava: What does that change for Ray's position in the Foundation? If a cloud provider is investing in a distributed framework, I'd want to know how that relates to the project community. The announcement mentions governance, but I don't want to assume a corporate change lets one company set the project's direction.</p>
+<p>Ava：这会怎样影响 Ray 在基金会中的地位？如果一家云服务提供商要投资一个分布式框架，我会想知道这与项目社区有什么关系。公告提到了治理，但我不想想当然地认为，一项企业层面的变动就能让一家公司决定项目方向。</p>
+<p>Brian: The article says Ray joined the PyTorch Foundation in October 2025, and it describes Ray's governance as being under the Foundation since then. It also calls the Foundation a vendor-neutral, community-driven home for its projects. Nscale's commitment is to keep investing in Ray within that setting. It doesn't describe a change to Ray's governance.</p>
+<p>Brian：文章说 Ray 于 2025 年 10 月加入 PyTorch Foundation，并称此后 Ray 一直由基金会治理。文章还称基金会是旗下项目一个供应商中立、由社区驱动的归属平台。Nscale 承诺在这一框架内继续投资 Ray。文章没有描述 Ray 治理方式会发生变化。</p>
+<p>Ava: So there are two kinds of commitment to track. One is Nscale saying it'll support Ray's development and contributors. The other is becoming a Platinum member of the wider Foundation. Those are related, but they aren't the same decision. The first concerns a project; the second gives Nscale a formal place in Foundation governance.</p>
+<p>Ava：所以有两种承诺需要分别看待。一种是 Nscale 表示会支持 Ray 的开发和贡献者，另一种是成为整个基金会的铂金会员。两者有关联，但不是同一项决定。前者涉及一个项目；后者让 Nscale 在基金会治理中获得正式席位。</p>
+<p>Brian: Nick Jones explains the motivation from Nscale's side. He says infrastructure providers often treat the framework and data center as separate problems, while Nscale treats them together. His point is that a company building the infrastructure underneath PyTorch and Ray should also support the open-source ecosystem it relies on.</p>
+<p>Brian：Nick Jones 从 Nscale 的角度解释了动机。他说，基础设施提供商往往把框架和数据中心当成两个独立问题，而 Nscale 将它们放在一起考虑。他的意思是，建设 PyTorch 和 Ray 底层基础设施的公司，也应该支持自己所依赖的开源生态。</p>
+<p>Ava: I can follow that as an engineering goal. Nick is saying the framework, distributed layer, and physical cloud shouldn't be treated in isolation. Mark Collier, the Foundation's executive director, also emphasizes integration. What scale of workload does he have in mind, and what does he want that integration to improve?</p>
+<p>Ava：作为工程目标，这一点我能理解。Nick 的意思是，框架、分布式层和实体云基础设施不应被孤立看待。基金会执行董事 Mark Collier 也强调集成。他考虑的是多大规模的工作负载？又希望这种集成改善什么？</p>
+<p>Brian: He points to frontier AI workloads that scale to multi-trillion parameters. He says integration among PyTorch, distributed frameworks like Ray, and cluster infrastructure is essential. He names less friction for developers and better multi-node performance as aims. Those are goals in his welcome statement, rather than results we can attach to a specific run.</p>
+<p>Brian：他提到参数规模达到数万亿的前沿 AI 工作负载。他说，PyTorch、Ray 等分布式框架与集群基础设施之间的集成至关重要。他希望减少开发者遇到的阻碍，并提高多节点性能。这些是他在欢迎声明中提出的目标，不能当作某次具体运行已取得的结果。</p>
+<p>Ava: That gives us a useful way to read the announcement. Nscale is deciding to support the ecosystem and take part in its governance. For a team planning a distributed run, the design still depends on its own workload and technical documentation. So what does Platinum membership formally give Nscale inside the Foundation?</p>
+<p>Ava：这为我们理解公告提供了一个有用的角度。Nscale 决定支持这个生态，并参与其治理。对于计划开展分布式运行的团队，具体设计仍取决于自身工作负载和技术文档。那么，铂金会员资格正式赋予 Nscale 在基金会内部什么权利？</p>
+<p>Brian: It grants 1 seat on the PyTorch Foundation Governing Board. The Board sets policy through the Foundation's bylaws, mission, and vision statements. Those describe the broad scope of its initiatives and its technical vision and direction. Nick Jones is welcomed to that seat. It's a defined way for Nscale to take part in Foundation-level decisions.</p>
+<p>Brian：它让 Nscale 在 PyTorch Foundation 理事会获得 1 个席位。理事会依据基金会的章程、使命声明和愿景声明制定政策。这些文件说明了基金会各项工作的总体范围，以及技术愿景和方向。Nick Jones 将出任这个席位。这为 Nscale 参与基金会层面的决策提供了明确途径。</p>
+<p>Ava: A seat gives a voice, but the article doesn't say that one member controls technical decisions. Nick's current job is close to the infrastructure part of this story. He leads engineering strategy for Nscale's high-performance GPU cloud. That makes his appointment easy to connect to the company's stated focus on the whole stack.</p>
+<p>Ava：一个席位意味着有发言权，但文章并没有说一位成员就能控制技术决策。Nick 目前的工作与这件事中的基础设施部分密切相关。他负责 Nscale 高性能 GPU 云的工程战略。因此，他的任命很容易与公司所说的全栈关注点联系起来。</p>
+<p>Brian: The article says Nick brings more than 15 years of experience across cloud-native infrastructure, AI, and high-performance computing. It also mentions his work on large-scale GPU cloud platforms and contributions to projects spanning Kubernetes, OpenStack, and distributed systems. Those background details help explain the infrastructure expertise the Foundation highlights.</p>
+<p>Brian：文章说，Nick 在云原生基础设施、AI 和高性能计算领域拥有超过 15 年的经验。文章还提到，他曾参与大规模 GPU 云平台的工作，并为 Kubernetes、OpenStack 和分布式系统相关项目作出贡献。这些背景信息有助于说明基金会所强调的基础设施专长。</p>
+<p>Ava: There's another appointment too. Eyal Lantzman, Nscale's vice president of AI services, is joining the Foundation's Technical Advisory Council, or TAC. His area sounds closer to serving models than to operating data centers. What does the article tell us about his work, beyond the title of the council?</p>
+<p>Ava：还有另一项任命。Nscale AI 服务副总裁 Eyal Lantzman 将加入基金会的技术咨询委员会，即 TAC。他负责的领域听起来更接近模型服务，而不是数据中心运营。除了委员会的名称，文章还告诉了我们哪些关于他工作的情况？</p>
+<p>Brian: At Nscale, Eyal leads the AI services stack, focused on serving and optimizing large open-weight models in production. He brings more than 20 years of experience across AI and machine learning platforms, cloud infrastructure, and developer tooling. The article also notes his long-standing focus on cloud security, governance, and sovereignty.</p>
+<p>Brian：在 Nscale，Eyal 负责 AI 服务技术栈，重点是在生产环境中提供大型开放权重模型的服务并优化这些模型。他在 AI 与机器学习平台、云基础设施和开发者工具领域拥有超过 20 年的经验。文章还提到，他长期关注云安全、治理和主权问题。</p>
+<p>Ava: We can separate those claims. His serving focus describes his role at Nscale. His TAC appointment describes how he'll participate in the Foundation. The announcement doesn't name a TAC project for him or define a technical change he'll deliver. That distinction matters when we read a personnel announcement as engineers.</p>
+<p>Ava：我们可以把这些说法分开看。他对模型服务的关注描述的是他在 Nscale 的职责；他获任 TAC 成员描述的是他将如何参与基金会。公告没有点名要交给他的 TAC 项目，也没有明确他将带来什么技术变更。作为工程师阅读人事任命公告时，这个区分很重要。</p>
+<p>Brian: The Foundation itself covers more than one project. It supports core PyTorch alongside Ray, vLLM, DeepSpeed, Helion, and Safetensors. It's a vendor-neutral, community-driven hub hosted by the Linux Foundation. The article describes its scope as training, optimizing, serving, and running models across chips and clouds. Nscale has joined that wider organization.</p>
+<p>Brian：基金会本身涵盖不止一个项目。除核心项目 PyTorch 外，它还支持 Ray、vLLM、DeepSpeed、Helion 和 Safetensors。它由 Linux Foundation 托管，是一个供应商中立、由社区驱动的平台。文章称，其覆盖范围包括在不同芯片和云平台上训练、优化、提供模型服务以及运行模型。Nscale 加入的正是这个更广泛的组织。</p>
+<p>Ava: That portfolio is broad. If I work on model serving, I might notice vLLM and Safetensors in the same Foundation as PyTorch and Ray. But the membership announcement has one specific project commitment from Nscale. Is it fair to say that commitment is about Ray, while the Platinum membership is Foundation-wide?</p>
+<p>Ava：这个项目组合覆盖面很广。如果我从事模型服务，可能会注意到 vLLM 和 Safetensors 与 PyTorch、Ray 同属一个基金会。但在这份入会公告中，Nscale 对某个具体项目只作出了一项承诺。可以说这项承诺针对 Ray，而铂金会员资格面向整个基金会吗？</p>
+<p>Brian: Yes. Nscale commits to continued investment in Ray's development and contributor community. The Platinum seat belongs to the Foundation's Governing Board, whose remit is broader. The article doesn't assign Nscale a separate plan for every project in the portfolio. That distinction helps us understand the scope of the promise without reading extra commitments into a list of projects.</p>
+<p>Brian：可以。Nscale 承诺继续投资 Ray 的开发和贡献者社区。铂金会员的席位在基金会理事会，而理事会的职责范围更广。文章没有为项目组合中的每个项目分别列出 Nscale 的计划。分清这一点，有助于我们理解承诺的范围，不会因为看到项目清单就读出额外承诺。</p>
+<p>Ava: Here's the takeaway for a framework engineer. Nscale first came into the Foundation's project ecosystem through Ray. Its acquisition of Anyscale is planned, and its commitment to keep supporting Ray is stated now. Nscale has also joined as a Platinum member, with Nick Jones on the Board and Eyal Lantzman on the TAC. Those are the concrete changes.</p>
+<p>Ava：对框架工程师来说，关键信息是：Nscale 最初通过 Ray 进入基金会的项目生态。收购 Anyscale 仍处于计划阶段，而继续支持 Ray 的承诺现在已经提出。Nscale 还以铂金会员身份加入基金会，由 Nick Jones 出任理事会成员，Eyal Lantzman 加入 TAC。这些是具体的变化。</p>
+<p>Brian: Keep the timeline straight: Ray has been under Foundation governance since October 2025, while the Anyscale acquisition is still planned. Keep the engineering layers clear too: PyTorch is the framework, Ray supports distributed computing, and Nscale provides cloud infrastructure. The stated goal is smoother work across those layers, backed by membership and continued investment in Ray. Thanks for listening.</p>
+<p>Brian：时间线要分清：Ray 自 2025 年 10 月起就由基金会治理，而收购 Anyscale 仍处于计划阶段。工程上的各层也要分清：PyTorch 是框架，Ray 支持分布式计算，Nscale 提供云基础设施。所提出的目标是让这些层面更顺畅地协同工作，基金会会员资格和对 Ray 的持续投资则为此提供支持。感谢收听。</p>
+<h2>术语</h2>
+<p>Term · 释义</p>
+<p>PyTorch Foundation · 支持 PyTorch 及相关开源项目的厂商中立组织。</p>
+<p>Platinum member · 基金会的白金会员；本文中该级别对应一个管理委员会席位。</p>
+<p>Ray · 用于分布式计算和扩展 AI 工作负载的开源框架。</p>
+<p>Anyscale · Ray 背后的公司；Nscale 计划收购该公司。</p>
+<p>distributed computing · 把计算工作分布到多台机器或多个计算资源上。</p>
+<p>vertically integrated · 由同一平台整合软件、算力、数据中心和电力等环节。</p>
+<p>Governing Board · 基金会管理委员会，负责制定基金会层面的政策和方向。</p>
+<p>Technical Advisory Council · 技术咨询委员会，简称 TAC。</p>
+<p>multi-node performance · 跨多个计算节点运行时的性能。</p>
+<p>open-weight models · 权重可获取的模型；文中提及其生产环境中的服务和优化。</p>
+<p>inference · 使用已训练模型进行预测或生成的过程。</p>
+<p>cloud-native infrastructure · 围绕云环境构建和运行的软件与计算基础设施。</p>
+<h2>口语表达</h2>
+<p>Phrase · 释义</p>
+<p>Let's put that in context. · 我们把这件事放到背景中看看。</p>
+<p>That's a useful distinction. · 这个区分很有帮助。</p>
+<p>What does that change for Ray's position in the Foundation? · 这会如何改变 Ray 在基金会中的地位？</p>
+<p>That gives us a useful way to read the announcement. · 这为我们理解这则公告提供了一个有用的角度。</p>
+<p>We can separate those claims. · 我们可以把这些说法区分开。</p>
+<p>Here's the takeaway · 关键结论是……</p>
+<p>Keep the timeline straight · 理清时间顺序。</p>
+<h2>中文内容总结</h2>
+<p>PyTorch 基金会于 2026 年 10 月 20 日宣布，AI 云平台 Nscale 加入基金会，成为白金会员。Nscale 将软件、算力、数据中心和电力整合在同一平台，提供 AI 训练与推理服务。</p>
+<h3>与 Ray 的关系</h3>
+<p>Nscale 最初通过分布式计算框架 Ray 进入基金会的项目生态。Nscale 计划收购 Ray 背后的公司 Anyscale，并承诺继续投入 Ray 的开发和贡献者社区。Ray 自 2025 年 10 月加入 PyTorch 基金会后，由基金会治理。收购在公告发布时仍处于计划阶段。</p>
+<h3>参与基金会治理</h3>
+<p>白金会员资格使 Nscale 获得基金会治理委员会的一个席位，由其云原生平台工程副总裁 Nick Jones 担任。该委员会负责制定基金会政策并确定整体方向。Nscale 的 AI 服务副总裁 Eyal Lantzman 也将加入基金会技术咨询委员会。</p>
+<h3>合作方向与实际意义</h3>
+<p>Nscale 表示，希望将 PyTorch、Ray 与底层 GPU 集群基础设施衔接起来，支持跨大量 GPU 运行 AI 工作负载。基金会认为这种整合有助于减少开发者使用分布式基础设施时的障碍，并改善多节点运行表现。这些是双方提出的合作方向；公告没有提供性能测试结果或量化成效。</p></body></html>

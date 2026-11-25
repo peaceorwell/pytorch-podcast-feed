@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Helion 将 GPU 内核调优延伸到编译器</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/one-search-two-layers-compiler-controls-inside-pytorch-helion-using-nvidia-compileiq/">原视频 / 原文</a></p><h1>Helion 将 GPU 内核调优延伸到编译器</h1>
+<p>依据：原文</p>
+<p>来源：https://pytorch.org/blog/one-search-two-layers-compiler-controls-inside-pytorch-helion-using-nvidia-compileiq/</p>
+<p>Helion 原本搜索线程块形状、warp 数和流水线阶段等内核配置。这篇文章提出进一步搜索 NVIDIA ptxas 的编译控制项，为已调优的内核寻找额外性能空间。文中的基线是 Helion 仓库里已按架构离线调优、运行时直接选用配置的内核。</p>
+<h3>问题与方法</h3>
+<p>内核配置决定每个线程块做什么，ptxas 的寄存器分配和指令调度等控制项则影响这些工作如何变成机器指令。ptxas 从 CUDA 13.3 起提供这一高级控制接口。两层参数会相互影响：改变线程块大小可能增加寄存器压力，使原先合适的编译设置失效。Helion 因此允许通过 autotune_search_acf，将多个高级控制文件 ACF 与内核配置一起计时搜索，并自动纳入不使用 ACF 的默认编译结果。搜索完成后，可用 advanced_controls_file 固定胜出的文件。</p>
+<h3>ACF 的来源与搜索成本</h3>
+<p>NVIDIA CompileIQ 把编译控制项选择作为优化问题：生成候选设置，编译并检查输出正确性，再测量目标指标，逐代保留表现较好的候选。现有 helion-booster-pack 含 24 个 ACF，面向 B200，并经过 CUDA 13.4 的 ptxas 验证。用户可用该目录进行一次离线搜索；每增加一个 ACF 都会增加编译和测量次数。</p>
+<h3>固定内核配置的实测结果</h3>
+<p>文章的实验在 GB200（sm_100）上使用 ptxas 13.3.73、CompileIQ 1.0.3 和 Triton 3.8.0，针对已有 Helion 配置的 NVFP4 解码 GEMV 搜索 ACF。这些结果来自固定内核配置上的编译控制项搜索，不能直接视为联合搜索的实测收益。对 N=8192、K=28672，按运行时间搜索时，搜索过程测得延迟从 0.0971 毫秒降至 0.0928 毫秒，提升 4.7%；两次独立复测约提升 4.8%。所有候选先与 PyTorch 参考实现核对，复测使用锁定的 GPU 时钟，并以 Welch 检验 p&lt;0.05、Cohen’s d&gt;0.2 筛选性能提升。</p>
+<h3>其他优化目标</h3>
+<p>改以实际占用率为目标时，搜索得到的占用率从 21.60% 升至 21.76%，独立复测的运行时间提升约 1.75% 至 2.0%。Nsight Compute 给出的占用率潜在加速 21.01% 是模型估计，并非实测收益。同时优化运行时间和 L1TEX 吞吐率时，一个候选在独立验证中实现 6.9% 的运行时间提升，吞吐率从 81.51% 升至 85.96%。对两种输入形状搜索共用 ACF 后，所选候选在独立验证中分别约快 1.05 倍和 1.01 倍。</p>
+<h3>适用范围与限制</h3>
+<p>作者建议先找出模型中耗时的关键内核，再针对具体形状和硬件离线搜索、验证并固定 ACF；文章没有报告端到端模型加速。ACF 与硬件架构和工具链版本相关，错误匹配可能造成错误结果或运行失败，因此正确性检查不可省略。收益也取决于工作负载，文中的百分比不能直接套用到其他内核。Helion 是开源项目；CompileIQ 可免费使用，但采用 NVIDIA 专有许可，生成的 ACF 可以分发。</p></body></html>

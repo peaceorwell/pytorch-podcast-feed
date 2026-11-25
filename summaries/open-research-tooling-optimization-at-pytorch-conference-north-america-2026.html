@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PyTorch 2026 北美大会的开放工具与性能议程</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/open-research-tooling-optimization-at-pytorch-conference-north-america-2026/">原视频 / 原文</a></p><h1>PyTorch 2026 北美大会的开放工具与性能议程</h1>
+<p>依据：原文</p>
+<p>来源：https://pytorch.org/blog/open-research-tooling-optimization-at-pytorch-conference-north-america-2026/</p>
+<p>PyTorch Conference North America 2026 于10月20日至21日在美国加州圣何塞举行。原文是会前议程导览，面向关注编译器、GPU 内核、分布式训练、推理和开源基础设施的开发者与研究人员，介绍技术报告、演示和社区讨论。</p>
+<h3>编译器与内核开发</h3>
+<p>编译器报告聚焦 torch.compile 的图捕获、动态形状和编译耗时，涉及减少嵌套图中断开销的 Dynamo 改进、用 Pyrefly 静态检查张量形状，以及让单个 CUDA Graph 适应不同形状的方案。内核场次涵盖 Triton、Helion、FlyDSL 和 CUTLASS Python，讨论跨硬件编写内核与自动调优。同一场 Helion 自动调优报告称，LFBO 将调优时间缩短36.5%，大语言模型引导的方法在 NVIDIA B200 上最高将调优速度提高10倍。</p>
+<h3>大规模训练与通信</h3>
+<p>训练议题包括自动搜索并行策略、按优化器需求切分参数、跨训练进程复用编译产物，以及在故障后重配通信组。AutoParallel 报告称，在 Llama-3 8B 上达到充分手工调优的基线性能，同时减少12%的内存占用。EP-Overlap 报告称，在 DeepSeek-V3 训练中隐藏76%至86%的专家并行通信，吞吐量约提高1.3倍。相关场次还介绍面向 AMD 和 Intel GPU 的通信支持。</p>
+<h3>低精度、优化器与推理</h3>
+<p>低精度报告讨论 HiFloat4、HiFloat8 和 NVFP4 的训练配方。议程指出，GB200、GB300 上 NVFP4 矩阵乘法的峰值吞吐量是 FP8 的2至3倍，但较小模型与 BF16 仍有质量差距。优化器场次介绍 Muon 的矩阵正交化更新及 Dion 等变体；TorchJD 则聚合多个损失对应的梯度 Jacobian，用于多目标训练。推理场次涉及检查点加载、LMCache 提示缓存和 vLLM 内核。</p>
+<h3>强化学习与硬件适配</h3>
+<p>OpenEnv 提供统一接口，供不同训练框架发布和使用强化学习环境。TorchTitan RL 通过训练与生成共用模型定义，处理两者的数值不一致和系统复杂性；VeXact 对齐 rollout 与训练路径的对数概率，以减少数值偏差对 PPO、GRPO 的影响。硬件场次介绍 TPU、Trainium、IBM Spyre、Intel XPU 及边缘设备的 PyTorch 后端。</p>
+<h3>数据流水线与开源工具</h3>
+<p>数据议题包括通过 fsspec 接入高速存储，以及结合 TorchVision、TorchCodec 和 TorchAudio 处理图像、视频、音频的预处理流水线；另有数据加载扩展和性能剖析案例。开源与社区场次介绍 TinyTorch 教学工具，并讨论 AI 智能体参与 PyTorch 代码审查和持续集成。</p>
+<h3>结果边界</h3>
+<p>文章提供的是各场报告简介。所列加速、吞吐量和扩展效率来自不同报告，测试条件并不统一，不能据此直接比较各方案。</p></body></html>

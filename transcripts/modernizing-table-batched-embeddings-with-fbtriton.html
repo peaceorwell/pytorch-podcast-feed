@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FBTriton: Making Embedding Kernels Faster and Easier to Change</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/modernizing-table-batched-embeddings-with-fbtriton/">原视频 / 原文</a></p><h1>FBTriton: Making Embedding Kernels Faster and Easier to Change</h1>
+<p>原文：[Modernizing Table Batched Embeddings with FBTriton](https://pytorch.org/blog/modernizing-table-batched-embeddings-with-fbtriton/)</p>
+<h2>摘要</h2>
+<p>本期介绍 FBTriton 如何用 Triton 重写推荐系统中的 Table-Batched Embedding 前向与反向计算，并通过调整任务划分和访存方式提升性能。前向包含通用 gather 路径与适用条件严格的小表直方图路径；反向则按同一行被访问的次数分配工作，汇总梯度后只执行一次优化器更新。在 GB200 的 307 个分片配置中，前向加速比中位数为 1.28 倍，反向的主要优势来自中等长度访问段的内存吞吐提升，但极短访问段仍落后于 CUDA。对话也区分了默认路径、可选优化与未来融合方向，说明更易维护的 Python 实现为何同样重要。</p>
+<h2>对话</h2>
+<p>Ava: What if your recommendation system's embedding kernels could run faster and become easier to change? That's the promise we're exploring today. I'm Ava, and this is a story about moving data efficiently.</p>
+<p>Ava：如果你的推荐系统的嵌入计算内核能运行得更快，也更容易修改，会怎样？这正是我们今天要探讨的前景。我是 Ava，这期讲的是如何高效地搬运数据。</p>
+<p>Brian: And I'm Brian. The article reports a median forward speedup of one point two eight times over the legacy CUDA implementation. It also says the new sparse path is smaller than the original CUDA templates alone.</p>
+<p>Brian：我是 Brian。文章报告称，与旧版 CUDA 实现相比，前向计算加速比的中位数为1.28倍。文章还说，新的稀疏路径甚至比原有的 CUDA 模板本身还小。</p>
+<p>Ava: Faster kernels and less code to maintain. That's a combination I'd take. What's the operation they're rewriting?</p>
+<p>Ava：内核运行更快，要维护的代码也更少。这个组合我很乐意接受。他们重写的是什么操作？</p>
+<p>Brian: TBE, or Table-Batched Embedding. It looks up rows from many embedding tables and pools them in one graphics processing unit, or GPU, launch. Combining that work reduces launch overhead and improves memory efficiency.</p>
+<p>Brian：是 TBE，也就是 Table-Batched Embedding。它从许多嵌入表中查找行，并在一次图形处理器（GPU）内核启动中对这些行做池化。把这些工作合在一起，可以减少启动开销并提高内存效率。</p>
+<p>Ava: Let's unpack pooling. I've got a list of item identifiers. Each identifier selects a row of numbers. Then I add those rows together?</p>
+<p>Ava：我们来拆解一下池化。我有一列物品标识符，每个标识符选出一行数字，然后把这些行加起来？</p>
+<p>Brian: Exactly, for the sum described here. That list is an embedding bag. You can also multiply each selected row by a per-sample weight before adding it. Each bag produces one vector.</p>
+<p>Brian：没错，这里说的是求和。这列标识符就是一个嵌入袋。你也可以先用每个样本各自的权重乘以所选行，再把它们相加。每个嵌入袋生成一个向量。</p>
+<p>Ava: And recommendation systems have enough tables for this to become a serious engineering problem?</p>
+<p>Ava：推荐系统里的表足够多，多到这会成为一个棘手的工程问题吗？</p>
+<p>Brian: Yes. The article places these operators in recommendation systems spread across thousands of GPUs. We'll use three shape terms: E is the number of table rows, D is the row width, and L is the bag size.</p>
+<p>Brian：是的。文章说，这些算子用于分布在数千块 GPU 上的推荐系统。我们会用到3个描述形状的参数：E 是表的行数，D 是行宽，L 是 bag 的大小。</p>
+<p>Ava: All right. How does FBTriton's forward pass collect those rows?</p>
+<p>Ava：好。那么 FBTriton 的前向计算是怎样收集这些行的？</p>
+<p>Brian: Its generic gather path loads indexed rows and accumulates them. Each Triton program loops over the table features. Depending on the workload, a program handles one, two, or four bags.</p>
+<p>Brian：通用的 gather 路径会加载索引指定的行，并将它们累加。每个 Triton 程序都会循环遍历表的特征。根据工作负载，一个程序会处理1个、2个或4个 bag。</p>
+<p>Ava: By program, you mean a unit of GPU work here. Does the accumulation use the same precision as the stored weights?</p>
+<p>Ava：这里说的程序，是指一份 GPU 工作。累加时使用的精度和存储权重时一样吗？</p>
+<p>Brian: It doesn't. FP16, meaning sixteen-bit floating point, and BF16, meaning bfloat sixteen, accumulate in FP32, or thirty-two-bit floating point. FP32 weights accumulate in FP64, or sixty-four-bit floating point, to preserve accuracy at large row widths.</p>
+<p>Brian：不会。FP16，也就是16位浮点数，以及 BF16，也就是 bfloat16，都会在 FP32（32位浮点数）中累加。FP32 权重则在 FP64（64位浮点数）中累加，以便在行宽较大时保持精度。</p>
+<p>Ava: There's also a histogram path. Why count identifiers when the job is to add vectors?</p>
+<p>Ava：还有一条直方图路径。任务明明是把向量相加，为什么要统计标识符？</p>
+<p>Brian: Imagine ordering the same dish ten times. You can write ten separate orders, or write the dish once with a count of ten. Here, repeated identifiers become counts, which are multiplied by the table.</p>
+<p>Brian：想象一下把同一道菜点10次。你可以分别写下10份订单，也可以只写一次菜名，注明数量为10。在这里，重复的标识符会变成计数，再与表中的值相乘。</p>
+<p>Ava: So repeated row additions become a matrix calculation that can use tensor cores, the GPU's matrix math hardware?</p>
+<p>Ava：所以，反复相加同一行就变成了矩阵计算，可以用上 tensor cores，也就是 GPU 的矩阵运算硬件？</p>
+<p>Brian: Right. But eligibility is narrow: at most sixty-four rows, row widths from sixty-four through one hundred twenty-eight, and at least sixty-four entries per bag. It also requires FP16 weights, FP32 output, no per-sample weights, and no variable batching.</p>
+<p>Brian：对。但适用条件很窄：最多64行，行宽为64至128，每个 bag 至少有64个条目。它还要求使用 FP16 权重、FP32 输出，不使用逐样本权重，也不使用可变批处理。</p>
+<p>Ava: Definitely read the small print. Does the histogram cover the whole bag?</p>
+<p>Ava：这些限制条件确实得仔细看。直方图会覆盖整个嵌入袋吗？</p>
+<p>Brian: It covers the first two hundred fifty-six indices. A scalar path handles the rest. One program processes sixteen bags. Other shapes use the generic kernel. The key point is that this fast path serves a specific workload.</p>
+<p>Brian：它处理前256个索引。其余索引由标量路径处理。一个程序处理16个 bag。其他形状则使用通用内核。关键在于，这条快速路径服务的是一种特定工作负载。</p>
+<p>Ava: Before we move to backward, what happens if an input index is invalid?</p>
+<p>Ava：在谈反向计算之前，先问一句：如果输入索引无效，会发生什么？</p>
+<p>Brian: The standalone path runs CUDA validation first. Optional fused bounds checking lets eligible kernels validate and repair inputs, although offset repair stays separate. It defaults off, and several configurations use standard validation.</p>
+<p>Brian：独立运行的路径会先执行 CUDA 验证。可选的融合边界检查让符合条件的内核自行验证并修复输入，不过偏移量修复仍要单独进行。这个选项默认关闭，而且有几种配置会使用标准验证方式。</p>
+<p>Ava: Okay. Now backward sounds harder. Many bags can touch the same table row. Who gets to update it?</p>
+<p>Ava：好。反向计算听起来更难。许多嵌入袋可能访问同一个表行。该由谁来更新它？</p>
+<p>Brian: First, sum all gradient contributions for each unique table and row pair. Then apply exactly one optimizer update to that row. Think of collecting every expense receipt before calculating the final account balance.</p>
+<p>Brian：先把每个唯一的表与行组合对应的所有梯度贡献加起来，再对该行恰好执行一次优化器更新。可以把它想成先收齐每一张费用收据，再计算账户的最终余额。</p>
+<p>Ava: That's the part I wanted to pin down. How do they organize all those contributions?</p>
+<p>Ava：这正是我想弄清楚的部分。他们怎么组织所有这些贡献？</p>
+<p>Brian: They group accesses into runs, each associated with one unique row. Segment length, abbreviated SL, measures how many samples touch that row. Within one batch, that length can range from one to millions.</p>
+<p>Brian：他们把访问分成一段段连续的访问，每段对应一个唯一的行。段长度缩写为 SL，表示有多少个样本访问该行。在同一个批次中，这个长度可以从1到数百万不等。</p>
+<p>Ava: One worker gets one receipt. Another gets two million. That's a fairly terrible division of labor.</p>
+<p>Ava：一个工人只拿到1张收据，另一个却拿到200万张。这种分工实在很糟糕。</p>
+<p>Brian: Exactly. For runs below two hundred fifty-six lookups, one program gathers, accumulates, updates, and stores. It owns the row exclusively, so its final store doesn't need an atomic operation to coordinate competing writers.</p>
+<p>Brian：没错。对于少于256次查找的段，一个程序会完成收集、累加、更新和存储。它独占这一行，因此最终存储时不需要用原子操作来协调其他写入者。</p>
+<p>Ava: And a long run gets divided among more workers?</p>
+<p>Ava：那长的连续段会分给更多工作者？</p>
+<p>Brian: Yes, into chunks of two hundred fifty-six lookups. By default, programs write partial results to a workspace, and another kernel applies the optimizer. A two-million-lookup run becomes roughly eight thousand sub-programs.</p>
+<p>Brian：对，把它们分成每块256次查找的块。默认情况下，各程序把部分结果写入工作区，再由另一个内核应用优化器。一段包含200万次查找的访问会变成大约8000个子程序。</p>
+<p>Ava: So the basic rule is simple: keep small jobs together and divide large jobs. What changes on Blackwell hardware?</p>
+<p>Ava：所以基本规则很简单：小任务放在一起，大任务拆开。到了 Blackwell 硬件上又有什么变化？</p>
+<p>Brian: For very large batches, a fused path can finish the update in the same launch. It uses a device-scope fence, which ensures each partial result is visible across the GPU before its completion counter decreases.</p>
+<p>Brian：对于非常大的批次，融合路径可以在同一次内核启动中完成更新。它使用设备级栅栏，确保每个部分结果在对应的完成计数器递减之前，已经对整个 GPU 可见。</p>
+<p>Ava: Wait, so reaching zero isn't enough? The data actually has to arrive before you announce that you're done?</p>
+<p>Ava：等等，计数器归零还不够？必须先确保数据确实到位，才能宣布自己完成了？</p>
+<p>Brian: Exactly. Without that ordering, the last program could read an incomplete sum. The article also describes Blackwell features for stealing available work and merging partial results through a bulk reduction instruction.</p>
+<p>Brian：正是如此。如果没有这个顺序，最后一个程序可能读到不完整的总和。文章还介绍了 Blackwell 的一些功能，可以接手空闲可做的工作，并通过一条批量归约指令合并部分结果。</p>
+<p>Ava: What else helped? I'd expect loading more rows at once to be faster.</p>
+<p>Ava：还有什么起了作用？我原以为一次加载更多行会更快。</p>
+<p>Brian: That can backfire. Buffered rows keep many addresses in registers, the GPU's small working storage. In one unweighted short-run case, reducing gather width from eight to two cut register use from one hundred eighty-four to sixty-four.</p>
+<p>Brian：这也可能适得其反。把行缓存在寄存器中，会让很多地址占用寄存器这种 GPU 上的小型工作存储空间。在一个无权重的短段场景中，将 gather 宽度从8降到2，使寄存器用量从184降到了64。</p>
+<p>Ava: Less luggage per worker leaves room for more workers?</p>
+<p>Ava：每个工作者带的行李少了，就能腾出空间给更多工作者？</p>
+<p>Brian: That's a useful analogy. Occupancy, the share of available GPU execution capacity occupied by active work, rose from twelve point five percent to about fifty percent. They also group short runs by row width to reduce unused lanes.</p>
+<p>Brian：这个类比很有用。占用率，也就是活跃任务占用可用 GPU 执行能力的比例，从12.5%升到了约50%。他们还按行宽对短段分组，以减少空闲的执行通道。</p>
+<p>Ava: And does the central processing unit, or CPU, decide how many long runs there are?</p>
+<p>Ava：那长段的数量由中央处理器，也就是 CPU，来决定吗？</p>
+<p>Brian: They keep those counts on the GPU. Reading them back would synchronize the CUDA stream every backward pass. Instead, GPU classification fills preallocated workspace, and the kernels consume the counts directly.</p>
+<p>Brian：他们把这些计数留在 GPU 上。如果读回 CPU，每次反向计算都会让 CUDA 流同步。GPU 上的分类过程会填充预先分配的工作区，内核随后直接使用这些计数。</p>
+<p>Ava: Let's talk results. How broad was the evaluation?</p>
+<p>Ava：来谈谈结果。评估覆盖了多大范围？</p>
+<p>Brian: Three hundred seven shard configurations, representing two hundred eighty-three distinct shapes, on GB200. They used FP16 weights and exact row-wise Adagrad, the optimizer in this evaluation. The median forward speedup was one point two eight times.</p>
+<p>Brian：他们在 GB200 上测试了307种分片配置，涵盖283种不同的形状。测试使用 FP16 权重和精确的逐行 Adagrad；Adagrad 是这项评测采用的优化器。前向计算加速比的中位数为1.28倍。</p>
+<p>Ava: What explains the backward gains?</p>
+<p>Ava：反向计算的性能提升是怎么来的？</p>
+<p>Brian: CUDA switches to a cooperative thread array, or CTA, per row at segment length thirty-two. Triton keeps simple streaming below two hundred fifty-six. Deep in that band, the article reports four point three times faster execution.</p>
+<p>Brian：段长度达到32时，CUDA 会改为每行使用一个协作线程数组，即 CTA。Triton 在段长度低于256时仍采用简单的流式处理。在这个区间的较深处，文章报告其执行速度快了4.3倍。</p>
+<p>Ava: Because it moves less data?</p>
+<p>Ava：因为它搬运的数据更少？</p>
+<p>Brian: It moves roughly the same amount. The highlighted comparison shows much higher memory throughput at identical occupancy. Just above thirty-two accesses, the cooperative CUDA path doesn't have enough work to spread out its synchronization cost.</p>
+<p>Brian：它搬运的数据量大致相同。文章重点展示的对比表明，在占用率相同的情况下，内存吞吐量高得多。当访问次数刚超过32时，CUDA 的协作路径没有足够的工作量来摊薄同步成本。</p>
+<p>Ava: Where does Triton still struggle?</p>
+<p>Ava：Triton 在哪里仍然吃力？</p>
+<p>Brian: Workloads made entirely of runs shorter than four lose to CUDA. That's eleven shards, each under about a millisecond. Above segment length two hundred fifty-six, performance is at parity. The supplied text doesn't give an overall backward median.</p>
+<p>Brian：如果工作负载完全由长度小于4的段组成，性能就会输给 CUDA。这样的分片有11个，每个耗时都不到约1毫秒。段长度超过256时，两者性能相当。提供的文本没有给出反向计算整体加速比的中位数。</p>
+<p>Ava: And what's next? Are forward and backward already one giant kernel?</p>
+<p>Ava：接下来呢？前向和反向计算已经合并成一个巨大的内核了吗？</p>
+<p>Brian: No. Histogram reuse still uses separate launches. Optional preprocessing moved into forward reduced combined latency by sixteen point eight percent in one large B200 configuration. It defaults off and isn't exposed through the current TorchRec wrapper. Broader fusion is a future direction.</p>
+<p>Brian：没有。直方图复用仍然需要单独启动内核。在一个大型 B200 配置中，将可选的预处理移入前向计算，使合计延迟降低了16.8%。这一选项默认关闭，而且当前的 TorchRec 封装尚未提供它。更广泛的融合是未来的方向。</p>
+<p>Ava: Let's wrap up with three points. First, batching embedding work cuts launch overhead. Second, matching work to run length and row width improves execution. Third, the results depend on workload shape, and larger fusion opportunities remain ahead.</p>
+<p>Ava：最后总结3点。第一，批量处理嵌入计算可以减少启动开销。第二，根据段长度和行宽安排工作可以改善执行效率。第三，结果取决于工作负载的形状，未来还有更大的融合空间。</p>
+<p>Brian: Thanks for listening, and we'll see you next time.</p>
+<p>Brian：感谢收听，我们下次再见。</p>
+<h2>术语</h2>
+<p>Term · 释义</p>
+<p>Table-Batched Embedding · 表批量嵌入：在一次 GPU 启动中对多张嵌入表执行查找与池化。</p>
+<p>embedding bag · 嵌入袋：一组待查找的索引，其对应向量被聚合为一个输出向量。</p>
+<p>per-sample weights · 逐样本权重：在聚合前用于缩放各次查找结果或梯度贡献的权重。</p>
+<p>histogram · 直方图：此处用于统计各索引出现的次数。</p>
+<p>tensor cores · 张量核心：用于加速矩阵运算的 GPU 硬件单元。</p>
+<p>bounds checking · 边界检查：检查输入索引、偏移等是否有效。</p>
+<p>segment length · 段长度：同一嵌入表行被多少个样本访问，简称 SL。</p>
+<p>device-scope fence · 设备作用域内存栅栏：确保相关内存操作按要求对整个设备可见。</p>
+<p>atomic operation · 原子操作：多个执行单元并发访问时，保证特定更新不可分割地完成的操作。</p>
+<p>gather width · 聚集读取宽度：此处指同时发起或缓冲的行读取数量。</p>
+<p>occupancy · 占用率：GPU 可用执行资源中由活跃工作占据的比例。</p>
+<p>Cooperative Thread Array · 协作线程数组，简称 CTA：共同执行任务的一组 GPU 线程。</p>
+<p>exact row-wise Adagrad · 精确逐行 Adagrad：文章评测所使用的优化器，也是直方图复用路径支持的优化器。</p>
+<p>kernel fusion · 内核融合：将多个计算阶段合并到同一次内核执行中。</p>
+<h2>口语表达</h2>
+<p>Phrase · 释义</p>
+<p>Let's unpack pooling. · 我们来具体解释一下池化。可用 Let's unpack… 引出概念解释。</p>
+<p>That's the part I wanted to pin down. · 这就是我想弄清楚的部分。</p>
+<p>Wait, so reaching zero isn't enough? · 等等，所以计数到零还不够？用于确认出乎意料的信息。</p>
+<p>That can backfire. · 那可能适得其反。</p>
+<p>That's a useful analogy. · 这个类比很有帮助。</p>
+<p>Let's talk results. · 我们来谈谈结果。</p>
+<p>Where does Triton still struggle? · Triton 在哪些方面仍然表现不佳？可替换主语来询问局限。</p>
+<p>Let's wrap up with three points. · 我们用三点来收尾。</p>
+<h2>中文内容总结</h2>
+<p>表批量嵌入（TBE）把多张嵌入表的查找与池化合并为一次 GPU 操作，是推荐系统的重要算子。文章介绍用 FBTriton 实现前向和反向计算的方法，并报告与原有 CUDA 内核的性能比较。</p>
+<h3>前向计算</h3>
+<p>前向内核按索引读取表行，可乘以逐样本权重，再汇总为每个嵌入袋的输出。通用路径让一个程序处理多个袋并循环访问各表；FP16 和 BF16 权重使用 FP32 累加，FP32 权重使用 FP64 累加。特定的小表形状可用直方图统计索引，再通过 tl.dot 计算。当线性化范围小于 2³¹ 时，配置允许使用 int32 索引和偏移量，以减少存储占用；默认仍使用 int64。B200 上边界检查部分的速度最高为原来的 1.24 倍；融合检查默认关闭，偏移量检查仍由独立内核处理，加权、可变批次和 AMD 等配置回退到标准检查。</p>
+<h3>反向计算与负载均衡</h3>
+<p>反向计算先找出批次中访问过的每个表行，汇总所有对应输出梯度，再对该行执行一次优化器更新。索引转置后，同一行的访问形成长度不等的序列：少于 256 次访问时由单个程序完成；更长的序列默认拆成每段 256 次访问，并行累加后由第二个内核更新。短序列还按 next_pow2(D) 分桶，调整读取宽度，并在 GPU 上统计任务数量，避免每次反向计算都为读取计数而同步。对于 Blackwell 上的超大批次，设备级栅栏允许最后完成的程序在同一次内核启动中更新长序列。TLX Blackwell 路径还可使用 CLC，让程序完成当前任务后继续领取空闲任务，并通过 TMA 归约合并长序列的部分梯度。</p>
+<h3>可选预处理</h3>
+<p>精确逐行 Adagrad 可以保存前向计算的直方图供反向复用，前向和反向仍分别启动。另一条可选路径把索引转置、排序和游程编码移到前向。在一个大型 B200 配置中，前向耗时从 22.844 毫秒增至 33.252 毫秒，反向从 56.693 毫秒降至 32.931 毫秒，合计从 79.537 毫秒降至 66.183 毫秒，减少 16.8%。该路径默认关闭，当前 TorchRec 封装尚未提供入口。</p>
+<h3>测量结果与适用范围</h3>
+<p>在 GB200 上，以精确逐行 Adagrad 和 FP16 权重测试 307 个分片配置（283 种不同形状），前向相对 CUDA TBE 的加速比中位数为 1.28 倍。反向收益主要来自让长度 32 至 255 的序列继续使用简单的流式处理；在该区间较深处，Triton 处理速度达到 CUDA 的 4.3 倍。访问序列全部短于 4 次的 11 个分片仍慢于 CUDA，长度超过 256 次的形状大致持平。</p>
+<h3>实践意义</h3>
+<p>作者认为，改用 Python 编写稀疏计算路径后，调整分流阈值和读取宽度更容易；Blackwell 专有功能也可作为配置加入，而不必为 Hopper 或 AMD 另写整套内核。进一步融合前向、反向及优化器处理仍是未来方向，文章没有给出这些融合方案的实测收益。</p></body></html>

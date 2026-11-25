@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FlyDSL Through PyTorch: Faster Kernels on AMD GPUs</title>
+<style>body{font:17px/1.7 system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#222}h1{line-height:1.25}h2{margin-top:2rem}p{margin:.7rem 0}a{color:#06c}</style>
+</head><body><p><a href="https://pytorch.org/blog/accelerating-pytorch-on-amd-gpus-with-flydsl/">原视频 / 原文</a></p><h1>FlyDSL Through PyTorch: Faster Kernels on AMD GPUs</h1>
+<p>原文：[Accelerating PyTorch on AMD GPUs with FlyDSL - PyTorch](https://pytorch.org/blog/accelerating-pytorch-on-amd-gpus-with-flydsl/)</p>
+<h2>摘要</h2>
+<p>本期讨论 FlyDSL 如何通过现有 PyTorch API 服务于 AMD MI350 系列 GPU，包括编译模式下的 GEMM、即时执行的 RMSNorm 和 TopK，以及经 AOTriton 调度的注意力。两位主持人解释显式硬件映射、流水线和专家调度如何帮助不同算子，并区分算子级加速与整请求收益。节目也说明支持的输入条件、基准测试的比较对象，以及低精度推理结果仍需结合模型和并发度解读。</p>
+<h2>对话</h2>
+<p>Ava: Suppose a model server spends much of its time in matrix multiplies, attention, normalization, and selection. On AMD MI350-series GPUs, FlyDSL can now reach those operations through PyTorch APIs. The question is whether a faster kernel helps a whole request.</p>
+<p>Ava：假设一个模型服务器的大量时间花在矩阵乘法、注意力计算、归一化和选择操作上。在 AMD MI350 系列 GPU 上，现在可以通过 PyTorch API 让 FlyDSL 执行这些操作。问题是，更快的内核能否加快整个请求。</p>
+<p>Brian: In the reported vLLM tests, whole-request speedup reached 1.13x with BF16, 2.04x with MXFP8, and 3.01x with MXFP4. For MXFP4, lm_head was left unquantized. Those are peaks across different models and concurrency settings. Let's trace how the kernels enter PyTorch before we interpret the numbers.</p>
+<p>Brian：在报告的 vLLM 测试中，整个请求的加速比最高分别达到 BF16 的 1.13x、MXFP8 的 2.04x 和 MXFP4 的 3.01x。MXFP4 测试中的 lm_head 保持未量化状态。这些峰值来自不同的模型和并发设置。在解读数字之前，我们先看看这些内核是如何接入 PyTorch 的。</p>
+<p>Ava: I know Triton lets a kernel author describe tiles and leaves much of the hardware mapping to the compiler. FlyDSL seems to expose more of that mapping. What does an engineer gain by taking control of it?</p>
+<p>Ava：我知道 Triton 让内核开发者描述数据块，而把大部分硬件映射工作交给编译器。FlyDSL 似乎让开发者能更直接地控制这种映射。工程师接手这部分控制后能得到什么？</p>
+<p>Brian: FlyDSL uses layout algebra to assign tiles across blocks, waves, threads, and values. Authors can choose tiled copies and MFMA instructions, arrange LDS storage, and place synchronization boundaries. That gives architecture-specific kernels direct control over data movement while FlyDSL still expresses them in Python and lowers them through MLIR.</p>
+<p>Brian：FlyDSL 用布局代数把数据块分配到块、wave、线程和值上。开发者可以选择分块拷贝和 MFMA 指令，安排 LDS 存储，并设置同步边界。这样，针对特定架构的内核就能直接控制数据移动，同时仍用 Python 编写，并通过 MLIR 降低到更底层的表示。</p>
+<p>Ava: Let's take dense GEMM. A transformer projection may see very different token counts from one call to another. A single tile schedule won't suit every shape. How does FlyDSL keep the matrix units busy while loading the next operands?</p>
+<p>Ava：我们以稠密 GEMM 为例。一次 Transformer 投影在不同调用中可能遇到差别很大的 token 数量。单一的数据块调度无法适合所有形状。FlyDSL 怎样在加载下一批操作数时让矩阵运算单元保持忙碌？</p>
+<p>Brian: The dense kernel has full-tile and half-tile interleaved paths. The full-tile path stages upcoming K tiles in LDS. The half-tile path, called HTI, reuses buffer space a half at a time. Its two wave groups stagger loading and MFMA work, so one group can fetch operands while the other computes.</p>
+<p>Brian：稠密内核有全块路径和半块交错路径。全块路径会把后续的 K 块预先放进 LDS。称为 HTI 的半块路径每次复用一半缓冲区空间。它的两个 wave 组错开加载和 MFMA 计算，因此一组可以在另一组计算时获取操作数。</p>
+<p>Ava: That schedule sounds useful for low precision too, but MXFP adds scales. If an operand tile advances before its matching scale arrives, the result would be wrong. How are those lifetimes coordinated?</p>
+<p>Ava：这种调度听起来也适用于低精度计算，但 MXFP 还需要缩放因子。如果操作数块已经前进，而对应的缩放因子尚未到位，结果就会出错。它们各自的生命周期是怎样协调的？</p>
+<p>Brian: In MXFP HTI, operand buffers advance by K tile, while separate scale slots hold chunks that span several tiles. Each MFMA gets the scales for its K position. At a chunk boundary, waits and barriers allow the next scale chunk to be prefetched. The full-tile path instead stages scales with each K tile.</p>
+<p>Brian：在 MXFP HTI 中，操作数缓冲区按 K 块推进，独立的缩放因子槽位则保存覆盖多个块的缩放因子段。每次 MFMA 都会取得与其 K 位置对应的缩放因子。到达段边界时，等待和屏障机制允许预取下一段缩放因子。全块路径则把缩放因子与每个 K 块一起预存。</p>
+<p>Ava: Grouped GEMM has a different problem. In a mixture-of-experts layer, one expert might get many tokens and another none. Launching work for each expert separately seems awkward when the assignments keep changing.</p>
+<p>Ava：分组 GEMM 面临的是另一个问题。在混合专家层中，一个专家可能收到很多 token，另一个却一个也没有。分配情况不断变化时，为每个专家分别启动计算似乎很麻烦。</p>
+<p>Brian: FlyDSL uses a persistent grid. Workgroups walk through a cumulative stream of tiles across experts, and empty groups contribute no tiles. A compute-die-aware swizzle spreads work across the GPU's eight Accelerator Complex Dies. The schedule handles uneven token loads within one grouped operation.</p>
+<p>Brian：FlyDSL 使用持久化网格。工作组沿着跨专家的累积数据块流依次处理任务，空组不贡献任何数据块。一种考虑计算芯粒分布的重排方式将工作分散到 GPU 的 8 个 Accelerator Complex Dies 上。这种调度在一次分组操作中就能处理不均衡的 token 负载。</p>
+<p>Ava: Let's follow one call. If an application already uses torch.mm, does it have to name a FlyDSL kernel? And if FlyDSL loses on that shape, can PyTorch stay with another implementation?</p>
+<p>Ava：我们跟踪一次调用。如果应用已经使用 torch.mm，它还需要指定 FlyDSL 内核吗？如果 FlyDSL 在这种形状下速度较慢，PyTorch 能继续使用其他实现吗？</p>
+<p>Brian: Under torch.compile, TorchInductor filters eligible GEMM candidates, benchmarks FlyDSL beside ATen and Triton where supported, then caches the winner for that workload. The application keeps its operator call. Unsupported inputs can use other enabled backends, and the fastest measured candidate might still be ATen or Triton.</p>
+<p>Brian：在 torch.compile 下，TorchInductor 会筛选符合条件的 GEMM 候选实现，在受支持的情况下对 FlyDSL、ATen 和 Triton 进行基准测试，然后为该工作负载缓存胜出者。应用仍然使用原来的算子调用。不受支持的输入可以使用其他已启用的后端，而实测最快的候选实现也可能仍是 ATen 或 Triton。</p>
+<p>Ava: That's the useful boundary. The kernel is specialized, but the application API remains familiar. RMSNorm and TopK take another route, though. They can dispatch during eager execution, without waiting for a compiled graph.</p>
+<p>Ava：这个边界很实用。内核经过专门优化，但应用的 API 仍然熟悉。不过 RMSNorm 和 TopK 走的是另一条路径。它们可以在 eager 模式下直接分派，无须等待编译计算图。</p>
+<p>Brian: Yes. When the optional runtime is installed and enabled, eligible F.rms_norm and torch.topk calls use FlyDSL automatically. Other eager calls stay with ATen. RMSNorm currently accelerates forward; backward still uses PyTorch's existing implementation. Shape, dtype, and layout decide whether a call is eligible.</p>
+<p>Brian：没错。安装并启用可选运行时后，符合条件的 F.rms_norm 和 torch.topk 调用会自动使用 FlyDSL。其他 eager 模式调用仍由 ATen 处理。目前 RMSNorm 只加速前向计算；反向计算仍使用 PyTorch 现有的实现。调用是否符合条件取决于形状、数据类型和布局。</p>
+<p>Ava: The RMSNorm kernel keeps each row's input in registers, right? That would let it reuse the values after computing the sum of squares, instead of reading the row again to write the normalized output.</p>
+<p>Ava：RMSNorm 内核会把每一行的输入保存在寄存器里，对吧？这样它算完平方和后就能复用这些值，而不用为了写出归一化结果再读取一遍该行。</p>
+<p>Brian: Right. One thread block handles a row. Partial sums are reduced within waves, then combined through a small LDS buffer. For TopK, the strategy depends on K: small fixed values use a register-based sort and merge, while larger values use radix passes to find a threshold before sorting the survivors.</p>
+<p>Brian：对。一个线程块处理一行。先在 wave 内归约部分和，再通过一个小型 LDS 缓冲区合并。TopK 的策略则取决于 K：较小的固定 K 值使用基于寄存器的排序与合并，较大的值则通过多轮基数处理找到阈值，然后对留下的元素排序。</p>
+<p>Ava: TopK can expose indices as well as values, so tie behavior matters to callers. I'd want to know whether deterministic mode gives the same indices as ATen.</p>
+<p>Ava：TopK 除了输出值，还能输出索引，所以值相同时如何处理对调用方很重要。我想知道确定性模式给出的索引是否与 ATen 相同。</p>
+<p>Brian: It doesn't guarantee that. The radix path uses prefix-sum slots to preserve finite-value tie order when deterministic algorithms are enabled. With determinism off, it uses atomic slot allocation, so equal-value indices can vary. The register path is reproducible in either mode, but its tie ordering can differ from ATen. NaN handling can also change exact payload or index selection.</p>
+<p>Brian：这没有保证。启用确定性算法时，基数路径使用前缀和槽位来保持有限数值的相同值顺序。关闭确定性模式时，它通过原子操作分配槽位，因此相同值的索引可能变化。寄存器路径在两种模式下都可复现，但它处理相同值的顺序可能与 ATen 不同。NaN 的处理也可能改变具体选中的载荷或索引。</p>
+<p>Ava: Attention reaches FlyDSL through a third route. A call to F.scaled_dot_product_attention goes through AOTriton, where the library selects the kernel.</p>
+<p>Ava：注意力计算通过第三条路径接入 FlyDSL。F.scaled_dot_product_attention 的调用会经过 AOTriton，由这个库选择内核。</p>
+<p>Brian: AOTriton bundles the FlyDSL attention kernels and chooses among them, Triton, and AITER ASM using an offline operator-tuning database. The application doesn't need the optional FlyDSL package for this path. FP32 inputs stay with other AOTriton kernels. FlexAttention is a separate API and currently uses Inductor's Triton kernels.</p>
+<p>Brian：AOTriton 打包了 FlyDSL 注意力内核，并依据离线算子调优数据库，在这些内核、Triton 和 AITER ASM 之间作出选择。这条路径不要求应用安装可选的 FlyDSL 包。FP32 输入仍由其他 AOTriton 内核处理。FlexAttention 是独立的 API，目前使用 Inductor 的 Triton 内核。</p>
+<p>Ava: The attention schedule makes that extra control concrete. Softmax and matrix multiplication use different execution units, so there's an opportunity to overlap their work within a workgroup.</p>
+<p>Ava：注意力计算的调度让这种额外控制变得具体。Softmax 和矩阵乘法使用不同的执行单元，因此可以在一个工作组内重叠执行这两类工作。</p>
+<p>Brian: For head dimensions up to 256, its dual-wave pipeline keeps two KV tiles in flight. Softmax for one tile runs on the VALU while MFMA works on another. At head dimension 512, two full K and V tiles exceed the LDS limit, so the kernel processes one tile at a time and splits the head dimension across time and waves.</p>
+<p>Brian：对于不超过 256 的注意力头维度，它的双 wave 流水线会让两个 KV 块同时处于处理流程中。一个块的 Softmax 在 VALU 上运行时，MFMA 会处理另一个块。当注意力头维度达到 512 时，两个完整的 K 块和 V 块会超过 LDS 容量限制，因此内核改为一次处理一个块，并把注意力头维度拆分到不同的时段和 wave 中。</p>
+<p>Ava: The shape still matters. The broad list of supported operations could sound like every input works. I'd check the boundaries before expecting FlyDSL to run on an MI350-series GPU.</p>
+<p>Ava：形状仍然很重要。受支持操作的清单很长，听起来可能像是所有输入都能运行。在期待 FlyDSL 于 MI350 系列 GPU 上执行之前，我会先检查适用范围。</p>
+<p>Brian: Dense torch.mm accepts eligible 2D FP16 or BF16 inputs in four layouts. MXFP scaled GEMM needs quantized operands, block scales, specific A and B layouts, and K divisible by 128. RMSNorm and TopK have their own dtype and layout limits. FlyDSL attention supports FP16 and BF16, with head dimensions from 32 to 512.</p>
+<p>Brian：稠密 torch.mm 接受符合条件的二维 FP16 或 BF16 输入，支持 4 种布局。MXFP 缩放 GEMM 要求量化操作数、分块缩放因子、特定的 A 和 B 布局，以及能被 128 整除的 K。RMSNorm 和 TopK 各有自己的数据类型和布局限制。FlyDSL 注意力计算支持 FP16 和 BF16，注意力头维度范围为 32 到 512。</p>
+<p>Ava: That makes the benchmark setup important. A kernel timer won't include everything a model server does, such as compilation or preparing quantized inputs.</p>
+<p>Ava：这就让基准测试的设置变得重要。内核计时不会包含模型服务器所做的所有事情，例如编译或准备量化输入。</p>
+<p>Brian: The operator suites measure steady-state execution and exclude compilation and initial autotuning. MXFP timing starts with already quantized operands. The suites also use different timing methods, so each result needs its stated baseline. Dense BF16 NT GEMM has a 1.10x geometric-mean speedup over the faster of ATen and Triton at each of 15 shapes. How would you use that number when choosing a backend?</p>
+<p>Brian：这些算子测试集测量稳态执行时间，不包含编译和首次自动调优。MXFP 计时从已经量化的操作数开始。各测试集还使用不同的计时方法，因此解读每项结果时都要看它注明的基线。在 15 种形状下，稠密 BF16 NT GEMM 相对于每种形状上 ATen 与 Triton 中较快的一方，几何平均加速比为 1.10x。选择后端时，你会怎样使用这个数字？</p>
+<p>Ava: That dense average hides some losses. I'd let PyTorch select per workload instead of assuming FlyDSL wins everywhere. For the low-precision GEMMs, I'd read the results against ATen, their stated baseline.</p>
+<p>Ava：这个稠密 GEMM 的平均值掩盖了一些性能落后的情况。我会让 PyTorch 按工作负载选择，而不会认定 FlyDSL 处处最快。对于低精度 GEMM，我会按照结果注明的基线 ATen 来解读。</p>
+<p>Brian: Across 17 NT shapes per format, MXFP8 has a 1.58x geometric-mean speedup and MXFP4 has a 1.68x geometric-mean speedup over ATen. FlyDSL wins every reported case in those suites. The measurements use the constrained layouts selected for scaled GEMM under torch.compile, and they don't include the work of producing quantized inputs.</p>
+<p>Brian：每种格式分别测试了 17 种 NT 形状，相对于 ATen，MXFP8 的几何平均加速比为 1.58x，MXFP4 为 1.68x。在这些测试集中，FlyDSL 赢得了所有报告的案例。测量使用的是 torch.compile 下为缩放 GEMM 选定的受限布局，并且不包括生成量化输入的工作。</p>
+<p>Ava: The other operations stress different behavior. Uneven experts, an off-by-one normalization width, and a tiny TopK request won't share one performance pattern.</p>
+<p>Ava：其他操作考验的是不同情况。专家负载不均、归一化宽度只差 1，以及 K 极小的 TopK 请求，不会呈现同一种性能模式。</p>
+<p>Brian: Grouped GEMM has a 1.20x geometric-mean speedup over Triton across 24 cases, and FlyDSL wins all five ragged expert-load cases. RMSNorm gains are roughly 1.2x to 1.5x on aligned hidden dimensions, but one FP16 off-by-one case reaches 3.66x. That peak shouldn't stand in for every shape. If K is small, which TopK path would you inspect?</p>
+<p>Brian：分组 GEMM 在 24 个案例中相对 Triton 的几何平均加速比为 1.20x，FlyDSL 在全部 5 个专家负载不均的案例中都获胜。对于对齐的隐藏维度，RMSNorm 的加速比大约是 1.2x 到 1.5x，但一个 FP16 宽度只差 1 的案例达到 3.66x。不能用这个峰值代表所有形状。如果 K 很小，你会查看哪条 TopK 路径？</p>
+<p>Ava: I'd inspect the register path, since it handles small fixed K. I'd also check the determinism setting before comparing its results with ATen.</p>
+<p>Ava：我会查看寄存器路径，因为它处理较小的固定 K 值。在把结果与 ATen 比较之前，我也会检查确定性设置。</p>
+<p>Brian: For K values of 2, 4, 8, and 16, the geometric-mean speedup over ATen is 4.82x with deterministic algorithms disabled and 4.02x with them enabled. Larger sampled K bands range from 1.40x to 1.97x. Some individual radix cases are near parity.</p>
+<p>Brian：当 K 为 2、4、8 和 16 时，相对于 ATen，关闭确定性算法的几何平均加速比为 4.82x，启用时为 4.02x。采样的较大 K 值区间为 1.40x 到 1.97x。一些单独的基数路径案例则接近持平。</p>
+<p>Ava: Here's the catch with the attention numbers: they're a release comparison. AOTriton changed other kernels and its tuning database too, so the gain can't be assigned entirely to FlyDSL.</p>
+<p>Ava：注意力计算的数字有个关键点：它们比较的是不同版本。AOTriton 的其他内核及其调优数据库也发生了变化，所以不能把全部提升都归因于 FlyDSL。</p>
+<p>Brian: Exactly. On gfx950, published AOTriton 0.14.2b throughput is 0.92x to 2.34x of 0.13b for forward, and 0.93x to 2.47x for backward, depending on head dimension and causal mode. The newer release also updates Triton, AITER, and tuning data. Some aggregates are below parity.</p>
+<p>Brian：正是如此。在 gfx950 上，公布的 AOTriton 0.14.2b 吞吐量相对于 0.13b，前向计算为 0.92x 到 2.34x，反向计算为 0.93x 到 2.47x，具体取决于注意力头维度和因果模式。新版本还更新了 Triton、AITER 和调优数据。有些汇总结果低于持平水平。</p>
+<p>Ava: That puts the speedup in context. The vLLM tests are closer to a user-visible request. What did adding FlyDSL change there, and how much confidence should we place in the small differences?</p>
+<p>Ava：这样就能更准确地理解加速比。vLLM 测试更接近用户感受到的完整请求。加入 FlyDSL 后发生了什么变化？对于较小的差异，我们该有多大把握？</p>
+<p>Brian: For BF16, the clearest gain was Llama-3.1-8B-Instruct at low-to-medium concurrency, peaking at 1.13x. Qwen3-32B peaked at 1.06x. Llama-3.3-70B-Instruct stayed mostly within the measured 1.79% noise floor. The BF16 results use medians from at least two interleaved repetitions.</p>
+<p>Brian：对于 BF16，最明显的提升出现在低到中等并发下的 Llama-3.1-8B-Instruct，峰值为 1.13x。Qwen3-32B 的峰值为 1.06x。Llama-3.3-70B-Instruct 的结果大多处于测得的 1.79% 噪声下限范围内。BF16 结果取至少 2 次交错重复测试的中位数。</p>
+<p>Ava: Low precision looks stronger. Every tested model-concurrency combination improved for both MXFP formats. But those tests also use a different baseline from the BF16 comparison.</p>
+<p>Ava：低精度的表现看起来更强。对于两种 MXFP 格式，每一种测试过的模型与并发量组合都有提升。不过，这些测试采用的基线也与 BF16 比较不同。</p>
+<p>Brian: Yes. MXFP8 and MXFP4 compare FlyDSL against ATen, while BF16 starts with ATen and Triton enabled. The MXFP8 whole-request peak is 2.04x. With lm_head left unquantized, the MXFP4 peak is 3.01x. Each low-precision model-concurrency cell has one measured run, so small differences don't have a variance estimate.</p>
+<p>Brian：是的。MXFP8 和 MXFP4 是将 FlyDSL 与 ATen 比较，而 BF16 的基线启用了 ATen 和 Triton。MXFP8 的整个请求峰值加速比为 2.04x。在 lm_head 保持未量化的情况下，MXFP4 的峰值为 3.01x。每个低精度模型与并发量组合只测量了 1 次，因此较小的差异没有方差估计。</p>
+<p>Ava: What should we try first? For a supported MI350-series workload, I'd start with the existing operator calls and check whether the operation is eligible. Then I'd measure the whole application, including any layout copies or quantization it needs.</p>
+<p>Ava：我们应该先尝试什么？对于受支持的 MI350 系列工作负载，我会先保留现有的算子调用，检查操作是否符合条件。然后测量整个应用，包括它需要的布局拷贝或量化工作。</p>
+<p>Brian: For GEMM, RMSNorm, and TopK, use a recent ROCm PyTorch nightly that contains all the FlyDSL integrations discussed here, including MXFP scaled GEMM, plus the optional FlyDSL 0.3.x runtime. Compiled GEMMs need FlyDSL included in Inductor's autotuning candidates. SDPA only needs a build linked against AOTriton 0.14.2b or later.</p>
+<p>Brian：对于 GEMM、RMSNorm 和 TopK，应使用包含这里讨论的全部 FlyDSL 集成，包括 MXFP 缩放 GEMM 的近期 ROCm PyTorch nightly 版本，并安装可选的 FlyDSL 0.3.x 运行时。编译后的 GEMM 需要把 FlyDSL 纳入 Inductor 的自动调优候选实现。SDPA 只需要链接了 AOTriton 0.14.2b 或更高版本的构建版本。</p>
+<p>Ava: The current coverage is already useful, but it leaves room for broader hardware support, more low-precision operations, and training paths. What work does the article identify next?</p>
+<p>Ava：目前的覆盖范围已经很有用，但在支持更多硬件、扩展低精度操作和覆盖训练路径方面仍有空间。文章指出接下来会做哪些工作？</p>
+<p>Brian: It lists MI450-series support, MXFP8 grouped GEMM, FlyDSL FlexAttention, GEMM epilogue fusion, broader backward coverage, and more end-to-end validation. Those are future work. For now, the practical takeaway is to keep backend choice tied to the workload: eligibility, shape, and the time spent in each operation decide how much a kernel gain helps.</p>
+<p>Brian：文章列出了对 MI450 系列的支持、MXFP8 分组 GEMM、FlyDSL FlexAttention、GEMM 尾部操作融合、更广泛的反向计算覆盖，以及更多端到端验证。这些都是未来工作。眼下的实际结论是，后端选择要结合工作负载：操作是否符合条件、形状，以及各操作所占的时间，共同决定内核加速能带来多大收益。</p>
+<p>Ava: So PyTorch can select specialized FlyDSL kernels without changing the application's operator calls, while the measured benefit still depends on the full request. That's a useful way to read these results. Thanks for listening.</p>
+<p>Ava：所以，PyTorch 可以在不改变应用算子调用的情况下选择专门优化的 FlyDSL 内核，而实测收益仍取决于完整请求。这样解读这些结果很有帮助。感谢收听。</p>
+<h2>术语</h2>
+<p>Term · 释义</p>
+<p>FlyDSL · 用于编写显式控制硬件映射的 GPU 内核的领域特定语言。</p>
+<p>layout algebra · 把数据块映射到线程块、波、线程和值的方法。</p>
+<p>GEMM · 通用矩阵乘法。</p>
+<p>HTI · 半块交错执行路径，逐半块复用缓冲区并交错加载与计算。</p>
+<p>LDS · GPU 计算单元内供线程组使用的本地数据共享存储。</p>
+<p>MFMA · 矩阵乘加指令，用于执行矩阵核心计算。</p>
+<p>MXFP8 · 使用微缩放的八位低精度格式。</p>
+<p>MXFP4 · 使用微缩放的四位低精度格式。</p>
+<p>persistent grid · 让常驻工作组持续领取并处理多个计算块的调度方式。</p>
+<p>RMSNorm · 利用均方根统计量对激活值进行归一化并缩放的算子。</p>
+<p>TopK · 从输入中选出数值最大的 K 个元素及其索引的算子。</p>
+<p>AOTriton · 为 PyTorch 的 ROCm 注意力算子提供预编译内核和调度选择的库。</p>
+<p>geometric mean · 对多项加速比求几何平均，使各测试用例具有相同权重。</p>
+<h2>口语表达</h2>
+<p>Phrase · 释义</p>
+<p>Let's trace how the kernels enter PyTorch · 我们来梳理这些内核如何进入 PyTorch 的调用路径。</p>
+<p>Let's follow one call · 我们沿着一次调用看下去。</p>
+<p>That's the useful boundary · 这就是一个有用的职责边界。</p>
+<p>The shape still matters · 输入形状仍然很关键。</p>
+<p>Here's the catch · 这里有个需要留意的地方。</p>
+<p>That puts the speedup in context · 这样就能结合具体背景理解加速比。</p>
+<p>What should we try first? · 我们首先应该试什么？</p>
+<p>the practical takeaway · 可用于实际工作的要点。</p>
+<h2>中文内容总结</h2>
+<p>FlyDSL 将针对 AMD GPU 的内核接入现有 PyTorch API，覆盖矩阵乘法、注意力、RMSNorm 和 TopK。当前 PyTorch 集成主要面向 MI350 系列的 gfx950 架构，收益随输入形状、精度和模型负载变化。</p>
+<h3>接入方式</h3>
+<p>合格的 RMSNorm 和 TopK 调用可在 eager 模式自动使用 FlyDSL。对密集、分组及 MXFP 矩阵乘法，TorchInductor 在 torch.compile 下将 FlyDSL 与 ATen、Triton 一起测速，并缓存每种负载的最快实现。F.scaled_dot_product_attention 则由 AOTriton 的调优数据库选择 FlyDSL、Triton 或 AITER ASM 内核。未覆盖的输入继续使用现有实现。</p>
+<h3>内核设计</h3>
+<p>FlyDSL 让开发者显式安排数据在计算块、wave 和线程间的布局，以及 LDS 缓冲、MFMA 指令和同步。密集 GEMM 用分阶段缓冲和半 tile 交错执行重叠预取与计算；MXFP GEMM 还要让操作数与对应的缩放因子同步推进。分组 GEMM 用持久化网格跨专家分配工作并跳过空组。TopK 对小 K 在寄存器内排序，对较大 K 先用基数选择缩小排序范围。注意力通过双 wave 流水线重叠 softmax 与 MFMA；head 维度为 512 时改用分片调度，以适应 160 KB 的 LDS 限制。</p>
+<h3>算子测试结果</h3>
+<p>在 MI355X 的稳态测试中，15 个 BF16 NT 密集 GEMM 相对逐形状较快的 ATen 或 Triton 实现，几何平均加速 1.10 倍。MXFP8 和 MXFP4 在各自 17 个 NT 形状上相对 ATen 分别加速 1.58 和 1.68 倍；24 个 BF16 分组 GEMM 相对 Triton 加速 1.20 倍。22 个 RMSNorm 测例相对 ATen 为 1.17 至 3.66 倍，最高值来自非对齐维度。10 个小 K TopK 测例在关闭确定性算法时几何平均加速 4.82 倍。AOTriton 0.14.2b 相对 0.13b 的 gfx950 注意力吞吐比，前向为 0.92 至 2.34 倍，反向为 0.93 至 2.47 倍；版本间还有其他内核和调优数据库变化，不能把差异单独归因于 FlyDSL。</p>
+<h3>整请求表现</h3>
+<p>作者在单张 MI355X 上测试 vLLM，使用三个模型、256 token 输入、固定 512 token 输出及 8 至 256 的并发数。BF16 相对启用 ATen 和 Triton 的基线最高加速 1.13 倍；MXFP8 和 MXFP4 相对 ATen 基线最高分别为 2.04 和 3.01 倍，两个低精度配置各自的 18 组模型与并发组合均有提升。低精度结果每组只测一次，小幅差异缺少方差验证。</p>
+<h3>适用边界</h3>
+<p>算子测试不计编译、首次调优或 MXFP 输入量化。MXFP 要求按 K 每 32 个值提供缩放因子、K 为 128 的倍数，并采用 A 行优先、B 列优先布局。RMSNorm 目前只加速前向；注意力支持 FP16、BF16，head 维度为 32 至 512，FlexAttention 尚未接入。TopK 对相等值或 NaN 的索引选择可能与 ATen 不同。文中的部署条件是已集成相关功能的 ROCm PyTorch nightly 与可选 FlyDSL 0.3.x 运行时；SDPA 只需链接 AOTriton 0.14.2b 或更新版本。MI450 支持、FlexAttention 和更广的训练支持仍属后续计划。</p></body></html>
